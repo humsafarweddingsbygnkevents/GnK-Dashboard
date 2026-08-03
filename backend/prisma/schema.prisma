@@ -1,10 +1,10 @@
-// SQLite for local dev. To move to Postgres (Neon via Vercel Marketplace,
-// same as the sibling Humsafar Wedding project) later: change provider to
-// "postgresql", add a directUrl, point DATABASE_URL at the pooled connection
-// string, and re-run `prisma migrate dev`.
+// Postgres via Neon (Vercel Marketplace). DATABASE_URL is the pooled
+// (pgbouncer) connection used at runtime; directUrl is the unpooled
+// connection Prisma needs for migrations.
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
 generator client {
