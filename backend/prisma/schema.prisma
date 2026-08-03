@@ -1,0 +1,221 @@
+// SQLite for local dev. To move to Postgres (Neon via Vercel Marketplace,
+// same as the sibling Humsafar Wedding project) later: change provider to
+// "postgresql", add a directUrl, point DATABASE_URL at the pooled connection
+// string, and re-run `prisma migrate dev`.
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model City {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique
+  state  String?
+  hotels Hotel[]
+}
+
+// Modeled on the hotel rate/contact sheets the team maintains per
+// destination (e.g. "corbett hotel sheet.xlsx") rather than scraped
+// WedMeGood listings — most rate/capacity fields are free text ("20-22K
+// AP++", "80-90L++", "100-120") because that's how the source sheets record
+// them, not clean numbers.
+model Hotel {
+  id                     Int      @id @default(autoincrement())
+  cityId                 Int
+  city                   City     @relation(fields: [cityId], references: [id])
+  name                   String
+  area                   String?
+  roomCount              Int?
+  website                String?
+  contactPerson          String?
+  contactDesignation     String?
+  contactNumber          String?
+  contactEmail           String?
+  contactPerson2         String?
+  contactDesignation2    String?
+  contactNumber2         String?
+  apPlanSeasonRate       String?
+  apPlanOffSeasonRate    String?
+  extraPersonRate        String?
+  buyoutPrice            String?
+  guestCapacity          String?
+  // Best-effort max headcount parsed from guestCapacity (e.g. "100-120" -> 120)
+  // so the guests filter can do a numeric range query on the free-text field above.
+  guestCapacityMax       Int?
+  relationshipManager    String?
+  calling                String?
+  notes                  String?
+  source                 String   @default("rate-sheet")
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([cityId])
+  @@index([area])
+}
+
+model GoogleAccount {
+  id           Int       @id @default(autoincrement())
+  email        String    @unique
+  accessToken  String
+  refreshToken String
+  expiryDate   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// Generic IMAP/SMTP mailbox. Complements GoogleAccount (which is Gmail via
+// OAuth) so the dashboard can show a merged inbox across providers. The
+// mailbox password is encrypted at rest (AES-256-GCM) in `passwordEnc`,
+// never stored or returned in plaintext.
+model MailAccount {
+  id          Int      @id @default(autoincrement())
+  email       String   @unique
+  label       String?
+  provider    String   @default("godaddy") // preset key for host defaults
+  imapHost    String
+  imapPort    Int      @default(993)
+  smtpHost    String
+  smtpPort    Int      @default(465)
+  passwordEnc String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Dashboard login — staff accounts. Separate from GoogleAccount above, which
+// stores OAuth tokens for the shared Gmail inbox integration, not admin logins.
+model Admin {
+  id             Int       @id @default(autoincrement())
+  email          String?   @unique // null until Google is bound
+  name           String?
+  passwordHash   String?
+  googleId       String?   @unique
+  role           String    @default("admin") // "admin" | "employee"
+  secretCodeHash String?
+  loginCodeHash  String?   @unique // sha256 hex of the permanent 8-char login code
+  codeUpdatedAt  DateTime?
+  active         Boolean   @default(true) // false = login disabled
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  attendance        AttendanceEntry[]
+  attendanceUnlocks AttendanceUnlock[]
+}
+
+model AttendanceEntry {
+  id               Int      @id @default(autoincrement())
+  employeeId       Int
+  employee         Admin    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date             String // "YYYY-MM-DD" — string on purpose: date-keyed log, no TZ drift
+  taskDescription  String
+  timeSpentMinutes Int
+  status           String // "in_progress" | "completed" | "blocked" | "on_leave"
+  comment          String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([employeeId, date])
+}
+
+// An admin "reopening" a day that locked at 7:30 PM. While a row exists for
+// (employeeId, date), that employee may add/edit attendance for that date
+// again; deleting the row re-locks it. Absence itself is never stored — it's
+// derived live from "deadline passed + no entry" (see lib/attendanceLock.js).
+model AttendanceUnlock {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  employee   Admin    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       String // "YYYY-MM-DD"
+  unlockedBy Int? // admin id who reopened it (loose ref, no FK)
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+}
+
+model Client {
+  id            Int       @id @default(autoincrement())
+  name          String
+  phone         String?
+  email         String?
+  weddingDate   DateTime?
+  preferredCity String?
+  guestCount    Int?
+  budgetLakhs   Float?
+  notes         String?
+  // Preference fields populated by Hwoli's logClientDetails tool.
+  cateringPreference String?
+  decorStyle         String?
+  mustHaveFeatures   String?
+  source        String    @default("manual")
+  status        String    @default("new")
+  // LLM triage of what this person wants:
+  // 'event_enquiry' | 'collaboration' | 'job_internship' | 'general'
+  category      String?
+  // Stable per-channel sender identity — IGSID/PSID for instagram/facebook,
+  // email address for gmail, null for manual. Lets the webhook upsert the
+  // same person instead of creating a duplicate on every message.
+  channelUserId String?
+  lastContactAt DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  functions     ClientFunction[]
+
+  @@unique([source, channelUserId])
+  @@index([status])
+  @@index([source])
+  @@index([category])
+}
+
+// A single wedding event for a client (mehendi, sangeet, reception, etc.).
+// One Client can have many functions, each with its own date/city/guest count.
+model ClientFunction {
+  id         Int       @id @default(autoincrement())
+  clientId   Int
+  client     Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type       String
+  date       DateTime?
+  city       String?
+  guestCount Int?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([clientId])
+}
+
+// Raw inbound messages from Meta (Instagram DMs / Facebook Messenger).
+// Unlike Gmail (fetched live, never stored), Meta delivers via webhook push
+// only — there's no re-fetch API, so these must be persisted on arrival.
+model Message {
+  id         Int      @id @default(autoincrement())
+  platform   String   // 'instagram' | 'facebook'
+  messageId  String   @unique // Meta's mid — used to dedupe redelivered webhooks
+  senderId   String   // PSID (Facebook) or IGSID (Instagram)
+  senderName String?  // resolved via Graph API; null if lookup failed/unavailable
+  text       String?
+  timestamp  DateTime
+  rawJson    String   // full raw webhook entry, for debugging/audit
+  createdAt  DateTime @default(now())
+
+  @@index([platform])
+  @@index([senderId])
+}
+
+// One row per (platform, senderId) — holds a staff-set display name override
+// (Facebook's Graph API won't return a real sender name/photo until the
+// pages_messaging permission clears Meta App Review, so staff can label who's
+// messaging in the meantime) plus any avatar URL we could resolve via Graph.
+model MessageContact {
+  id          Int      @id @default(autoincrement())
+  platform    String   // 'instagram' | 'facebook'
+  senderId    String
+  displayName String?  // staff override — takes priority over Message.senderName
+  username    String?  // Instagram @handle resolved via Graph API (Facebook has none)
+  avatarUrl   String?  // resolved via Graph API (e.g. Instagram profile_pic)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([platform, senderId])
+}

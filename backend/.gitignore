@@ -1,0 +1,7 @@
+node_modules/
+.env
+.env.local
+prisma/prisma/*.db
+prisma/prisma/*.db-journal
+*.log
+.gstack/

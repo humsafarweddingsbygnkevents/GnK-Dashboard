@@ -1,0 +1,9 @@
+{
+  "outputDirectory": "dashboard",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/auth/:path*", "destination": "/api" },
+    { "source": "/health", "destination": "/api" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
+}
