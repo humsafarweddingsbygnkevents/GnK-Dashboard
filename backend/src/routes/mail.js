@@ -17,8 +17,8 @@ const router = Router();
 // the owner's personal Gmail account stays admin-only. Extend this set if
 // more shared mailboxes are added later; no schema change needed.
 const EMPLOYEE_VISIBLE_EMAILS = new Set([
-  'info@humsafarweddingsbygnk.com',
-  'sales@humsafarweddingsbygnk.com',
+  'info@humsafarweddingsbygnk.in',
+  'sales@humsafarweddingsbygnk.in',
 ]);
 
 function isAdmin(req) {
