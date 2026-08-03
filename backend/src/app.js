@@ -63,7 +63,7 @@ app.use(cookieParser());
 // logged-in admin's session) — only these known dashboard origins get CORS
 // headers at all, and only non-credentialed requests otherwise.
 const ALLOWED_ORIGINS = new Set([
-  'https://dashboard.humsafarweddingsbygnk.com',
+  'https://dashboard.humsafarweddingsbygnk.in',
   'https://humsafar-gnk-dashboard.vercel.app',
   'http://localhost:3000',
 ]);
