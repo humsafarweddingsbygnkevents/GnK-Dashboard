@@ -393,6 +393,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .modal.closing{animation:modaldown .16s var(--ease-out) both}
 .modal-title{font-family:Fraunces,serif;font-size:20px;font-weight:600;margin-bottom:18px}
 .modal-close{position:absolute;top:16px;right:16px}
+.nc-remark-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:8px}
+.nc-remark-num{width:22px;height:22px;flex:none;margin-top:9px;border-radius:50%;background:var(--cream-2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font:600 11px Inter,sans-serif;color:var(--text-2)}
+.nc-remark-row .input{flex:1}
+.nc-remark-remove{flex:none;margin-top:4px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:13px;transition:background .12s,color .12s}
+.nc-remark-remove:hover{background:var(--cream-3);color:var(--text)}
+.nc-search-results{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);max-height:220px;overflow-y:auto;z-index:5}
+.nc-search-result{display:flex;flex-direction:column;gap:2px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--cream-3)}
+.nc-search-result:last-child{border-bottom:none}
+.nc-search-result:hover{background:var(--cream-2)}
+.nc-search-result .r-name{font-weight:600;font-size:13px;color:var(--text)}
+.nc-search-result .r-meta{font-size:11.5px;color:var(--text-3)}
 
 /* compose (Gmail-style docked window) */
 .compose-win{position:fixed;bottom:0;right:28px;width:512px;max-width:calc(100vw - 40px);height:560px;max-height:calc(100vh - 40px);background:#fff;border-radius:12px 12px 0 0;box-shadow:0 -2px 16px rgba(35,41,31,.18),0 8px 40px rgba(35,41,31,.22);z-index:120;display:flex;flex-direction:column;overflow:hidden;animation:composeup .24s var(--ease-out) both}
@@ -473,7 +484,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 /* channel cards (settings) */
 .channel-card{display:flex;align-items:center;gap:13px;background:var(--cream-2);border:1px solid var(--border);border-radius:13px;padding:14px 16px;transition:border-color .15s}
 .channel-card:hover{border-color:var(--border-2)}
-.channel-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none}
 
 /* toggle */
 .toggle{position:relative;display:inline-block;width:42px;height:24px}
@@ -925,11 +935,6 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .settings-link-btn{border:none;background:transparent;padding:6px 9px;border-radius:7px;font:600 12.5px Inter,sans-serif;
   color:var(--red);cursor:pointer;transition:background .12s;flex:none}
 .settings-link-btn:hover{background:var(--red-bg)}
-.settings-channel-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-@media(max-width:680px){.settings-channel-grid{grid-template-columns:1fr}}
-.settings-channel-card{display:flex;align-items:center;gap:12px;background:var(--cream-2);border:1px solid var(--border-soft);
-  border-radius:12px;padding:14px 15px;transition:border-color .15s,transform .15s}
-.settings-channel-card:hover{border-color:var(--gold-400);transform:translateY(-1px)}
 .settings-mini-stat{background:linear-gradient(165deg,#fff 0%,var(--cream-2) 100%);border:1px solid var(--border-soft);
   border-radius:12px;padding:15px 17px}
 .settings-mini-value{font-family:Fraunces,serif;font-size:26px;font-weight:600;color:var(--text);line-height:1}
@@ -1012,9 +1017,22 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
       <span class="kbd">⌘K</span>
     </label>
     <div class="topbar-spacer"></div>
-    <button class="topbar-icon-btn" title="Notifications" id="notif-btn" style="position:relative">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+    <button class="topbar-icon-btn" title="Report an issue" id="feedback-report-btn" onclick="openFeedbackModal()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
     </button>
+    <div class="topbar-usermenu" id="notif-menu">
+      <button class="topbar-icon-btn" title="Notifications" id="notif-btn" style="position:relative" onclick="toggleNotifMenu(event)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span id="notif-dot" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--red);color:#fff;font:700 9.5px Inter,sans-serif;align-items:center;justify-content:center;border:2px solid var(--nb-charcoal)"></span>
+      </button>
+      <div class="usermenu-pop" id="notif-pop" role="menu" style="min-width:310px;max-width:340px;right:-10px">
+        <div class="usermenu-head" style="padding:9px 10px">
+          <div style="font-weight:600;font-size:13.5px;color:var(--text)">Feedback</div>
+        </div>
+        <div class="usermenu-sep"></div>
+        <div id="notif-list" style="max-height:320px;overflow-y:auto"></div>
+      </div>
+    </div>
     <div class="topbar-divider"></div>
     <div class="topbar-usermenu" id="topbar-usermenu">
       <button class="topbar-user" id="topbar-user-btn" onclick="toggleUserMenu(event)" aria-haspopup="true" aria-expanded="false">
@@ -1073,6 +1091,11 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
         <button class="nav-btn" data-screen="team" onclick="navigate('team')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h4M15 12h4M5.5 16.5c.6-1.5 1.9-2.5 3.5-2.5s2.9 1 3.5 2.5"/></svg>
           <span class="nav-label">Team</span>
+        </button>
+        <button class="nav-btn" data-screen="feedback" onclick="navigate('feedback')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          <span class="nav-label">Feedback</span>
+          <span class="nav-badge" id="feedback-badge" style="display:none">0</span>
         </button>
         <div class="nav-divider"></div>
         <span class="nav-section-label">AI</span>
@@ -1283,8 +1306,10 @@ async function apiPatch(path, body) {
   return r.json();
 }
 
-async function apiDelete(path) {
-  const r = await fetch(path, { method:'DELETE' });
+async function apiDelete(path, body) {
+  const opts = { method:'DELETE' };
+  if (body !== undefined) { opts.headers = {'Content-Type':'application/json'}; opts.body = JSON.stringify(body); }
+  const r = await fetch(path, opts);
   if (!r.ok) throw await apiError(r);
   return r.json();
 }
@@ -1385,15 +1410,16 @@ function showApp() {
   applyRoleUI();
   const isEmployee = S.admin?.role === 'employee';
   navigate(S.screen || (isEmployee ? 'attendance' : 'dashboard'));
+  startFeedbackPolling();
 }
 
 // Cosmetic role gating only — the real enforcement is requireAdmin on the
 // server. Admin-only chrome is removed from the DOM (not CSS-hidden) for
 // employees; logout reloads the page, which restores it for the next login.
-// Employees share the venue database, inbox, and Hwoli chat with admins —
-// only Clients, Team (other people's accounts/attendance), and Settings are
-// admin-only. Employees manage their own attendance via "My Attendance".
-const EMPLOYEE_HIDDEN_SCREENS = ['clients', 'team', 'settings'];
+// Employees share the venue database, inbox, Hwoli chat, and client data
+// with admins — only Team (other people's accounts/attendance) and Settings
+// are admin-only. Employees manage their own attendance via "My Attendance".
+const EMPLOYEE_HIDDEN_SCREENS = ['team', 'settings'];
 
 function applyRoleUI() {
   const isEmployee = S.admin?.role === 'employee';
@@ -1641,6 +1667,7 @@ function startGoogleAuth(mode) {
 
 function toggleUserMenu(e) {
   if (e) e.stopPropagation();
+  closeNotifMenu();
   const menu = $('topbar-usermenu');
   const open = menu.classList.toggle('open');
   $('topbar-user-btn')?.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1651,14 +1678,30 @@ function closeUserMenu() {
   if (menu) { menu.classList.remove('open'); $('topbar-user-btn')?.setAttribute('aria-expanded', 'false'); }
 }
 
-// Close the user menu / thread-details popover on any outside click or Escape.
+function toggleNotifMenu(e) {
+  if (e) e.stopPropagation();
+  closeUserMenu();
+  const menu = $('notif-menu');
+  if (!menu) return;
+  const open = menu.classList.toggle('open');
+  if (open) loadNotifFeed();
+}
+
+function closeNotifMenu() {
+  const menu = $('notif-menu');
+  if (menu) menu.classList.remove('open');
+}
+
+// Close the user menu / notif popover / thread-details popover on any outside click or Escape.
 document.addEventListener('click', e => {
   const menu = $('topbar-usermenu');
   if (menu && menu.classList.contains('open') && !menu.contains(e.target)) closeUserMenu();
+  const nmenu = $('notif-menu');
+  if (nmenu && nmenu.classList.contains('open') && !nmenu.contains(e.target)) closeNotifMenu();
   const dmenu = $('hd-details-menu');
   if (dmenu && dmenu.classList.contains('open') && !dmenu.contains(e.target)) closeThreadDetails();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeThreadDetails(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeThreadDetails(); } });
 
 async function logout() {
   closeUserMenu();
@@ -1683,7 +1726,7 @@ const AUTH_ERROR_MESSAGES = {
 // NAVIGATION
 // ============================================================
 function navigate(screen) {
-  // Clients and Team (other people's accounts/attendance) stay admin-only;
+  // Team (other people's accounts/attendance) and Settings stay admin-only;
   // a direct call for either no-ops to attendance (the API would 403 anyway).
   if (S.admin?.role === 'employee' && EMPLOYEE_HIDDEN_SCREENS.includes(screen)) screen = 'attendance';
   stopMessagesPolling();
@@ -1698,7 +1741,7 @@ function navigate(screen) {
       b.insertBefore(bar, b.firstChild);
     } else if (!isActive && bar) bar.remove();
   });
-  const renders = { dashboard: renderDashboard, hotels: renderHotels, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance };
+  const renders = { dashboard: renderDashboard, hotels: renderHotels, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance, feedback: renderFeedback };
   (renders[screen] || (S.admin?.role === 'employee' ? renderAttendance : renderDashboard))();
 }
 
@@ -1719,7 +1762,7 @@ async function renderDashboard() {
   const isEmployee = S.admin?.role === 'employee';
   const stats = [
     {key:'venues', label:'Venues',  accent:'var(--green-700)', bg:'var(--green-50)',  icon:'<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/>'},
-    ...(isEmployee ? [] : [{key:'clients',label:'Clients', accent:'var(--gold-600)',  bg:'#fff',  icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/>'}]),
+    {key:'clients',label:'Clients', accent:'var(--gold-600)',  bg:'#fff',  icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/>'},
     {key:'emails', label:'Emails',  accent:'#2E5D3B', bg:'var(--green-50)', icon:'<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/>'},
     {key:'cities', label:'Cities',  accent:'var(--gold-600)', bg:'#fff', icon:'<path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'},
   ];
@@ -1752,26 +1795,35 @@ async function renderDashboard() {
     </div>
     <div class="dash-cols">
       ${isEmployee ? `
+      <div class="dash-col-stack">
+        <div class="dash-panel">
+          <div class="dash-panel-head">
+            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>Recent Clients</span>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('clients')">View all</button>
+          </div>
+          <div class="dash-panel-body" id="dash-clients"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+        </div>
+        <div class="dash-panel">
+          <div class="dash-panel-head">
+            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance</span>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('attendance')">View all</button>
+          </div>
+          <div class="dash-panel-body" id="dash-att"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+        </div>
+        <div class="dash-panel">
+          <div class="dash-panel-head">
+            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>My Absences · this month</span>
+            <button class="btn btn-ghost btn-sm" onclick="navigate('attendance')">View all</button>
+          </div>
+          <div class="dash-panel-body" id="dash-absences"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+        </div>
+      </div>
       <div class="dash-panel">
         <div class="dash-panel-head">
           <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/></svg></span>Recent Emails</span>
           <button class="btn btn-ghost btn-sm" onclick="navigate('inbox')">View all</button>
         </div>
         <div class="dash-panel-body" id="dash-emails"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-      </div>
-      <div class="dash-panel">
-        <div class="dash-panel-head">
-          <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance</span>
-          <button class="btn btn-ghost btn-sm" onclick="navigate('attendance')">View all</button>
-        </div>
-        <div class="dash-panel-body" id="dash-att"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-      </div>
-      <div class="dash-panel">
-        <div class="dash-panel-head">
-          <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>My Absences · this month</span>
-          <button class="btn btn-ghost btn-sm" onclick="navigate('attendance')">View all</button>
-        </div>
-        <div class="dash-panel-body" id="dash-absences"><div class="spinner" style="margin:24px auto;display:block"></div></div>
       </div>
       ` : `
       <div class="dash-col-stack">
@@ -1807,7 +1859,6 @@ async function renderDashboard() {
       `}
     </div>
   `);
-  // Load stats — employees never call /api/clients (admin-only, would 403).
   // Each panel fetches and paints independently (its own swr call) instead of
   // being bundled behind one Promise.allSettled — previously the whole
   // dashboard sat on spinners until the *slowest* call finished, and Recent
@@ -1815,9 +1866,7 @@ async function renderDashboard() {
   // endpoint like attendance or cities was stuck waiting on it for no reason.
   const scope = isEmployee ? 'emp' : 'admin';
   swr('dash:cities', 300000, () => apiCached('/api/cities', 300000), paintDashCities, () => paintDashCities(null));
-  if (!isEmployee) {
-    swr('dash:clients', 60000, () => api('/api/clients?limit=5'), paintDashClients, () => paintDashClients(null));
-  }
+  swr('dash:clients', 60000, () => api('/api/clients?limit=5'), paintDashClients, () => paintDashClients(null));
   swr('dash:emails:' + scope, 60000, () => api('/api/mail/recent?perAccount=10'), paintDashEmails,
     (e) => paintDashEmails(null, e?.message));
   swr('dash:att:' + scope, 60000, () => api('/api/attendance'), paintDashAttendance, () => paintDashAttendance(null));
@@ -3765,6 +3814,11 @@ function openNewClientModal() {
         <div class="modal-title">New Client</div>
         <div class="text-xs text-muted" style="margin:-8px 0 14px">For enquiries that came by phone call, walk-in, or referral</div>
         <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <div class="mb-3" style="position:relative">
+          <label class="label">Check existing client (name or phone)</label>
+          <input class="input" id="nc-search" placeholder="Search name or phone number…" oninput="onNewClientSearch(this.value)" autocomplete="off">
+          <div id="nc-search-results"></div>
+        </div>
         <div class="grid grid-2 gap-3 mb-3">
           <div><label class="label">Full Name *</label><input class="input" id="nc-name" placeholder="Anjali Sharma"></div>
           <div><label class="label">Phone</label><input class="input" id="nc-phone" placeholder="+91 98765 43210"></div>
@@ -3787,13 +3841,79 @@ function openNewClientModal() {
             </select>
           </div>
         </div>
-        <div class="mb-4"><label class="label">Notes</label><textarea class="input" id="nc-notes" rows="3" placeholder="What did they ask for? Where did the call come from?…"></textarea></div>
+        <div class="mb-4">
+          <label class="label">Remark</label>
+          <div id="nc-remarks-list">
+            <div class="nc-remark-row">
+              <div class="nc-remark-num">1</div>
+              <textarea class="input" rows="2" placeholder="What did they ask for? Where did the call come from?…"></textarea>
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="addRemarkRow()">+ Add remark</button>
+        </div>
         <div class="flex gap-2" style="justify-content:flex-end">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-primary" onclick="createClient()">Create Client</button>
         </div>
       </div>
     </div>`;
+}
+
+function addRemarkRow() {
+  const list = $('nc-remarks-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'nc-remark-row';
+  row.innerHTML = `
+    <div class="nc-remark-num">${list.children.length + 1}</div>
+    <textarea class="input" rows="2" placeholder="Additional remark…"></textarea>
+    <button type="button" class="nc-remark-remove" onclick="removeRemarkRow(this)" title="Remove remark">✕</button>
+  `;
+  list.appendChild(row);
+  row.querySelector('textarea').focus();
+}
+
+function removeRemarkRow(btn) {
+  const list = $('nc-remarks-list');
+  if (!list || list.children.length <= 1) return;
+  btn.closest('.nc-remark-row').remove();
+  [...list.children].forEach((row, i) => { row.querySelector('.nc-remark-num').textContent = i + 1; });
+}
+
+function collectRemarks() {
+  const list = $('nc-remarks-list');
+  if (!list) return undefined;
+  const vals = [...list.querySelectorAll('textarea')].map(t => t.value.trim()).filter(Boolean);
+  if (!vals.length) return undefined;
+  return vals.length === 1 ? vals[0] : vals.map((v, i) => `${i + 1}. ${v}`).join('\n');
+}
+
+let ncSearchTimer;
+function onNewClientSearch(v) {
+  clearTimeout(ncSearchTimer);
+  const q = v.trim();
+  if (!q) { $('nc-search-results').innerHTML = ''; return; }
+  ncSearchTimer = setTimeout(async () => {
+    try {
+      const res = await api('/api/clients?limit=6&search=' + encodeURIComponent(q));
+      const list = res.clients || res.data || res.items || (Array.isArray(res) ? res : []);
+      const box = $('nc-search-results');
+      if (!box) return;
+      if (!list.length) { box.innerHTML = ''; return; }
+      box.className = 'nc-search-results';
+      box.innerHTML = list.map(c => `
+        <div class="nc-search-result" onclick="pickExistingClient(${c.id})">
+          <div class="r-name">${esc(c.name)}</div>
+          <div class="r-meta">${esc(c.phone || c.email || 'No contact info')}</div>
+        </div>
+      `).join('');
+    } catch (e) { /* silent — search-as-you-type shouldn't surface errors */ }
+  }, 300);
+}
+
+function pickExistingClient(id) {
+  closeModal();
+  openClientDrawer(id);
 }
 
 async function createClient() {
@@ -3809,7 +3929,7 @@ async function createClient() {
     weddingDate: $('nc-date')?.value||undefined,
     status: $('nc-status')?.value||'new',
     category: $('nc-category')?.value||'general',
-    notes: $('nc-notes')?.value||undefined,
+    notes: collectRemarks(),
   };
   try {
     await apiPost('/api/clients', body);
@@ -4113,6 +4233,24 @@ function attToday() {
   return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
 }
 
+// Turns a "YYYY-MM" month string into the {from, to} date range spanning it.
+function attMonthRange(month) {
+  const [y, m] = month.split('-').map(Number);
+  const lastDay = new Date(y, m, 0).getDate();
+  return { from: `${month}-01`, to: `${month}-${String(lastDay).padStart(2,'0')}` };
+}
+
+function attMonthLabel(month) {
+  const [y, m] = month.split('-').map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+}
+
+// "this month" reads naturally for the current month; older months get the
+// explicit name so "12 total this month" doesn't lie about which month.
+function attMonthPhrase(month) {
+  return month === attToday().slice(0, 7) ? 'this month' : `in ${attMonthLabel(month)}`;
+}
+
 // A wrapped row of red date "chips" for absent days; today's chip is filled.
 function attAbsChipsHTML(dates, today) {
   if (!dates || !dates.length) return '';
@@ -4124,22 +4262,23 @@ function attAbsChipsHTML(dates, today) {
 
 // Body of an "Absences" panel for either scope (self = one employee's own days,
 // admin = every employee's). `compact` trims long lists for the dashboard home.
-function absencesBodyHTML(data, { compact = false } = {}) {
+// `monthPhrase` lets the admin Team page's month filter relabel "this month".
+function absencesBodyHTML(data, { compact = false, monthPhrase = 'this month' } = {}) {
   if (!data) return emptyPanel('absence', 'Could not load absences');
   const today = data.today;
   if (data.scope === 'self') {
-    if (!data.absentCount) return `<div class="abs-empty">🎉 No absences this month — nice work.</div>`;
+    if (!data.absentCount) return `<div class="abs-empty">🎉 No absences ${monthPhrase} — nice work.</div>`;
     const dates = compact ? data.absentDates.slice(0, 8) : data.absentDates;
     const more = data.absentDates.length - dates.length;
-    return `<div style="margin-bottom:8px"><span class="abs-count">${data.absentCount}</span> <span class="text-sm text-muted">absent ${data.absentCount === 1 ? 'day' : 'days'} this month</span></div>
+    return `<div style="margin-bottom:8px"><span class="abs-count">${data.absentCount}</span> <span class="text-sm text-muted">absent ${data.absentCount === 1 ? 'day' : 'days'} ${monthPhrase}</span></div>
       ${attAbsChipsHTML(dates, today)}
       ${more > 0 ? `<div class="text-sm text-muted" style="margin-top:8px">+${more} more</div>` : ''}`;
   }
   const emps = data.employees || [];
   if (!emps.length) return emptyPanel('absence', 'No employees yet');
   const withAbs = emps.filter(e => e.absentCount > 0);
-  if (!withAbs.length) return `<div class="abs-empty">🎉 Everyone's present this month.</div>`;
-  const head = `<div class="text-sm text-muted" style="margin-bottom:10px"><strong style="color:#b3261e">${data.absentTodayCount}</strong> absent today · <strong>${data.totalAbsences}</strong> total this month</div>`;
+  if (!withAbs.length) return `<div class="abs-empty">🎉 Everyone's present ${monthPhrase}.</div>`;
+  const head = `<div class="text-sm text-muted" style="margin-bottom:10px"><strong style="color:#b3261e">${data.absentTodayCount}</strong> absent today · <strong>${data.totalAbsences}</strong> total ${monthPhrase}</div>`;
   const rows = withAbs.map(e => {
     const dates = compact ? e.absentDates.slice(0, 6) : e.absentDates;
     const more = e.absentDates.length - dates.length;
@@ -4380,13 +4519,15 @@ async function attDeleteEntry(id) {
 }
 
 async function renderTeam() {
-  const key = `team:${S.teamEmpFilter || ''}:${S.teamFrom || ''}:${S.teamTo || ''}`;
+  const absMonth = S.teamAbsMonth || attToday().slice(0, 7);
+  const key = `team:${S.teamEmpFilter || ''}:${S.teamFrom || ''}:${S.teamTo || ''}:${absMonth}`;
   if (!cacheGet(key)) setContent('<div class="empty" style="padding:60px 0"><span class="spinner"></span></div>');
   swr(key, 60000, async () => {
     const q = [];
     if (S.teamEmpFilter) q.push(`employeeId=${S.teamEmpFilter}`);
     if (S.teamFrom) q.push(`from=${S.teamFrom}`);
     if (S.teamTo) q.push(`to=${S.teamTo}`);
+    const { from: absFrom, to: absTo } = attMonthRange(absMonth);
     // The day-by-day sheet (with absents + lock controls) is only meaningful
     // for one employee at a time, so we fetch it only when one is filtered.
     const statusReq = S.teamEmpFilter
@@ -4396,19 +4537,24 @@ async function renderTeam() {
       api('/api/employees').then(r => r.data),
       api(`/api/attendance${q.length ? '?' + q.join('&') : ''}`).then(r => r.data),
       statusReq,
-      api('/api/attendance/absences').then(r => r.data).catch(() => null),
+      api(`/api/attendance/absences?from=${absFrom}&to=${absTo}`).then(r => r.data).catch(() => null),
     ]);
     return { employees, att, status, absences };
   }, (d) => {
     if (S.screen !== 'team') return;
-    paintTeam(d.employees, d.att, d.status, d.absences);
+    paintTeam(d.employees, d.att, d.status, d.absences, absMonth);
   }, (e) => {
     if (S.screen !== 'team') return;
     setContent(`<div class="empty" style="padding:60px 0">Could not load team — ${esc(attErrMsg(e))}</div>`);
   });
 }
 
-function paintTeam(employees, att, status, absences) {
+function teamSetAbsMonth(month) {
+  S.teamAbsMonth = month;
+  renderTeam();
+}
+
+function paintTeam(employees, att, status, absences, absMonth) {
   S.teamEmployees = employees;
   S.teamAtt = att;
   S.teamStatus = status;
@@ -4416,11 +4562,12 @@ function paintTeam(employees, att, status, absences) {
   const absencesCard = absences ? `
     <div class="card" style="padding:0;overflow:hidden;margin-bottom:24px">
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)">
-        <div class="font-serif font-600" style="font-size:16px;margin-right:auto">Absences · this month</div>
-        <span class="badge badge-red">${absences.absentTodayCount || 0} absent today</span>
+        <div class="font-serif font-600" style="font-size:16px;margin-right:auto">Absences · ${esc(attMonthLabel(absMonth))}</div>
+        <input class="input" style="width:auto" type="month" id="team-abs-month" value="${absMonth}" max="${attToday().slice(0,7)}" onchange="teamSetAbsMonth(this.value)" title="Filter absences by month">
+        ${absMonth === attToday().slice(0,7) ? `<span class="badge badge-red">${absences.absentTodayCount || 0} absent today</span>` : ''}
         <span class="badge badge-gray">${absences.totalAbsences || 0} total</span>
       </div>
-      <div style="padding:14px 18px">${absencesBodyHTML(absences, { compact: false })}</div>
+      <div style="padding:14px 18px">${absencesBodyHTML(absences, { compact: false, monthPhrase: attMonthPhrase(absMonth) })}</div>
     </div>` : '';
 
   const attendanceEmployees = employees.filter(e => e.role === 'employee');
@@ -4448,7 +4595,7 @@ function paintTeam(employees, att, status, absences) {
             <td style="white-space:nowrap;text-align:right">
               <button class="btn btn-ghost btn-sm" onclick="teamResetCode(${e.id})">Reset code</button>
               ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="${e.active ? 'color:var(--red)' : ''}" onclick="teamToggleActive(${e.id}, ${e.active ? 'false' : 'true'})">${e.active ? 'Deactivate' : 'Activate'}</button>`}
-              ${(!e.bound && !e.self) ? `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="teamDeleteAccount(${e.id})">Delete</button>` : ''}
+              ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="teamOpenDeleteModal(${e.id}, '${esc(e.name || e.email || 'this account').replace(/'/g,"&#39;")}')">Delete</button>`}
             </td>
           </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-3)">No accounts yet — add the first one to hand out a login code.</td></tr>'}
         </tbody>
@@ -4623,14 +4770,325 @@ async function teamResetCode(id) {
   } catch (e) { showToast(attErrMsg(e), 'error'); }
 }
 
-async function teamDeleteAccount(id) {
-  if (!confirm('Delete this pending account? This cannot be undone.')) return;
+// Deleting an account is permanent (cascades their attendance history), so
+// it's gated behind the admin re-entering their own login code — same code
+// they sign in with — instead of a bare confirm() a stray click could pass.
+function teamOpenDeleteModal(id, name) {
+  $('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="position:relative;max-width:420px">
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <div class="modal-title">Delete ${esc(name || 'this account')}?</div>
+        <p class="text-sm text-muted">This permanently removes their account and attendance history. This cannot be undone.</p>
+        <div class="auth-field" style="margin-top:12px"><label class="label">Enter your login code to confirm</label>
+          <input class="input auth-code-input" type="text" id="team-delete-code" placeholder="8-CHAR CODE" autocomplete="off"></div>
+        <div id="team-delete-error" class="text-sm" style="color:var(--red);display:none;margin-top:6px"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" id="team-delete-btn" style="background:var(--red);border-color:var(--red)" onclick="teamConfirmDelete(${id})">Delete account</button>
+        </div>
+      </div>
+    </div>`;
+  const input = $('team-delete-code');
+  input.addEventListener('input', () => { input.value = input.value.replace(/\s+/g, '').toUpperCase().slice(0, 8); });
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') teamConfirmDelete(id); });
+  input.focus();
+}
+
+async function teamConfirmDelete(id) {
+  const codeInput = $('team-delete-code');
+  const err = $('team-delete-error');
+  const code = codeInput.value.trim();
+  if (code.length !== 8) {
+    err.textContent = 'Enter your 8-character code';
+    err.style.display = 'block';
+    return;
+  }
+  err.style.display = 'none';
+  setBtnLoading('team-delete-btn', true);
   try {
-    await apiDelete(`/api/employees/${id}`);
+    await apiDelete(`/api/employees/${id}`, { code });
+    closeModal();
     showToast('Account deleted', 'success');
     cacheClear('team:');
     renderTeam();
+  } catch (e) {
+    setBtnLoading('team-delete-btn', false, 'Delete account');
+    err.textContent = attErrMsg(e);
+    err.style.display = 'block';
+    codeInput.focus();
+  }
+}
+
+// ============================================================
+// FEEDBACK — report-an-issue modal (reachable from the top bar on every
+// screen) + the Feedback page (employees: their own reports; admins: the
+// full queue with a resolve/reopen toggle) + the notification bell.
+// ============================================================
+const FEEDBACK_SCREEN_LABELS = {
+  dashboard: 'Dashboard', hotels: 'Hotels', inbox: 'Inbox', clients: 'Clients',
+  team: 'Team', attendance: 'My Attendance', hwoli: 'Hwoli AI', settings: 'Settings', feedback: 'Feedback',
+};
+
+function openFeedbackModal() {
+  const screenLabel = FEEDBACK_SCREEN_LABELS[S.screen] || 'Dashboard';
+  S.feedbackModalImage = null;
+  $('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="position:relative;max-width:440px">
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <div class="modal-title">Report an issue</div>
+        <p class="text-sm text-muted">Spot something broken or confusing? This lands on the admin's Feedback page right away.</p>
+        <div class="auth-field" style="margin-top:10px"><label class="label">What's wrong?</label>
+          <textarea class="input" id="feedback-modal-message" rows="4" placeholder="Describe the issue…" style="resize:vertical;min-height:90px"></textarea></div>
+        <div style="margin-top:10px">
+          <input type="file" accept="image/*" id="feedback-modal-file" style="display:none" onchange="feedbackPickImage(this)">
+          <div id="feedback-modal-attach-row">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="$('feedback-modal-file').click()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><path d="M21.44 11.05 12.25 20.24a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95L10.13 17.9a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              Attach a screenshot
+            </button>
+          </div>
+          <div id="feedback-modal-preview" style="display:none;position:relative;margin-top:8px">
+            <img id="feedback-modal-preview-img" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid var(--border);display:block">
+            <button type="button" class="btn btn-ghost btn-icon" style="position:absolute;top:6px;right:6px;background:#fff" onclick="feedbackRemoveImage()" title="Remove image">✕</button>
+          </div>
+        </div>
+        <div class="text-xs text-muted" style="margin-top:10px">Reported from: <strong>${esc(screenLabel)}</strong></div>
+        <div id="feedback-modal-error" class="text-sm" style="color:var(--red);display:none;margin-top:6px"></div>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" id="feedback-modal-btn" onclick="submitFeedbackModal('${screenLabel}')">Send feedback</button>
+        </div>
+      </div>
+    </div>`;
+  $('feedback-modal-message').focus();
+}
+
+// Resizes/re-encodes the picked image client-side (max 1600px, JPEG q .8)
+// before it ever touches the network — a raw phone screenshot can be several
+// MB; this keeps what actually gets stored in the DB small.
+function compressImageFile(file, maxDim = 1600, quality = 0.8) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) return reject(new Error('Please attach an image file'));
+    if (file.size > 15 * 1024 * 1024) return reject(new Error('Image is too large (max 15MB)'));
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width; canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => reject(new Error('Could not read that image'));
+      img.src = reader.result;
+    };
+    reader.onerror = () => reject(new Error('Could not read that image'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function feedbackPickImage(input) {
+  const file = input.files?.[0];
+  input.value = '';
+  if (!file) return;
+  const err = $('feedback-modal-error');
+  try {
+    S.feedbackModalImage = await compressImageFile(file);
+    $('feedback-modal-preview-img').src = S.feedbackModalImage;
+    $('feedback-modal-preview').style.display = '';
+    $('feedback-modal-attach-row').style.display = 'none';
+    if (err) err.style.display = 'none';
+  } catch (e) {
+    if (err) { err.textContent = e.message; err.style.display = 'block'; }
+  }
+}
+
+function feedbackRemoveImage() {
+  S.feedbackModalImage = null;
+  const preview = $('feedback-modal-preview'), row = $('feedback-modal-attach-row');
+  if (preview) preview.style.display = 'none';
+  if (row) row.style.display = '';
+}
+
+async function submitFeedbackModal(screenLabel) {
+  const ta = $('feedback-modal-message');
+  const err = $('feedback-modal-error');
+  const message = ta.value.trim();
+  if (!message) { err.textContent = 'Describe the issue first'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+  setBtnLoading('feedback-modal-btn', true);
+  try {
+    await apiPost('/api/feedback', { message, screen: screenLabel, image: S.feedbackModalImage || undefined });
+    S.feedbackModalImage = null;
+    closeModal();
+    showToast('Feedback sent — thanks!', 'success');
+    if (S.screen === 'feedback') loadFeedback();
+  } catch (e) {
+    setBtnLoading('feedback-modal-btn', false, 'Send feedback');
+    err.textContent = attErrMsg(e);
+    err.style.display = 'block';
+  }
+}
+
+async function renderFeedback() {
+  const isAdminUser = S.admin?.role !== 'employee';
+  S.feedbackStatusFilter = S.feedbackStatusFilter || 'open';
+  setContent(`
+    <div class="page-header mb-4">
+      <div>
+        <div class="page-title">Feedback</div>
+        <div class="page-sub">${isAdminUser ? "Issues the team has flagged from around the dashboard" : "Issues you've reported — use the flag icon in the top bar to report a new one"}</div>
+      </div>
+      <button class="btn btn-primary" onclick="openFeedbackModal()">+ Report an issue</button>
+    </div>
+    ${isAdminUser ? `
+    <div class="tabs mb-4" style="align-self:flex-start">
+      <button class="tab ${S.feedbackStatusFilter==='open'?'active':''}" onclick="setFeedbackFilter('open')">Open</button>
+      <button class="tab ${S.feedbackStatusFilter==='resolved'?'active':''}" onclick="setFeedbackFilter('resolved')">Resolved</button>
+      <button class="tab ${S.feedbackStatusFilter==='all'?'active':''}" onclick="setFeedbackFilter('all')">All</button>
+    </div>` : ''}
+    <div id="feedback-list"><div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div></div>
+  `);
+  loadFeedback();
+}
+
+function setFeedbackFilter(f) { S.feedbackStatusFilter = f; renderFeedback(); }
+
+async function loadFeedback() {
+  const isAdminUser = S.admin?.role !== 'employee';
+  const status = isAdminUser ? (S.feedbackStatusFilter || 'open') : 'all';
+  const q = status !== 'all' ? `?status=${status}` : '';
+  try {
+    const res = await api('/api/feedback' + q);
+    if (S.screen !== 'feedback') return;
+    paintFeedback(res.data || [], isAdminUser);
+  } catch (e) {
+    if ($('feedback-list')) $('feedback-list').innerHTML = `<div class="empty"><p>Error: ${esc(e.message)}</p></div>`;
+  }
+}
+
+function paintFeedback(items, isAdminUser) {
+  const el = $('feedback-list');
+  if (!el) return;
+  if (!items.length) {
+    el.innerHTML = `<div class="empty" style="padding:60px 20px">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".3"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <p>${isAdminUser ? 'No feedback here yet' : "You haven't reported anything yet"}</p>
+    </div>`;
+    return;
+  }
+  el.innerHTML = items.map(f => `
+    <div class="card" style="padding:16px 18px;margin-bottom:12px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="min-width:0;flex:1">
+          ${isAdminUser ? `<div style="font-weight:600;font-size:13.5px;color:var(--text)">${esc(f.employee?.name || f.employee?.email || 'Someone')}</div>` : ''}
+          <div style="font-size:13.5px;color:var(--text-2);margin-top:2px;white-space:pre-wrap">${esc(f.message)}</div>
+          ${f.hasImage ? `<button class="btn btn-ghost btn-sm" style="margin-top:8px;padding-left:0" onclick="viewFeedbackImage(${f.id})">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:4px;vertical-align:-2px"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></svg>
+            View screenshot</button>` : ''}
+          <div class="text-xs text-muted" style="margin-top:8px">${f.screen ? esc(f.screen) + ' · ' : ''}${shortDate(f.createdAt)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;flex:none">
+          <span class="badge ${f.status==='open'?'badge-gold':'badge-green'}">${f.status==='open'?'Open':'Resolved'}</span>
+          ${isAdminUser ? `<button class="btn btn-ghost btn-sm" onclick="toggleFeedbackStatus(${f.id}, '${f.status==='open'?'resolved':'open'}')">${f.status==='open'?'Mark resolved':'Reopen'}</button>` : ''}
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+async function toggleFeedbackStatus(id, status) {
+  try {
+    await apiPatch(`/api/feedback/${id}`, { status });
+    showToast(status === 'resolved' ? 'Marked resolved' : 'Reopened', 'success');
+    loadFeedback();
+    pollFeedbackSummary();
   } catch (e) { showToast(attErrMsg(e), 'error'); }
+}
+
+// Fetched lazily (not part of the list payload) — see the /:id route comment.
+async function viewFeedbackImage(id) {
+  $('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="position:relative;max-width:min(88vw,720px);text-align:center">
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <div style="display:flex;justify-content:center;padding:50px"><div class="spinner"></div></div>
+      </div>
+    </div>`;
+  try {
+    const res = await api('/api/feedback/' + id);
+    const modal = document.querySelector('#modal-container .modal');
+    if (!modal) return;
+    modal.innerHTML = res.data?.image
+      ? `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+         <img src="${res.data.image}" style="max-width:100%;max-height:78vh;border-radius:10px;object-fit:contain;margin-top:6px">`
+      : `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+         <p class="text-sm text-muted" style="padding:30px 0">No image on this report.</p>`;
+  } catch (e) {
+    const modal = document.querySelector('#modal-container .modal');
+    if (modal) modal.innerHTML = `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+      <p class="text-sm" style="color:var(--red);padding:30px 0">${esc(attErrMsg(e))}</p>`;
+  }
+}
+
+// ---- notification bell dropdown ----
+async function loadNotifFeed() {
+  const list = $('notif-list');
+  if (!list) return;
+  list.innerHTML = `<div style="display:flex;justify-content:center;padding:24px"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div></div>`;
+  try {
+    const res = await api('/api/feedback?status=open');
+    const isAdminUser = S.admin?.role !== 'employee';
+    const items = (res.data || []).slice(0, 8);
+    if (!items.length) {
+      list.innerHTML = `<div class="text-sm text-muted" style="padding:14px 10px">No open feedback${isAdminUser ? '' : " you've reported"}.</div>`;
+      return;
+    }
+    list.innerHTML = items.map(f => `
+      <button class="usermenu-item" role="menuitem" style="align-items:flex-start;text-align:left" onclick="closeNotifMenu();navigate('feedback')">
+        <div style="min-width:0">
+          ${isAdminUser ? `<div style="font-weight:600;font-size:12.5px;color:var(--text)">${esc(f.employee?.name || f.employee?.email || 'Someone')}</div>` : ''}
+          <div class="text-xs" style="color:var(--text-2);white-space:normal;line-height:1.4;margin-top:2px">${esc(f.message.length > 90 ? f.message.slice(0,90)+'…' : f.message)}</div>
+          <div class="text-xs text-muted" style="margin-top:3px">${f.screen ? esc(f.screen)+' · ' : ''}${shortDate(f.createdAt)}</div>
+        </div>
+      </button>`).join('');
+  } catch (e) {
+    list.innerHTML = `<div class="text-sm text-muted" style="padding:14px 10px">Could not load feedback.</div>`;
+  }
+}
+
+// ---- global polling: badge count + a toast when new feedback lands ----
+let feedbackKnownOpenCount = null;
+function startFeedbackPolling() {
+  pollFeedbackSummary();
+  if (S.feedbackPollTimer) clearInterval(S.feedbackPollTimer);
+  S.feedbackPollTimer = setInterval(pollFeedbackSummary, 45000);
+}
+
+async function pollFeedbackSummary() {
+  try {
+    const res = await api('/api/feedback/summary');
+    const count = res.data?.openCount || 0;
+    updateFeedbackBadges(count);
+    if (feedbackKnownOpenCount !== null && count > feedbackKnownOpenCount) {
+      showToast('New feedback from the team', 'info');
+    }
+    feedbackKnownOpenCount = count;
+  } catch (_) { /* silent — badge just stays stale until the next tick */ }
+}
+
+function updateFeedbackBadges(count) {
+  const navBadge = $('feedback-badge');
+  if (navBadge) { navBadge.textContent = count > 99 ? '99+' : count; navBadge.style.display = count ? 'inline-block' : 'none'; }
+  const dot = $('notif-dot');
+  if (dot) { dot.textContent = count > 9 ? '9+' : count; dot.style.display = count ? 'flex' : 'none'; }
 }
 
 // ============================================================
@@ -4694,35 +5152,8 @@ function renderSettings() {
           ${savedKey ? `<div class="text-xs text-muted mt-2">✓ Key saved · Hwoli is ready</div>` : `<div class="text-xs" style="color:var(--gold-600);margin-top:8px">⚠ No key set — Hwoli AI will not work</div>`}
         </div>
       </div>
-      <!-- Channels -->
-      <div class="settings-panel" style="--stagger:180ms">
-        <div class="settings-panel-head">
-          <span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span>
-          <div class="settings-panel-head-text">
-            <div class="settings-panel-title">Other Channels</div>
-            <div class="settings-panel-sub">Unified inbox connections — pending API approval</div>
-          </div>
-        </div>
-        <div class="settings-panel-body has-head-border">
-          <div class="settings-channel-grid">
-            ${[
-              ['WhatsApp','Business messaging','#25D366','#e6f8ec'],
-              ['Instagram','Direct messages','#E1306C','#fce4ee'],
-              ['Facebook','Messenger','#1877F2','#e4eefd']
-            ].map(([name,desc,dot,bg])=>`
-              <div class="settings-channel-card">
-                <span class="channel-icon" style="background:${bg}"><span style="width:12px;height:12px;border-radius:50%;background:${dot}"></span></span>
-                <div style="flex:1;min-width:0">
-                  <div style="font:600 14px Inter,sans-serif;color:var(--text)">${name}</div>
-                  <div class="text-xs text-muted">${desc}</div>
-                </div>
-                <span class="badge badge-gold" style="flex:none">Soon</span>
-              </div>`).join('')}
-          </div>
-        </div>
-      </div>
       <!-- DB stats -->
-      <div class="settings-panel" style="--stagger:240ms">
+      <div class="settings-panel" style="--stagger:180ms">
         <div class="settings-panel-head">
           <span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/></svg></span>
           <div class="settings-panel-head-text">
