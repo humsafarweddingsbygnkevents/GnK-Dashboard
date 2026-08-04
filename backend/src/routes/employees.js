@@ -4,7 +4,13 @@ const { Router } = require('express');
 
 const router = Router();
 const prisma = require('../lib/prisma');
-const { createCodeForAccount } = require('../lib/loginCode');
+const { createCodeForAccount, normalizeLoginCode, hashLoginCode } = require('../lib/loginCode');
+const { rateLimit } = require('../lib/rateLimit');
+
+// Deleting an account is destructive (cascades its attendance history), so
+// it's gated behind the requesting admin re-entering their own login code —
+// rate-limited same as the login form itself to blunt brute-forcing it.
+const deleteLimiter = rateLimit({ max: 10, windowMs: 15 * 60 * 1000 });
 
 function publicAccount(a, selfId) {
   return {
@@ -105,18 +111,26 @@ router.post('/:id/reset-code', async (req, res) => {
   }
 });
 
-// DELETE /api/employees/:id — remove an abandoned/never-linked pending
-// account. Only allowed while it has no bound Gmail, so a real account can
-// never be deleted through this route (deactivate is the lever for those).
-router.delete('/:id', async (req, res) => {
+// DELETE /api/employees/:id — remove an account, linked or not. Destructive
+// (cascades the employee's attendance entries/unlocks), so the requesting
+// admin must confirm with their own permanent login code — same code they
+// sign in with — to guard against a stray click.
+router.delete('/:id', deleteLimiter, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id)) return res.status(400).json({ error: 'Invalid id' });
     if (id === req.admin?.sub) return res.status(400).json({ error: "You can't delete your own account" });
 
+    const code = normalizeLoginCode(req.body?.code);
+    if (code.length !== 8) return res.status(400).json({ error: 'Enter your 8-character code to confirm' });
+
+    const requester = await prisma.admin.findUnique({ where: { id: req.admin.sub } });
+    if (!requester || requester.loginCodeHash !== hashLoginCode(code)) {
+      return res.status(401).json({ error: 'Incorrect code' });
+    }
+
     const account = await prisma.admin.findUnique({ where: { id } });
     if (!account) return res.status(404).json({ error: 'Account not found' });
-    if (account.googleId) return res.status(400).json({ error: 'This account is linked — deactivate it instead' });
 
     await prisma.admin.delete({ where: { id } });
     res.json({ ok: true });

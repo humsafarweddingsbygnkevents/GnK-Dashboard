@@ -103,6 +103,7 @@ model Admin {
 
   attendance        AttendanceEntry[]
   attendanceUnlocks AttendanceUnlock[]
+  feedback          Feedback[]
 }
 
 model AttendanceEntry {
@@ -134,6 +135,27 @@ model AttendanceUnlock {
 
   @@unique([employeeId, date])
   @@index([employeeId, date])
+}
+
+// A bug report or issue an employee flags from anywhere in the dashboard.
+// Deliberately simple — no threading, just enough for an admin to see what's
+// wrong, where, optionally a screenshot, and mark it handled.
+model Feedback {
+  id         Int       @id @default(autoincrement())
+  employeeId Int
+  employee   Admin     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  message    String
+  screen     String? // which dashboard screen they were on when they reported it
+  // Client-compressed screenshot as a data URL ("data:image/jpeg;base64,…").
+  // Stored inline rather than in blob storage — feedback screenshots are
+  // small (resized client-side) and this is the only place they're read.
+  image      String?
+  status     String    @default("open") // "open" | "resolved"
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([status])
+  @@index([employeeId])
 }
 
 model Client {

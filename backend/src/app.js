@@ -34,6 +34,7 @@ const requireAuth = require('./middleware/requireAuth');
 const requireAdmin = require('./middleware/requireAdmin');
 const employeesRouter = require('./routes/employees');
 const attendanceRouter = require('./routes/attendance');
+const feedbackRouter = require('./routes/feedback');
 
 // Warn (don't crash) on missing Google OAuth vars — a serverless function
 // cold-starts on every scale-up, so process.exit(1) here would take down
@@ -49,6 +50,12 @@ if (!process.env.JWT_SECRET) {
 }
 
 const app = express();
+
+// Trust exactly one hop (Vercel's edge proxy) so req.ip resolves from
+// X-Forwarded-For instead of the proxy's own internal address. Without this,
+// every request looks like it comes from the same IP, and the per-IP auth
+// rate limiters below end up sharing ONE global bucket across all users.
+app.set('trust proxy', 1);
 
 // verify callback stashes the raw bytes on req.rawBody — needed to check the
 // Meta webhook's X-Hub-Signature-256 header, which is computed over the raw
@@ -101,14 +108,15 @@ app.use('/api/webhook', metaWebhookRouter);
 // is the private data this login system exists to protect.
 app.use('/api', requireAuth);
 
-// Attendance is the one data surface both roles share — the router scopes
+// Attendance and feedback are surfaces both roles share — each router scopes
 // employees to their own rows internally.
 app.use('/api/attendance', attendanceRouter);
+app.use('/api/feedback', feedbackRouter);
 
-// Employees share the venue database, inbox, and Hwoli chat with admins —
-// only account management (Team) and client data are admin-only.
+// Employees share the venue database, inbox, Hwoli chat, and client data
+// with admins — only account management (Team) is admin-only.
 app.use('/api/employees', requireAdmin, employeesRouter);
-app.use('/api/clients', requireAdmin, clientsRouter);
+app.use('/api/clients', clientsRouter);
 app.use('/api/hotels', hotelsRouter);
 app.use('/api/cities', citiesRouter);
 app.use('/api/gmail', gmailRouter);
