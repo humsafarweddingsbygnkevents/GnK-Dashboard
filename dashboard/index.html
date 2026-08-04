@@ -4314,9 +4314,13 @@ function attRowsHTML(entries, { showEmployee = false, lockedDates = null } = {})
     // older month and always closed.
     const locked = lockedDates &&
       (lockedDates.has(e.date) || (lockedDates._from && e.date < lockedDates._from));
+    // Remark stays editable even on a locked day — unlike Edit/Delete, it
+    // carries no lock criteria (e.g. noting work done after the 7:30 cutoff).
     const actions = locked
-      ? '<span class="badge badge-gray" title="This day has closed">🔒 Locked</span>'
+      ? `<span class="badge badge-gray" title="This day has closed">🔒 Locked</span>
+         <button class="btn btn-ghost btn-sm" onclick="attOpenRemarkModal(${e.id})">Remark${e.remarks ? ` (${attParseRemarks(e.remarks).length})` : ''}</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="attOpenEntryModal(${e.id})">Edit</button>
+         <button class="btn btn-ghost btn-sm" onclick="attOpenRemarkModal(${e.id})">Remark${e.remarks ? ` (${attParseRemarks(e.remarks).length})` : ''}</button>
          <button class="btn btn-ghost btn-sm" style="color:var(--red)" id="att-del-${e.id}" onclick="attDeleteEntry(${e.id})">Delete</button>`;
     return `
     <tr>
@@ -4496,6 +4500,88 @@ async function attSubmitEntry() {
     else await apiPost('/api/attendance', body);
     closeModal();
     showToast(id ? 'Entry updated' : 'Entry added', 'success');
+    cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
+    S.screen === 'team' ? renderTeam() : renderAttendance();
+  } catch (e) { showToast(attErrMsg(e), 'error'); }
+}
+
+// Multi-remark modal — e.g. logging that work continued past 7:30. Reuses the
+// numbered add/remove row pattern from the New Client modal and stores the
+// result in the entry's existing `comment` field (numbered + newline-joined
+// when there's more than one).
+function attParseRemarks(comment) {
+  if (!comment) return [];
+  const lines = comment.split('\n');
+  if (lines.length > 1 && lines.every(l => /^\d+\.\s/.test(l))) {
+    return lines.map(l => l.replace(/^\d+\.\s/, ''));
+  }
+  return [comment];
+}
+
+function attOpenRemarkModal(entryId) {
+  const entry = attFindEntry(entryId);
+  if (!entry) return;
+  const remarks = attParseRemarks(entry.remarks);
+  if (!remarks.length) remarks.push('');
+  $('modal-container').innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="position:relative;max-width:460px">
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <div class="modal-title">Remarks — ${esc(attFmtDate(entry.date))}</div>
+        <input type="hidden" id="att-remark-entry-id" value="${entry.id}">
+        <div class="mb-4">
+          <label class="label">Remark <span class="text-muted">(e.g. worked past 7:30 — note why)</span></label>
+          <div id="att-remarks-list">
+            ${remarks.map((r, i) => `
+            <div class="nc-remark-row">
+              <div class="nc-remark-num">${i + 1}</div>
+              <textarea class="input" rows="2" placeholder="Add a remark…">${esc(r)}</textarea>
+              ${i > 0 ? `<button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">✕</button>` : ''}
+            </div>`).join('')}
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="attAddRemarkRow()">+ Add remark</button>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px;justify-content:center" onclick="attSaveRemarks()">Save remarks</button>
+      </div>
+    </div>`;
+}
+
+function attAddRemarkRow() {
+  const list = $('att-remarks-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.className = 'nc-remark-row';
+  row.innerHTML = `
+    <div class="nc-remark-num">${list.children.length + 1}</div>
+    <textarea class="input" rows="2" placeholder="Add a remark…"></textarea>
+    <button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">✕</button>
+  `;
+  list.appendChild(row);
+  row.querySelector('textarea').focus();
+}
+
+function attRemoveRemarkRow(btn) {
+  const list = $('att-remarks-list');
+  if (!list || list.children.length <= 1) return;
+  btn.closest('.nc-remark-row').remove();
+  [...list.children].forEach((row, i) => { row.querySelector('.nc-remark-num').textContent = i + 1; });
+}
+
+function attCollectRemarks() {
+  const list = $('att-remarks-list');
+  if (!list) return null;
+  const vals = [...list.querySelectorAll('textarea')].map(t => t.value.trim()).filter(Boolean);
+  if (!vals.length) return null;
+  return vals.length === 1 ? vals[0] : vals.map((v, i) => `${i + 1}. ${v}`).join('\n');
+}
+
+async function attSaveRemarks() {
+  const id = $('att-remark-entry-id').value;
+  const remarks = attCollectRemarks();
+  try {
+    await apiPatch(`/api/attendance/${id}`, { remarks });
+    closeModal();
+    showToast('Remarks saved', 'success');
     cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
     S.screen === 'team' ? renderTeam() : renderAttendance();
   } catch (e) { showToast(attErrMsg(e), 'error'); }

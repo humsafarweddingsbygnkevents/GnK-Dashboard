@@ -115,6 +115,7 @@ model AttendanceEntry {
   timeSpentMinutes Int
   status           String // "in_progress" | "completed" | "blocked" | "on_leave"
   comment          String?
+  remarks          String? // separate from `comment` — e.g. notes about working past the 7:30 lock
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

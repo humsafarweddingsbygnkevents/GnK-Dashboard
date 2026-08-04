@@ -82,6 +82,11 @@ function parseEntryFields(body, { partial = false } = {}) {
     if (c && c.length > 1000) return { error: 'comment must be 1000 characters or fewer' };
     data.comment = c || null;
   }
+  if (b.remarks !== undefined) {
+    const r = b.remarks === null ? null : String(b.remarks).trim();
+    if (r && r.length > 2000) return { error: 'remarks must be 2000 characters or fewer' };
+    data.remarks = r || null;
+  }
 
   return { data };
 }
@@ -393,9 +398,13 @@ router.patch('/:id', async (req, res) => {
     if (parsed.error) return res.status(400).json({ error: parsed.error });
     if (!Object.keys(parsed.data).length) return res.status(400).json({ error: 'Nothing to update' });
 
-    // Employees can't edit a locked day, nor move an entry into one; both the
-    // current date and any new date must be writable. Admins bypass this.
-    if (!isAdmin(req)) {
+    // Remarks carry no lock criteria — they can be added/changed anytime,
+    // even on a closed day — so a remarks-only update skips the lock check
+    // entirely. Employees still can't edit a locked day otherwise, nor move
+    // an entry into one; both the current date and any new date must be
+    // writable. Admins bypass this.
+    const remarksOnly = Object.keys(parsed.data).length === 1 && parsed.data.remarks !== undefined;
+    if (!isAdmin(req) && !remarksOnly) {
       if (await isLockedForEmployee(entry.employeeId, entry.date)) {
         return res.status(403).json({ error: LOCK_MSG });
       }

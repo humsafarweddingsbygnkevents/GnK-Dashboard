@@ -12,7 +12,11 @@ const { normalizeLoginCode, hashLoginCode, createCodeForAccount } = require('../
 
 const router = Router();
 const authLimiter = rateLimit({ max: 15, windowMs: 15 * 60 * 1000 });
-const otpLimiter = rateLimit({ max: 8, windowMs: 15 * 60 * 1000 });
+// Separate buckets for requesting a code (sends an email — keep this tight)
+// vs. verifying one (a DB lookup — a couple of mistyped codes shouldn't burn
+// through the same budget as requesting a fresh code).
+const signupRequestLimiter = rateLimit({ max: 5, windowMs: 15 * 60 * 1000 });
+const signupVerifyLimiter = rateLimit({ max: 10, windowMs: 15 * 60 * 1000 });
 
 // Where signup codes are delivered. Only this inbox ever sees a code, so a
 // new user must ask the owner for it in person / over chat before they can
@@ -89,7 +93,7 @@ router.get('/me', async (req, res) => {
 // Signup step 1: name + role. Creates the account row with a fresh permanent
 // login code (stored only as a hash) and emails the plaintext code ONLY to
 // the owner — the requester never sees it, and must get it from the owner.
-router.post('/signup/request', otpLimiter, async (req, res) => {
+router.post('/signup/request', signupRequestLimiter, async (req, res) => {
   const { name, role } = req.body || {};
   const cleanName = name ? String(name).trim().slice(0, 80) : '';
   if (!cleanName) return res.status(400).json({ error: 'Enter your name' });
@@ -134,7 +138,7 @@ router.post('/signup/request', otpLimiter, async (req, res) => {
 // the DB (not a stateless cookie — the code is permanent, so it must live in
 // the DB from creation). On success, mint a grant that authorises binding a
 // Gmail account to this row.
-router.post('/signup/verify', otpLimiter, async (req, res) => {
+router.post('/signup/verify', signupVerifyLimiter, async (req, res) => {
   try {
     const code = normalizeLoginCode(req.body?.code);
     if (code.length !== 8) return res.status(400).json({ error: 'Enter the 8-character code' });
