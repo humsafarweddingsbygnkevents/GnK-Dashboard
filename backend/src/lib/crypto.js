@@ -25,12 +25,36 @@ function encrypt(plaintext) {
   return [iv.toString('base64'), tag.toString('base64'), enc.toString('base64')].join('.');
 }
 
-function decrypt(payload) {
-  const [ivB64, tagB64, dataB64] = String(payload).split('.');
-  if (!ivB64 || !tagB64 || !dataB64) throw new Error('Malformed encrypted value');
-  const decipher = crypto.createDecipheriv('aes-256-gcm', key(), Buffer.from(ivB64, 'base64'));
-  decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
-  return Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]).toString('utf8');
+// Thrown when stored ciphertext won't open under the current key — almost
+// always because MAIL_ENC_KEY/JWT_SECRET changed since the value was saved,
+// not because anything is wrong with the mailbox itself. Callers catch this
+// to tell the user to re-enter the password rather than leaking Node's raw
+// "Unsupported state or unable to authenticate data" at them.
+class DecryptError extends Error {
+  constructor(message) { super(message); this.name = 'DecryptError'; this.code = 'DECRYPT_FAILED'; }
 }
 
-module.exports = { encrypt, decrypt };
+function decrypt(payload) {
+  const [ivB64, tagB64, dataB64] = String(payload).split('.');
+  if (!ivB64 || !tagB64 || !dataB64) throw new DecryptError('Malformed encrypted value');
+  try {
+    const decipher = crypto.createDecipheriv('aes-256-gcm', key(), Buffer.from(ivB64, 'base64'));
+    decipher.setAuthTag(Buffer.from(tagB64, 'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(dataB64, 'base64')), decipher.final()]).toString('utf8');
+  } catch (err) {
+    // A missing secret is a deploy problem, not a stale-ciphertext problem —
+    // let that surface as-is.
+    if (/must be set/.test(err.message)) throw err;
+    throw new DecryptError('Stored value could not be decrypted with the current encryption key');
+  }
+}
+
+// Which key the current environment is actually using, for startup logging
+// and the mailbox health check. Never returns the secret itself.
+function keySource() {
+  if (process.env.MAIL_ENC_KEY) return 'MAIL_ENC_KEY';
+  if (process.env.JWT_SECRET) return 'JWT_SECRET (fallback)';
+  return 'none';
+}
+
+module.exports = { encrypt, decrypt, DecryptError, keySource };

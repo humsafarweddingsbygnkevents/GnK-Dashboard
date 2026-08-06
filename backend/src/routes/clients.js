@@ -6,13 +6,30 @@ const router = Router();
 const prisma = require('../lib/prisma');
 const { CATEGORIES, classifyMessage, upsertClientFromMessage } = require('../lib/agent/classifier');
 
-// Fields allowed through PATCH — source and id are never updatable
+// Fields allowed through PATCH — source, id and createdByName (set once, at
+// creation, from the logged-in employee) are never updatable
 const PATCHABLE = ['name', 'phone', 'email', 'weddingDate', 'preferredCity',
-                   'guestCount', 'budgetLakhs', 'notes', 'status', 'category'];
+                   'guestCount', 'roomCount', 'budgetLakhs', 'notes', 'status', 'statusOther', 'category',
+                   'preferredHotel', 'budgetHotelLakhs', 'budgetDecorLakhs', 'budgetEventsLakhs',
+                   'checkInDate', 'checkOutDate', 'eventType', 'eventTypeOther', 'relationshipManager',
+                   'enquirySource', 'enquirySourceOther'];
 
 const SOURCES = ['gmail', 'instagram', 'facebook', 'manual', 'whatsapp', 'test'];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+// Staff-facing pipeline stage. 'other' plus free text replaces the nuance the
+// longer list used to carry, so these are the only values the UI offers.
+const STATUSES = ['new', 'active', 'closed', 'lost', 'other'];
+// Values from before the list was simplified. The client drawer keeps an old
+// record's status selected rather than silently re-bucketing it, and sends the
+// whole form back on save — so writes must still accept these, or editing any
+// other field on a legacy record would fail validation.
+const LEGACY_STATUSES = ['contacted', 'site-visit-scheduled', 'booked'];
+const WRITABLE_STATUSES = [...STATUSES, ...LEGACY_STATUSES];
+const EVENT_TYPES = ['wedding', 'birthday', 'anniversary', 'other'];
+// How a manually-entered enquiry reached us.
+const ENQUIRY_SOURCES = ['phone', 'walkin', 'referral', 'other'];
 
 function parseIntField(value, name, { min, max } = {}) {
   if (value === null || value === undefined || value === '') return null;
@@ -67,12 +84,15 @@ function parsePhoneField(value, name) {
 }
 
 // Validate and coerce body fields shared by POST and PATCH
-function parseClientBody(body, requireName = false) {
+function parseClientBody(body, requireCore = false) {
   const result = {};
 
-  if (requireName) {
+  if (requireCore) {
     if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
       throw Object.assign(new Error('name is required'), { status: 400 });
+    }
+    if (!body.phone || !String(body.phone).trim()) {
+      throw Object.assign(new Error('Phone is required'), { status: 400 });
     }
   }
   if (body.name !== undefined) result.name = String(body.name).trim();
@@ -86,8 +106,30 @@ function parseClientBody(body, requireName = false) {
   }
   if (body.preferredCity !== undefined)
     result.preferredCity = body.preferredCity ? String(body.preferredCity).trim() : null;
+  if (body.preferredHotel !== undefined)
+    result.preferredHotel = body.preferredHotel ? String(body.preferredHotel).trim() : null;
+  if (body.relationshipManager !== undefined)
+    result.relationshipManager = body.relationshipManager ? String(body.relationshipManager).trim() : null;
   if (body.notes !== undefined) result.notes = body.notes ? String(body.notes).trim() : null;
-  if (body.status !== undefined) result.status = body.status ? String(body.status).trim() : 'new';
+
+  if (body.status !== undefined) {
+    const status = body.status ? String(body.status).trim() : 'new';
+    if (!WRITABLE_STATUSES.includes(status)) {
+      // Only the current values are named — suggesting a legacy one would be
+      // telling the caller to pick something the UI no longer offers.
+      throw Object.assign(new Error(`status must be one of: ${STATUSES.join(', ')}`), { status: 400 });
+    }
+    result.status = status;
+    if (status === 'other') {
+      if (!body.statusOther || !String(body.statusOther).trim()) {
+        throw Object.assign(new Error('Please describe the status when choosing "Other"'), { status: 400 });
+      }
+      result.statusOther = String(body.statusOther).trim();
+    } else {
+      result.statusOther = null;
+    }
+  }
+
   if (body.category !== undefined) {
     const cat = body.category ? String(body.category).trim() : null;
     if (cat !== null && !CATEGORIES.includes(cat)) {
@@ -96,12 +138,60 @@ function parseClientBody(body, requireName = false) {
     result.category = cat;
   }
 
+  if (body.eventType !== undefined) {
+    const type = body.eventType ? String(body.eventType).trim() : null;
+    if (type !== null && !EVENT_TYPES.includes(type)) {
+      throw Object.assign(new Error(`eventType must be one of: ${EVENT_TYPES.join(', ')}`), { status: 400 });
+    }
+    result.eventType = type;
+    if (type === 'other') {
+      if (!body.eventTypeOther || !String(body.eventTypeOther).trim()) {
+        throw Object.assign(new Error('Please describe the event type when choosing "Other"'), { status: 400 });
+      }
+      result.eventTypeOther = String(body.eventTypeOther).trim();
+    } else {
+      result.eventTypeOther = null;
+    }
+  }
+
+  if (body.enquirySource !== undefined) {
+    const src = body.enquirySource ? String(body.enquirySource).trim() : null;
+    if (src !== null && !ENQUIRY_SOURCES.includes(src)) {
+      throw Object.assign(new Error(`enquirySource must be one of: ${ENQUIRY_SOURCES.join(', ')}`), { status: 400 });
+    }
+    result.enquirySource = src;
+    if (src === 'other') {
+      if (!body.enquirySourceOther || !String(body.enquirySourceOther).trim()) {
+        throw Object.assign(new Error('Please describe the enquiry source when choosing "Other"'), { status: 400 });
+      }
+      result.enquirySourceOther = String(body.enquirySourceOther).trim();
+    } else {
+      result.enquirySourceOther = null;
+    }
+  }
+
   if ('guestCount' in body)
     result.guestCount = parseIntField(body.guestCount, 'Guest count', { min: 1, max: 1000000 });
+  if ('roomCount' in body)
+    result.roomCount = parseIntField(body.roomCount, 'Number of rooms', { min: 1, max: 100000 });
   if ('budgetLakhs' in body)
-    result.budgetLakhs = parseFloatField(body.budgetLakhs, 'Budget', { min: 0, max: 100000 });
+    result.budgetLakhs = parseFloatField(body.budgetLakhs, 'Budget', { min: 0 });
+  if ('budgetHotelLakhs' in body)
+    result.budgetHotelLakhs = parseFloatField(body.budgetHotelLakhs, 'Hotel budget', { min: 0 });
+  if ('budgetDecorLakhs' in body)
+    result.budgetDecorLakhs = parseFloatField(body.budgetDecorLakhs, 'Decor budget', { min: 0 });
+  if ('budgetEventsLakhs' in body)
+    result.budgetEventsLakhs = parseFloatField(body.budgetEventsLakhs, 'Events budget', { min: 0 });
   if ('weddingDate' in body)
     result.weddingDate = parseDateField(body.weddingDate, 'Event date');
+  if ('checkInDate' in body)
+    result.checkInDate = parseDateField(body.checkInDate, 'Check-in date');
+  if ('checkOutDate' in body)
+    result.checkOutDate = parseDateField(body.checkOutDate, 'Check-out date');
+
+  if (result.checkInDate && result.checkOutDate && result.checkOutDate < result.checkInDate) {
+    throw Object.assign(new Error('Check-out date must be on or after the check-in date'), { status: 400 });
+  }
 
   return result;
 }
@@ -111,6 +201,12 @@ router.post('/', async (req, res) => {
   try {
     const data = parseClientBody(req.body, true);
     data.source = 'manual'; // always override — never trust the caller
+
+    // Record which logged-in employee created this profile.
+    if (req.admin?.sub) {
+      const employee = await prisma.admin.findUnique({ where: { id: req.admin.sub }, select: { name: true, email: true } });
+      data.createdByName = employee?.name || employee?.email || null;
+    }
 
     const client = await prisma.client.create({ data });
     return res.status(201).json(client);

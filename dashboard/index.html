@@ -398,12 +398,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .nc-remark-row .input{flex:1}
 .nc-remark-remove{flex:none;margin-top:4px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:13px;transition:background .12s,color .12s}
 .nc-remark-remove:hover{background:var(--cream-3);color:var(--text)}
-.nc-search-results{position:absolute;left:0;right:0;top:calc(100% + 4px);background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);max-height:220px;overflow-y:auto;z-index:5}
-.nc-search-result{display:flex;flex-direction:column;gap:2px;padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--cream-3)}
-.nc-search-result:last-child{border-bottom:none}
-.nc-search-result:hover{background:var(--cream-2)}
-.nc-search-result .r-name{font-weight:600;font-size:13px;color:var(--text)}
-.nc-search-result .r-meta{font-size:11.5px;color:var(--text-3)}
+.field-caption{font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--text-3);margin-bottom:4px}
+.drawer-section-title{letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;color:var(--text-3);font-weight:600;margin-bottom:10px}
+.info-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid var(--cream-3);font-size:13.5px}
+.info-row:last-child{border-bottom:none}
+.info-label{color:var(--text-3);flex:none}
+.info-value{color:var(--text);font-weight:500;text-align:right}
 
 /* compose (Gmail-style docked window) */
 .compose-win{position:fixed;bottom:0;right:28px;width:512px;max-width:calc(100vw - 40px);height:560px;max-height:calc(100vh - 40px);background:#fff;border-radius:12px 12px 0 0;box-shadow:0 -2px 16px rgba(35,41,31,.18),0 8px 40px rgba(35,41,31,.22);z-index:120;display:flex;flex-direction:column;overflow:hidden;animation:composeup .24s var(--ease-out) both}
@@ -932,6 +932,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .settings-row-text{flex:1;min-width:0}
 .settings-row-email{font:600 13.5px Inter,sans-serif;color:var(--text)}
 .settings-row-label{font-size:11.5px;color:var(--text-3);margin-top:1px}
+.settings-row-warn{font-size:11.5px;line-height:1.45;color:var(--red);margin-top:4px;max-width:46ch}
 .settings-link-btn{border:none;background:transparent;padding:6px 9px;border-radius:7px;font:600 12.5px Inter,sans-serif;
   color:var(--red);cursor:pointer;transition:background .12s;flex:none}
 .settings-link-btn:hover{background:var(--red-bg)}
@@ -940,6 +941,205 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .settings-mini-value{font-family:Fraunces,serif;font-size:26px;font-weight:600;color:var(--text);line-height:1}
 .settings-city-row{display:flex;align-items:center;justify-content:space-between;padding:10px 2px;border-bottom:1px solid var(--cream-3)}
 .settings-city-row:last-child{border-bottom:none}
+
+/* ══════════════════════════════════════════════════════════════════
+   CLIENTS REFRESH
+   A calm hairline-and-elevation system for the Clients screen, its
+   detail drawer and the New Client sheet. Scoped to cl-* (plus a few
+   overrides that only bite inside .cx-sheet / .cx-drawer) so the
+   site-wide neubrutalist black-border look is untouched elsewhere.
+   Replaces: bordered pill chips, hard offset shadows, boxed tabs.
+   ══════════════════════════════════════════════════════════════════ */
+:root{
+  --cx-line:#DED7C2;          /* structural hairline (cards, rails, rules) */
+  --cx-line-soft:#EDE9DB;     /* inner row rule */
+  --cx-field:#C6BFA7;         /* form control border — heavier, so fields read as fields */
+  --cx-field-hover:#A9A184;
+  --cx-tint:#FAF8F1;          /* hover / header wash */
+  --cx-ink:#12281A;
+  --cx-ph:#96907E;            /* placeholder */
+  --cx-e1:0 1px 2px rgba(23,30,20,.05);
+  --cx-e2:0 1px 2px rgba(23,30,20,.04),0 8px 24px -14px rgba(23,30,20,.22);
+  --cx-e3:0 24px 70px -22px rgba(23,30,20,.42),0 3px 10px rgba(23,30,20,.08);
+  --cx-ring:0 0 0 3px rgba(74,128,85,.13);
+}
+
+/* ── page header ───────────────────────────────────────────────── */
+.cx-head{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;margin-bottom:20px}
+.cx-title{font-family:Fraunces,serif;font-weight:600;font-size:28px;letter-spacing:-.015em;color:var(--text);line-height:1.1}
+.cx-sub{font-size:13px;color:var(--text-3);margin-top:6px;max-width:52ch}
+@media(max-width:760px){
+  .cx-head{flex-direction:column;align-items:stretch;gap:14px}
+  .cx-head .cx-btn{align-self:flex-start}
+  .cx-sub{max-width:none}
+  .cx-search{max-width:none}
+}
+
+/* ── buttons (soft) ────────────────────────────────────────────── */
+.cx-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:38px;padding:0 16px;flex:none;
+  border:1px solid transparent;border-radius:10px;font:600 13px Inter,sans-serif;cursor:pointer;white-space:nowrap;
+  text-decoration:none;transition:background 170ms var(--hd-ease),border-color 170ms var(--hd-ease),
+  color 170ms var(--hd-ease),box-shadow 170ms var(--hd-ease),transform 170ms var(--hd-ease)}
+.cx-btn:disabled{opacity:.5;cursor:default;transform:none!important}
+.cx-btn-primary{background:var(--green-900);color:#fff;box-shadow:0 1px 2px rgba(23,30,20,.18),0 10px 20px -12px rgba(23,30,20,.6)}
+.cx-btn-primary:hover:not(:disabled){background:var(--cx-ink);transform:translateY(-1px);box-shadow:0 2px 4px rgba(23,30,20,.2),0 14px 26px -12px rgba(23,30,20,.62)}
+.cx-btn-primary:active:not(:disabled){transform:translateY(0);box-shadow:0 1px 2px rgba(23,30,20,.18)}
+.cx-btn-ghost{background:#fff;border-color:var(--cx-field);color:var(--text-2);box-shadow:var(--cx-e1)}
+.cx-btn-ghost:hover:not(:disabled){background:var(--cx-tint);border-color:var(--cx-field-hover);color:var(--text)}
+.cx-btn-danger{background:transparent;color:var(--red)}
+.cx-btn-danger:hover:not(:disabled){background:var(--red-bg)}
+.cx-btn-sm{height:34px;padding:0 13px;font-size:12.5px;border-radius:9px}
+
+/* ── source tabs: underline, not boxes ─────────────────────────── */
+.cx-tabs{display:flex;align-items:center;gap:28px;border-bottom:1px solid var(--cx-line);margin-bottom:18px;overflow-x:auto}
+.cx-tab{position:relative;flex:none;border:none;background:none;padding:0 1px 12px;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;font:500 13.5px Inter,sans-serif;color:var(--text-3);
+  transition:color 170ms var(--hd-ease)}
+.cx-tab:hover{color:var(--text)}
+.cx-tab.active{color:var(--green-900);font-weight:600}
+.cx-tab::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--gold-600);
+  transform:scaleX(0);transition:transform 260ms var(--hd-ease)}
+.cx-tab.active::after{transform:scaleX(1)}
+.cx-tab-n{font:500 12px Inter,sans-serif;color:var(--text-3);font-variant-numeric:tabular-nums;transition:color 170ms}
+.cx-tab.active .cx-tab-n{color:var(--gold-600);font-weight:600}
+
+/* ── filter rail ───────────────────────────────────────────────── */
+.cx-rail{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:18px}
+.cx-search{flex:1 1 240px;min-width:200px;max-width:340px;height:38px;display:flex;align-items:center;gap:9px;padding:0 13px;
+  background:#fff;border:1px solid var(--cx-field);border-radius:10px;box-shadow:var(--cx-e1);
+  transition:border-color 170ms,box-shadow 170ms}
+.cx-search:hover{border-color:var(--cx-field-hover)}
+.cx-search:focus-within{border-color:var(--green-500);box-shadow:var(--cx-ring)}
+.cx-search svg{flex:none;color:var(--text-3)}
+.cx-search input{flex:1;min-width:0;border:none;background:none;outline:none;font-size:13.5px;color:var(--text)}
+.cx-search input::placeholder{color:var(--cx-ph)}
+.cx-sel{height:38px;padding:0 32px 0 13px;border:1px solid var(--cx-field);border-radius:10px;background-color:#fff;
+  appearance:none;-webkit-appearance:none;cursor:pointer;box-shadow:var(--cx-e1);
+  font:500 13px Inter,sans-serif;color:var(--text-2);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235E6557' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center;
+  transition:border-color 170ms,box-shadow 170ms,color 170ms,background-color 170ms}
+.cx-sel:hover{border-color:var(--cx-field-hover);color:var(--text)}
+.cx-sel:focus{outline:none;border-color:var(--green-500);box-shadow:var(--cx-ring)}
+.cx-sel.on{border-color:var(--green-200);background-color:var(--green-50);color:var(--green-900);font-weight:600;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%232E5D3B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+.cx-clear{border:none;background:none;padding:0 4px;height:38px;font:500 12.5px Inter,sans-serif;color:var(--text-3);
+  cursor:pointer;transition:color 150ms}
+.cx-clear:hover{color:var(--red)}
+.cx-railcount{margin-left:auto;font-size:12.5px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* ── data table ────────────────────────────────────────────────── */
+.cx-card{background:#fff;border:1px solid var(--cx-line);border-radius:16px;box-shadow:var(--cx-e2);overflow:hidden}
+.cx-scroll{overflow-x:auto}
+.cx-tbl{width:100%;border-collapse:collapse;min-width:820px}
+.cx-tbl th{text-align:left;white-space:nowrap;background:var(--cx-tint);color:var(--text-2);
+  font:600 10.5px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;
+  padding:12px 18px;border-bottom:1px solid var(--cx-line)}
+.cx-tbl td{padding:12px 18px;border-bottom:1px solid var(--cx-line-soft);font-size:13px;color:var(--text-2);
+  vertical-align:middle;white-space:nowrap}
+.cx-tbl tbody tr{cursor:pointer;transition:background 150ms var(--hd-ease)}
+.cx-tbl tbody tr:hover{background:var(--cx-tint)}
+.cx-tbl tbody tr:last-child td{border-bottom:none}
+.cx-tbl td.num{font-variant-numeric:tabular-nums}
+.cx-nm{font:600 13.5px Inter,sans-serif;color:var(--text);line-height:1.3}
+.cx-sm{font-size:11.5px;color:var(--text-3);margin-top:2px;max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.cx-none{color:#A39C88}
+.cx-tag{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:7px;
+  font:600 11px Inter,sans-serif;letter-spacing:.01em;background:rgba(23,30,20,.045);color:var(--text-2)}
+.cx-tag.g{background:var(--green-50);color:var(--green-700)}
+.cx-tag.b{background:#EAF1FA;color:#2B5AA7}
+.cx-status{display:inline-flex;align-items:center;gap:7px;font:600 12.5px Inter,sans-serif;color:var(--text-2)}
+.cx-dot{width:7px;height:7px;border-radius:50%;flex:none}
+.cx-chev{color:#CFC9B7;opacity:0;transform:translateX(-3px);transition:opacity 150ms var(--hd-ease),transform 150ms var(--hd-ease)}
+.cx-tbl tbody tr:hover .cx-chev{opacity:1;transform:translateX(0)}
+
+/* ── empty state ───────────────────────────────────────────────── */
+.cx-empty{display:flex;flex-direction:column;align-items:center;text-align:center;padding:70px 24px}
+.cx-empty-ico{width:54px;height:54px;border-radius:17px;background:var(--green-50);color:var(--green-500);
+  display:flex;align-items:center;justify-content:center;margin-bottom:16px}
+.cx-empty h4{font:600 16px Fraunces,serif;color:var(--text);margin-bottom:5px}
+.cx-empty p{font-size:13px;color:var(--text-3);max-width:330px;line-height:1.6;margin-bottom:16px}
+
+/* ── form primitives (shared by sheet + drawer edit) ───────────── */
+.cx-grid{display:grid;grid-template-columns:1fr 1fr;gap:15px 16px}
+.cx-grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.cx-full{grid-column:1/-1}
+@media(max-width:620px){.cx-grid{grid-template-columns:1fr}.cx-grid-3{grid-template-columns:1fr}}
+.cx-lab{display:block;font:500 12.5px Inter,sans-serif;color:var(--text-2);margin-bottom:6px;letter-spacing:.005em}
+.cx-lab .req{color:var(--gold-600);margin-left:1px}
+.cx-lab .hint{font-weight:400;color:var(--text-3);font-size:11.5px}
+/* .cx-in rides alongside .input so validateClientForm's .input-invalid
+   styling (higher specificity) still wins on bad fields. */
+.cx-in{width:100%;height:38px;border:1px solid var(--cx-field);border-radius:9px;padding:0 12px;background:#fff;
+  font:400 13.5px Inter,sans-serif;color:var(--text);box-shadow:none;
+  transition:border-color 160ms,box-shadow 160ms,background-color 160ms}
+.cx-in:hover:not(:disabled){border-color:var(--cx-field-hover)}
+.cx-in:focus{outline:none;border-color:var(--green-500);box-shadow:var(--cx-ring)}
+.cx-in::placeholder{color:var(--cx-ph)}
+.cx-in:disabled{background:#F2EFE4;border-color:var(--cx-line);color:var(--text-2);cursor:default}
+textarea.cx-in{height:auto;min-height:66px;padding:10px 12px;line-height:1.55;resize:vertical}
+select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-right:32px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%235E6557' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 11px center}
+.cx-cap{font:500 12px Inter,sans-serif;letter-spacing:.005em;color:var(--text-2);margin-bottom:6px}
+.cx-money{position:relative}
+.cx-money .cur{position:absolute;left:12px;top:50%;transform:translateY(-50%);font:500 13px Inter,sans-serif;color:var(--text-3);pointer-events:none}
+.cx-money .cx-in{padding-left:25px}
+
+/* ── new-client sheet ──────────────────────────────────────────── */
+.cx-sheet{background:#fff;border:none;border-radius:20px;padding:0;width:100%;max-width:680px;max-height:88vh;
+  display:flex;flex-direction:column;overflow:hidden;box-shadow:var(--cx-e3);
+  animation:modalup .26s var(--hd-ease) both}
+.cx-sheet-head{flex:none;display:flex;align-items:flex-start;gap:14px;padding:22px 26px 18px;border-bottom:1px solid var(--cx-line)}
+.cx-sheet-head h3{font:600 20px Fraunces,serif;color:var(--text);line-height:1.2}
+.cx-sheet-head p{font-size:12.5px;color:var(--text-3);margin-top:4px;line-height:1.5}
+.cx-x{width:32px;height:32px;flex:none;margin-left:auto;border:none;background:none;border-radius:9px;color:var(--text-3);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background 150ms,color 150ms}
+.cx-x:hover{background:#F3F0E6;color:var(--text)}
+.cx-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:0 26px;overscroll-behavior:contain}
+.cx-sheet-foot{flex:none;display:flex;align-items:center;justify-content:flex-end;gap:9px;padding:15px 26px;
+  border-top:1px solid var(--cx-line);background:var(--cx-tint)}
+.cx-sec{padding:20px 0;border-bottom:1px solid var(--cx-line-soft)}
+.cx-sec:last-child{border-bottom:none;padding-bottom:24px}
+.cx-sec-t{font:700 11px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:15px}
+.cx-sec-req{margin-left:8px;font:600 10px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  color:#7a5e10;background:var(--gold-100);border-radius:6px;padding:2px 7px;vertical-align:1px}
+/* One remark left = nothing to remove, so the button hides itself rather
+   than sitting there dead. */
+.nc-remarks .nc-remark-row:only-child .nc-remark-remove{display:none}
+.cx-sheet .nc-remark-row,.cx-drawer .nc-remark-row{gap:9px;margin-bottom:9px}
+.cx-sheet .nc-remark-num,.cx-drawer .nc-remark-num{margin-top:11px;background:#F2EFE4;border-color:var(--cx-field);color:var(--text-2);font-weight:700}
+.cx-sheet .nc-remark-remove,.cx-drawer .nc-remark-remove{border:none;background:none;color:var(--text-3);border-radius:8px;width:28px;height:28px;
+  margin-top:6px;flex:none;cursor:pointer;transition:background 150ms,color 150ms}
+.cx-sheet .nc-remark-remove:hover,.cx-drawer .nc-remark-remove:hover{background:var(--red-bg);color:var(--red)}
+.cx-addlink{display:inline-flex;align-items:center;gap:6px;border:none;background:none;padding:6px 0 0;cursor:pointer;
+  font:600 12.5px Inter,sans-serif;color:var(--green-700);transition:color 150ms}
+.cx-addlink:hover{color:var(--cx-ink)}
+
+/* ── detail drawer ─────────────────────────────────────────────── */
+.cx-drawer{display:flex;flex-direction:column;min-height:100%}
+.cx-dh{flex:none;padding:24px 26px 18px;background:linear-gradient(180deg,#FCFBF6 0%,#fff 100%);border-bottom:1px solid var(--cx-line)}
+.cx-dh-name{font:600 20px Fraunces,serif;color:var(--text);line-height:1.2}
+.cx-dbody{flex:1;padding:22px 26px 24px}
+.cx-acts{display:flex;gap:8px;margin-top:18px}
+.cx-act{flex:1;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:36px;padding:0 10px;
+  border:1px solid var(--cx-field);border-radius:10px;background:#fff;box-shadow:var(--cx-e1);cursor:pointer;text-decoration:none;
+  font:600 12.5px Inter,sans-serif;color:var(--text-2);white-space:nowrap;
+  transition:background 160ms,border-color 160ms,color 160ms,transform 160ms}
+.cx-act:hover{background:var(--green-50);border-color:var(--green-200);color:var(--green-700);transform:translateY(-1px)}
+.cx-dsec{margin-bottom:24px}
+.cx-dsec-t{font:700 11px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:8px}
+.cx-row{display:flex;align-items:baseline;justify-content:space-between;gap:18px;padding:9px 0;
+  border-bottom:1px solid var(--cx-line-soft);font-size:13.5px}
+.cx-row:last-child{border-bottom:none}
+.cx-row .k{flex:none;font-size:12.5px;color:var(--text-3)}
+.cx-row .v{text-align:right;color:var(--text);font-weight:500;min-width:0;word-break:break-word}
+.cx-row.total{border-top:1px solid var(--cx-line);border-bottom:none;margin-top:2px;padding-top:11px}
+.cx-row.total .v{font:600 14px Inter,sans-serif;color:var(--green-700)}
+.cx-note{font-size:13.5px;line-height:1.65;color:var(--text-2);white-space:pre-wrap;
+  background:var(--cx-tint);border:1px solid var(--cx-line-soft);border-radius:11px;padding:13px 15px}
+.cx-dfoot{position:sticky;bottom:0;flex:none;display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:14px 26px;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);border-top:1px solid var(--cl-line)}
 </style>
 </head>
 <body>
@@ -1269,13 +1469,53 @@ function cleanSnippet(body) {
 
 const STATUS_META = {
   'new':{c:'#4A8055',l:'New'},
-  'contacted':{c:'#5a7fb8',l:'Contacted'},
   'active':{c:'#B8902E',l:'Active'},
-  'site-visit-scheduled':{c:'#B8902E',l:'Site visit'},
-  'booked':{c:'#2E5D3B',l:'Booked'},
   'closed':{c:'#838b7b',l:'Closed'},
   'lost':{c:'#C0392B',l:'Lost'},
+  'other':{c:'#6b6f61',l:'Other'},
+  // Legacy values from before the status list was simplified — kept only so
+  // older records still render with a sensible color/label.
+  'contacted':{c:'#5a7fb8',l:'Contacted'},
+  'site-visit-scheduled':{c:'#B8902E',l:'Site visit'},
+  'booked':{c:'#2E5D3B',l:'Booked'},
 };
+const STATUS_OPTIONS = [['new','New'],['active','Active'],['closed','Closed'],['lost','Lost'],['other','Other']];
+const EVENT_TYPE_OPTIONS = [['wedding','Wedding'],['birthday','Birthday'],['anniversary','Anniversary'],['other','Other']];
+const ENQUIRY_SOURCE_OPTIONS = [['phone','Phone Call'],['walkin','Walk-in'],['referral','Referral'],['other','Other']];
+function enquirySourceLabel(c) {
+  if (!c.enquirySource) return null;
+  if (c.enquirySource === 'other') return c.enquirySourceOther || 'Other';
+  return ENQUIRY_SOURCE_OPTIONS.find(([k]) => k === c.enquirySource)?.[1] || c.enquirySource;
+}
+
+// A status of 'other' carries its real value in statusOther — surface that
+// instead of the literal word "Other" wherever a status is displayed.
+function statusLabel(c) {
+  if (c.status === 'other' && c.statusOther) return c.statusOther;
+  return STATUS_META[c.status]?.l || c.status || 'New';
+}
+function statusBadgeHtml(c) {
+  const meta = STATUS_META[c.status] || { c: '#838b7b' };
+  return `<span class="badge" style="background:${meta.c}1a;color:${meta.c}">${esc(statusLabel(c))}</span>`;
+}
+function eventTypeLabel(c) {
+  if (!c.eventType) return null;
+  if (c.eventType === 'other') return c.eventTypeOther || 'Other';
+  return EVENT_TYPE_OPTIONS.find(([k]) => k === c.eventType)?.[1] || c.eventType;
+}
+function eventTypeBadgeHtml(c) {
+  const label = eventTypeLabel(c);
+  return label ? `<span class="badge badge-green">${esc(label)}</span>` : '';
+}
+// New manual entries split budget by hotel/decor/events; older records may
+// only have the single legacy budgetLakhs figure.
+function budgetTotalLakhs(c) {
+  const parts = [c.budgetHotelLakhs, c.budgetDecorLakhs, c.budgetEventsLakhs].filter(v => v != null);
+  if (parts.length) return parts.reduce((a, b) => a + b, 0);
+  return c.budgetLakhs ?? null;
+}
+function preferredPlace(c) { return c.preferredHotel || c.preferredCity || null; }
+function eventDate(c) { return c.checkInDate || c.weddingDate || null; }
 
 // Error bodies are normally {"error":"..."} JSON from our own backend, but
 // infra in front of it (proxies, gateways, a plain 404) can hand back HTML —
@@ -1922,12 +2162,15 @@ function paintDashClients(clientsRes) {
         const nm = c.name||'?';
         const ini = nm.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
         const accent = avatarColor(nm);
-        const sm = STATUS_META[c.status] || {c:accent,l:(c.status||'New')};
+        const sm = STATUS_META[c.status] || {c:accent};
+        const place = preferredPlace(c);
+        const budget = budgetTotalLakhs(c);
+        const date = eventDate(c);
         const pills = [];
-        if (c.preferredCity) pills.push(`<span class="cl-pill">${pinSvg}${esc(c.preferredCity)}</span>`);
+        if (place) pills.push(`<span class="cl-pill">${pinSvg}${esc(place)}</span>`);
         if (c.guestCount) pills.push(`<span class="cl-pill">${guestSvg}${c.guestCount} guests</span>`);
-        if (c.budgetLakhs) pills.push(`<span class="cl-pill gold">₹${c.budgetLakhs}L budget</span>`);
-        if (c.weddingDate) pills.push(`<span class="cl-pill">${calSvg}${fmtDate(c.weddingDate)}</span>`);
+        if (budget != null) pills.push(`<span class="cl-pill gold">₹${budget}L budget</span>`);
+        if (date) pills.push(`<span class="cl-pill">${calSvg}${fmtDate(date)}</span>`);
         return `
         <div class="cl-card" style="--accent:${accent}" onclick="navigate('clients')">
           <div class="cl-avatar" style="background:${accent}">${esc(ini)}<span class="cl-dot" style="background:${sm.c}"></span></div>
@@ -1935,7 +2178,7 @@ function paintDashClients(clientsRes) {
             <div class="cl-name-row">
               <span class="cl-name">${esc(nm)}</span>
               ${c.category?categoryBadge(c.category):''}
-              <span class="badge" style="background:${sm.c}1a;color:${sm.c}">${esc(sm.l)}</span>
+              ${statusBadgeHtml(c)}
             </div>
             <div class="cl-meta">${pills.join('')}</div>
             ${c.notes?`<div class="cl-note">${esc(c.notes)}</div>`:''}
@@ -2367,6 +2610,7 @@ async function openHotelDrawer(id) {
 }
 
 function closeDrawer() {
+  S.drawerClient = null;
   const c = $('drawer-container');
   const overlay = c.querySelector('.drawer-overlay');
   const panel = c.querySelector('.drawer');
@@ -3434,10 +3678,9 @@ function closeModal() {
 // CLIENTS SCREEN
 // ============================================================
 const CATEGORY_META = {
-  event_enquiry:  { label: 'Event Enquiry',    cls: 'badge-green' },
-  collaboration:  { label: 'Collaboration',    cls: 'badge-blue' },
-  job_internship: { label: 'Job / Internship', cls: 'badge-purple' },
-  general:        { label: 'General',          cls: 'badge-gray' },
+  event_enquiry:  { label: 'Event Enquiry', cls: 'badge-green' },
+  collaboration:  { label: 'Collaboration', cls: 'badge-blue' },
+  general:        { label: 'General',       cls: 'badge-gray' },
 };
 
 // Instagram & Facebook source tabs are temporarily removed here to match the
@@ -3446,7 +3689,7 @@ const CATEGORY_META = {
 const CLIENT_SOURCES = [
   { key: 'all',       label: 'All' },
   { key: 'gmail',     label: 'Gmail',     icon: '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/>' },
-  { key: 'manual',    label: 'Manual',    icon: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>' },
+  { key: 'manual',    label: 'Added by team' },
 ];
 
 function categoryBadge(cat) {
@@ -3455,62 +3698,92 @@ function categoryBadge(cat) {
   return `<span class="badge ${m.cls}">${esc(m.label)}</span>`;
 }
 
-function sourceBadge(src) {
-  const s = CLIENT_SOURCES.find(x => x.key === src);
-  if (!s || !s.icon) return `<span class="badge badge-gray">${esc(src||'manual')}</span>`;
+// A literal "Manual" badge on every hand-added row is just noise — show how
+// the enquiry actually reached us (phone/walk-in/referral) instead. Only
+// real automated sources (Gmail, DMs) fall through to the source badge.
+function sourceBadge(c) {
+  if (!c.source || c.source === 'manual') {
+    const label = enquirySourceLabel(c);
+    return label ? `<span class="badge badge-gray">${esc(label)}</span>` : '';
+  }
+  const s = CLIENT_SOURCES.find(x => x.key === c.source);
+  if (!s || !s.icon) return `<span class="badge badge-gray">${esc(c.source)}</span>`;
   return `<span class="badge badge-gray" style="gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg>${esc(s.label)}</span>`;
 }
 
 async function renderClients() {
   setContent(`
-    <div class="page-header mb-4">
+    <div class="cx-head">
       <div>
-        <div class="page-title">Clients</div>
-        <div class="page-sub">Every enquiry from Gmail &amp; manual entry — auto-categorized</div>
+        <div class="cx-title">Clients</div>
+        <div class="cx-sub">Every client enquiry, from Gmail and your team, in one place</div>
       </div>
-      <div class="flex items-center gap-2">
-        <button class="btn btn-primary" onclick="openNewClientModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>
-          New Client
-        </button>
-      </div>
+      <button class="cx-btn cx-btn-primary" onclick="openNewClientModal()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+        New Client
+      </button>
     </div>
-    <div class="tabs mb-3" id="client-source-tabs" style="align-self:flex-start"></div>
-    <div class="flex items-center gap-3 mb-4" style="flex-wrap:wrap">
-      <div class="flex items-center gap-2" id="client-category-chips"></div>
-      <select class="input" style="width:auto;height:36px;padding:0 30px 0 12px;font-size:12.5px" id="client-status-select" onchange="setClientStatus(this.value)">
-        ${['all','new','contacted','active','booked','closed','lost'].map(s=>`<option value="${s}" ${S.clientStatusFilter===s?'selected':''}>${s==='all'?'All statuses':(STATUS_META[s]?.l||s)}</option>`).join('')}
-      </select>
-      <label class="topbar-search" style="max-width:260px;height:36px">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+    <div class="cx-tabs" id="client-source-tabs"></div>
+    <div class="cx-rail">
+      <label class="cx-search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" placeholder="Search name, phone, email…" id="client-search-input" oninput="onClientSearch(this.value)" value="${esc(S.clientSearch)}">
       </label>
+      <select class="cx-sel" id="client-category-select" onchange="setClientCategory(this.value)"></select>
+      <select class="cx-sel ${S.clientStatusFilter!=='all'?'on':''}" id="client-status-select" onchange="setClientStatus(this.value)">
+        ${['all',...STATUS_OPTIONS.map(([k])=>k)].map(s=>`<option value="${s}" ${S.clientStatusFilter===s?'selected':''}>${s==='all'?'All statuses':(STATUS_META[s]?.l||s)}</option>`).join('')}
+      </select>
+      <span id="client-clear-slot"></span>
+      <span class="cx-railcount" id="client-rail-count"></span>
     </div>
-    <div id="client-results"><div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div></div>
+    <div id="client-results"><div style="display:flex;justify-content:center;padding:60px"><div class="spinner"></div></div></div>
   `);
   renderClientFilterBars();
   loadClientSummary();
   loadClients();
 }
 
-// Source tabs (with live counts) + category chips. Re-rendered when the
-// summary loads or a filter changes — cheaper than repainting the screen.
+// True when anything narrows the list — drives the "Clear" affordance and
+// the wording of the empty state.
+function clientFiltersActive() {
+  return S.clientSourceFilter !== 'all' || S.clientCategoryFilter !== 'all'
+      || S.clientStatusFilter !== 'all' || !!S.clientSearch;
+}
+
+function clearClientFilters() {
+  S.clientSourceFilter = 'all'; S.clientCategoryFilter = 'all'; S.clientStatusFilter = 'all'; S.clientSearch = '';
+  renderClients();
+}
+
+// Source tabs (with live counts) + the category/status selects. Re-rendered
+// when the summary loads or a filter changes — cheaper than a full repaint.
 function renderClientFilterBars() {
   const counts = S.clientCounts;
   const tabs = $('client-source-tabs');
   if (tabs) tabs.innerHTML = CLIENT_SOURCES.map(s => {
     const n = counts ? (s.key === 'all' ? counts.total : (counts.bySource?.[s.key] || 0)) : null;
-    return `<button class="tab ${S.clientSourceFilter===s.key?'active':''}" onclick="setClientSource('${s.key}')">
-      ${s.icon?`<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:-1.5px;margin-right:5px">${s.icon}</svg>`:''}${s.label}${n!==null?`<span class="src-count">${n}</span>`:''}
+    return `<button class="cx-tab ${S.clientSourceFilter===s.key?'active':''}" onclick="setClientSource('${s.key}')">
+      ${s.icon?`<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg>`:''}${s.label}${n!==null?`<span class="cx-tab-n">${n}</span>`:''}
     </button>`;
   }).join('');
 
-  const chips = $('client-category-chips');
-  if (chips) chips.innerHTML = [['all','All categories'], ...Object.entries(CATEGORY_META).map(([k,v])=>[k,v.label])]
-    .map(([k,label]) => {
-      const n = counts && k!=='all' ? (counts.byCategory?.[k] || 0) : null;
-      return `<button class="cat-chip ${S.clientCategoryFilter===k?'active':''}" onclick="setClientCategory('${k}')">${label}${n?` · ${n}`:''}</button>`;
-    }).join('');
+  // Categories moved from a row of bordered pills into the rail — same
+  // one-click filtering, with the counts folded into the option labels.
+  const cat = $('client-category-select');
+  if (cat) {
+    cat.innerHTML = [['all','All categories'], ...Object.entries(CATEGORY_META).map(([k,v])=>[k,v.label])]
+      .map(([k,label]) => {
+        const n = counts && k!=='all' ? (counts.byCategory?.[k] || 0) : null;
+        return `<option value="${k}" ${S.clientCategoryFilter===k?'selected':''}>${esc(label)}${n?` (${n})`:''}</option>`;
+      }).join('');
+    cat.classList.toggle('on', S.clientCategoryFilter !== 'all');
+  }
+  const st = $('client-status-select');
+  if (st) { st.value = S.clientStatusFilter; st.classList.toggle('on', S.clientStatusFilter !== 'all'); }
+
+  const slot = $('client-clear-slot');
+  if (slot) slot.innerHTML = clientFiltersActive()
+    ? `<button class="cx-clear" onclick="clearClientFilters()">Clear filters</button>` : '';
 }
 
 async function loadClientSummary() {
@@ -3522,11 +3795,12 @@ async function loadClientSummary() {
 
 function setClientSource(s) { S.clientSourceFilter = s; renderClientFilterBars(); loadClients(); }
 function setClientCategory(c) { S.clientCategoryFilter = c; renderClientFilterBars(); loadClients(); }
-function setClientStatus(s) { S.clientStatusFilter = s; loadClients(); }
+function setClientStatus(s) { S.clientStatusFilter = s; renderClientFilterBars(); loadClients(); }
 
 let clientSearchTimer;
 function onClientSearch(v) {
   S.clientSearch = v;
+  renderClientFilterBars();
   clearTimeout(clientSearchTimer);
   clientSearchTimer = setTimeout(loadClients, 300);
 }
@@ -3551,52 +3825,92 @@ async function loadClients() {
   });
 }
 
+// Softer, borderless versions of the row markers — a colour dot for status
+// and a flat tint for the event/category tag — so the table reads as data
+// rather than as a wall of outlined pills.
+function clStatusHtml(c) {
+  const meta = STATUS_META[c.status] || { c: '#838b7b' };
+  return `<span class="cx-status"><i class="cx-dot" style="background:${meta.c}"></i>${esc(statusLabel(c))}</span>`;
+}
+function clTagHtml(c) {
+  const ev = eventTypeLabel(c);
+  if (ev) return `<span class="cx-tag g">${esc(ev)}</span>`;
+  if (!c.category) return `<span class="cx-none">—</span>`;
+  const m = CATEGORY_META[c.category] || { label: c.category };
+  const tone = c.category === 'event_enquiry' ? ' g' : c.category === 'collaboration' ? ' b' : '';
+  return `<span class="cx-tag${tone}">${esc(m.label)}</span>`;
+}
+function clSourceHtml(c) {
+  if (!c.source || c.source === 'manual') {
+    const label = enquirySourceLabel(c);
+    return label ? `<span class="cx-tag">${esc(label)}</span>` : `<span class="cx-none">—</span>`;
+  }
+  const s = CLIENT_SOURCES.find(x => x.key === c.source);
+  if (!s || !s.icon) return `<span class="cx-tag">${esc(c.source)}</span>`;
+  return `<span class="cx-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg>${esc(s.label)}</span>`;
+}
+const clDash = '<span class="cx-none">—</span>';
+
 function paintClients(data, meta) {
   const el = $('client-results');
   if (!el) return;
   S.clients = data;
-    if (!data.length) {
-      const hasFilter = S.clientSourceFilter!=='all' || S.clientCategoryFilter!=='all' || S.clientStatusFilter!=='all' || S.clientSearch;
-      el.innerHTML = `<div class="empty" style="padding:60px 20px">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".3"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-        <p>${hasFilter ? 'No clients match these filters' : 'No clients yet — new DMs and emails will appear here automatically'}</p>
-      </div>`;
-      return;
-    }
-    el.innerHTML = `
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden">
-        <div class="flex items-center justify-between px-4 py-3 border-b" style="background:var(--cream)">
-          <span class="text-sm text-muted">${meta?.total||data.length} client${(meta?.total||data.length)===1?'':'s'}</span>
-        </div>
-        <table class="tbl">
-          <thead><tr>
-            <th>Client</th><th>Category</th><th>City</th><th>Guests</th><th>Budget</th><th>Event Date</th><th>Last Contact</th><th>Status</th><th>Source</th>
-          </tr></thead>
-          <tbody>${data.map(c=>{
-            const sm = STATUS_META[c.status] || {c:'#838b7b',l:c.status||'New'};
-            return `
-            <tr onclick="openClientDrawer(${c.id})" style="cursor:pointer">
-              <td>
-                <div class="flex items-center gap-2">
-                  ${socialAvatarHtml(c.name, 32)}
-                  <div style="min-width:0">
-                    <div style="font-weight:500">${esc(c.name)}</div>
-                    <div class="text-xs text-muted truncate" style="max-width:180px">${esc(c.phone||c.email||'')}</div>
-                  </div>
+  const total = meta?.total ?? data.length;
+  const rc = $('client-rail-count');
+  if (rc) rc.textContent = data.length ? `${total} client${total===1?'':'s'}` : '';
+
+  if (!data.length) {
+    const hasFilter = clientFiltersActive();
+    el.innerHTML = `<div class="cx-card"><div class="cx-empty">
+      <div class="cx-empty-ico">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </div>
+      <h4>${hasFilter ? 'No clients match these filters' : 'No clients yet'}</h4>
+      <p>${hasFilter ? 'Try widening the search, or reset everything to see the full list.' : 'New emails and DMs land here automatically. You can also add a phone, walk-in or referral enquiry yourself.'}</p>
+      ${hasFilter
+        ? `<button class="cx-btn cx-btn-ghost cx-btn-sm" onclick="clearClientFilters()">Clear filters</button>`
+        : `<button class="cx-btn cx-btn-primary cx-btn-sm" onclick="openNewClientModal()">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+             New Client
+           </button>`}
+    </div></div>`;
+    return;
+  }
+
+  el.innerHTML = `
+    <div class="cx-card"><div class="cx-scroll">
+      <table class="cx-tbl">
+        <thead><tr>
+          <th>Client</th><th>Type</th><th>Hotel</th><th>Guests</th><th>Rooms</th><th>Budget</th><th>Event date</th><th>Status</th><th>Source</th><th style="width:34px"></th>
+        </tr></thead>
+        <tbody>${data.map(c=>{
+          const budget = budgetTotalLakhs(c);
+          const date = eventDate(c);
+          const sub = c.phone || c.email || '';
+          return `
+          <tr onclick="openClientDrawer(${c.id})">
+            <td>
+              <div class="flex items-center gap-3">
+                ${socialAvatarHtml(c.name, 34)}
+                <div style="min-width:0">
+                  <div class="cx-nm">${esc(c.name)}</div>
+                  ${sub ? `<div class="cx-sm truncate">${esc(sub)}</div>` : ''}
                 </div>
-              </td>
-              <td>${categoryBadge(c.category)}</td>
-              <td>${esc(c.preferredCity||'—')}</td>
-              <td>${c.guestCount||'—'}</td>
-              <td>${c.budgetLakhs ? '₹'+c.budgetLakhs+'L' : '—'}</td>
-              <td>${c.weddingDate ? fmtDate(c.weddingDate) : '—'}</td>
-              <td class="text-xs text-muted">${c.lastContactAt ? shortDate(c.lastContactAt) : '—'}</td>
-              <td><span class="badge" style="background:${sm.c}1a;color:${sm.c}">${esc(sm.l)}</span></td>
-              <td>${sourceBadge(c.source)}</td>
-            </tr>`;}).join('')}
-          </tbody>
-        </table>
-      </div>`;
+              </div>
+            </td>
+            <td>${clTagHtml(c)}</td>
+            <td>${preferredPlace(c) ? esc(preferredPlace(c)) : clDash}</td>
+            <td class="num">${c.guestCount || clDash}</td>
+            <td class="num">${c.roomCount || clDash}</td>
+            <td class="num">${budget != null ? '₹'+budget+'L' : clDash}</td>
+            <td class="num">${date ? fmtDate(date) : clDash}</td>
+            <td>${clStatusHtml(c)}</td>
+            <td>${clSourceHtml(c)}</td>
+            <td><svg class="cx-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table>
+    </div></div>`;
 }
 
 // Backfill: classify stored IG/FB DMs whose senders have no client profile yet.
@@ -3618,95 +3932,222 @@ async function openClientDrawer(id) {
   const dc = $('drawer-container');
   dc.innerHTML = `
     <div class="drawer-overlay" onclick="closeDrawer()"></div>
-    <div class="drawer" style="width:520px;max-width:94vw"><div style="display:flex;justify-content:center;padding:60px"><div class="spinner"></div></div></div>`;
+    <div class="drawer" style="width:540px;max-width:94vw;box-shadow:var(--cx-e3)"><div style="display:flex;justify-content:center;padding:60px"><div class="spinner"></div></div></div>`;
   try {
     const c = await api('/api/clients/' + id);
-    dc.querySelector('.drawer').innerHTML = clientDrawerHtml(c);
+    S.drawerClient = c;
+    dc.querySelector('.drawer').innerHTML = clientDrawerHtml(c, false);
   } catch(e) {
     dc.querySelector('.drawer').innerHTML = `<div class="empty" style="padding:40px"><p>Failed to load client: ${esc(e.message)}</p></div>`;
   }
 }
 
-function clientDrawerHtml(c) {
-  const sm = STATUS_META[c.status] || {c:'#838b7b',l:c.status||'New'};
+// Re-renders the already-open drawer in view or edit mode from the client
+// data fetched by openClientDrawer — no refetch needed to toggle Edit/Cancel.
+function setClientDrawerMode(editing) {
+  const c = S.drawerClient;
+  if (!c) return;
+  const drawer = document.querySelector('#drawer-container .drawer');
+  if (drawer) drawer.innerHTML = clientDrawerHtml(c, editing);
+}
+
+// One key/value line in the drawer. `value` is trusted HTML (callers escape);
+// pass showEmpty to keep the row with an em-dash instead of dropping it, so
+// the Contact/Wedding blocks keep a stable shape across clients.
+function infoRow(label, value, showEmpty) {
+  const empty = value === null || value === undefined || value === '';
+  if (empty && !showEmpty) return '';
+  return `<div class="cx-row"><span class="k">${esc(label)}</span><span class="v">${empty ? clDash : value}</span></div>`;
+}
+
+const ICO_CLOSE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
+
+function clientDrawerHtml(c, editing) {
   const isDM = (c.source==='instagram'||c.source==='facebook') && c.channelUserId;
-  const dateVal = c.weddingDate ? String(c.weddingDate).slice(0,10) : '';
+  const safeName = esc(c.name).replace(/'/g,'&#39;');
+  const header = `
+      <div class="cx-dh">
+        <div class="flex items-start gap-3">
+          ${socialAvatarHtml(c.name, 48)}
+          <div style="flex:1;min-width:0">
+            <div class="cx-dh-name">${esc(c.name)}</div>
+            <div class="flex items-center gap-2" style="margin-top:7px;flex-wrap:wrap">
+              ${clStatusHtml(c)}
+              <span style="color:#D5CFBD">·</span>
+              ${clTagHtml(c)}
+              ${clSourceHtml(c)}
+            </div>
+          </div>
+          <button class="cx-x" onclick="closeDrawer()" title="Close">${ICO_CLOSE}</button>
+        </div>
+        ${(isDM || c.email || c.phone) ? `<div class="cx-acts">
+          ${isDM ? `<button class="cx-act" onclick="openClientConversation('${esc(c.source)}','${esc(c.channelUserId)}')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            Conversation
+          </button>` : ''}
+          ${c.email ? `<button class="cx-act" onclick="closeDrawer();openCompose({to:'${esc(c.email)}',subject:'',body:''})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
+            Email
+          </button>` : ''}
+          ${c.phone ? `<a class="cx-act" href="tel:${esc(c.phone)}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Call
+          </a>` : ''}
+        </div>` : ''}
+      </div>`;
+
+  const functionsHtml = (c.functions&&c.functions.length)?`
+      <div class="cx-dsec">
+        <div class="cx-dsec-t">Functions</div>
+        ${c.functions.map(f=>infoRow(
+          f.type ? f.type.charAt(0).toUpperCase()+f.type.slice(1) : 'Function',
+          esc([f.city, f.date?fmtDate(f.date):null, f.guestCount?f.guestCount+' guests':null].filter(Boolean).join(' · ')),
+          true)).join('')}
+      </div>`:'';
+
+  if (!editing) {
+    const budget = budgetTotalLakhs(c);
+    return `
+    <div class="cx-drawer">
+      ${header}
+      <div class="cx-dbody">
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Contact</div>
+          ${infoRow('Phone', c.phone ? esc(c.phone) : '', true)}
+          ${infoRow('Email', c.email ? esc(c.email) : '', true)}
+        </div>
+
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Event details</div>
+          ${infoRow('Preferred hotel', esc(preferredPlace(c)||''), true)}
+          ${infoRow('Guest count', c.guestCount ?? '', true)}
+          ${infoRow('No. of rooms', c.roomCount ?? '', true)}
+          ${infoRow('Check-in', c.checkInDate ? fmtDate(c.checkInDate) : (c.weddingDate ? fmtDate(c.weddingDate) : ''), true)}
+          ${infoRow('Check-out', c.checkOutDate ? fmtDate(c.checkOutDate) : '', true)}
+        </div>
+
+        ${budget!=null ? `<div class="cx-dsec">
+          <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
+          ${infoRow('Hotel', c.budgetHotelLakhs!=null ? '₹'+c.budgetHotelLakhs+'L' : '')}
+          ${infoRow('Decor', c.budgetDecorLakhs!=null ? '₹'+c.budgetDecorLakhs+'L' : '')}
+          ${infoRow('Events', c.budgetEventsLakhs!=null ? '₹'+c.budgetEventsLakhs+'L' : '')}
+          <div class="cx-row total"><span class="k">Total</span><span class="v">₹${budget}L</span></div>
+        </div>` : ''}
+
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Ownership</div>
+          ${infoRow('How they reached us', esc(enquirySourceLabel(c)||''), true)}
+          ${infoRow('Relationship manager', esc(c.relationshipManager||''), true)}
+          ${infoRow('Added by', c.createdByName ? esc(c.createdByName) : '<span class="cx-none">Not recorded</span>', true)}
+          ${infoRow('Added on', fmtDate(c.createdAt), true)}
+        </div>
+
+        ${c.notes ? `<div class="cx-dsec">
+          <div class="cx-dsec-t">Remarks</div>
+          <div class="cx-note">${esc(c.notes)}</div>
+        </div>` : ''}
+
+        ${functionsHtml}
+      </div>
+      <div class="cx-dfoot">
+        <button class="cx-btn cx-btn-danger" onclick="deleteClient(${c.id}, '${safeName}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          Delete
+        </button>
+        <button class="cx-btn cx-btn-primary" onclick="setClientDrawerMode(true)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          Edit
+        </button>
+      </div>
+    </div>`;
+  }
+
+  const dateVal = c.checkInDate ? String(c.checkInDate).slice(0,10) : (c.weddingDate ? String(c.weddingDate).slice(0,10) : '');
+  const outVal = c.checkOutDate ? String(c.checkOutDate).slice(0,10) : '';
   return `
-    <div style="padding:26px 28px">
-      <div class="flex items-center gap-3 mb-4">
-        ${socialAvatarHtml(c.name, 52)}
-        <div style="flex:1;min-width:0">
-          <div style="font:600 19px Fraunces,serif;color:var(--text)">${esc(c.name)}</div>
-          <div class="flex items-center gap-2" style="margin-top:5px">
-            ${categoryBadge(c.category)}
-            ${sourceBadge(c.source)}
-            <span class="badge" style="background:${sm.c}1a;color:${sm.c}">${esc(sm.l)}</span>
+    <div class="cx-drawer">
+      ${header}
+      <div class="cx-dbody">
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Profile</div>
+          <div class="cx-grid">
+            <div><label class="cx-lab" for="cd-name">Name <span class="req">*</span></label><input class="input cx-in" id="cd-name" value="${esc(c.name)}"></div>
+            <div><label class="cx-lab" for="cd-phone">Phone <span class="req">*</span></label><input class="input cx-in" id="cd-phone" value="${esc(c.phone||'')}" placeholder="+91 98765 43210"></div>
+            <div><label class="cx-lab" for="cd-email">Email</label><input class="input cx-in" id="cd-email" value="${esc(c.email||'')}" placeholder="name@example.com"></div>
+            <div><label class="cx-lab" for="cd-hotel">Preferred hotel</label><input class="input cx-in" id="cd-hotel" value="${esc(preferredPlace(c)||'')}" placeholder="e.g. Aahana, Jim Corbett"></div>
+            <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}" placeholder="300"></div>
+            <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}" placeholder="80"></div>
+            <div><label class="cx-lab" for="cd-rm">Relationship manager</label><input class="input cx-in" id="cd-rm" value="${esc(c.relationshipManager||'')}" placeholder="Who's handling this?"></div>
+            <div>
+              <label class="cx-lab" for="cd-enquirysource">Enquiry source</label>
+              <select class="input cx-in" id="cd-enquirysource" onchange="onOtherSelectChange(this,'cd-enquirysource-other-wrap')">
+                <option value="" ${!c.enquirySource?'selected':''}>Not set</option>
+                ${enquirySourceOptionsHtml(c.enquirySource)}
+              </select>
+              <div id="cd-enquirysource-other-wrap" style="display:${c.enquirySource==='other'?'block':'none'};margin-top:8px">
+                <input class="input cx-in" id="cd-enquirysource-other" value="${esc(c.enquirySourceOther||'')}" placeholder="Where did this come from?">
+              </div>
+            </div>
+            <div><label class="cx-lab">Added by</label><input class="input cx-in" value="${esc(c.createdByName||'—')}" disabled></div>
           </div>
         </div>
-        <button class="btn btn-ghost btn-icon" onclick="closeDrawer()" title="Close">✕</button>
-      </div>
 
-      <div class="flex gap-2 mb-5">
-        ${isDM ? `<button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="openClientConversation('${esc(c.source)}','${esc(c.channelUserId)}')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          Open conversation
-        </button>` : ''}
-        ${c.email ? `<button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center" onclick="closeDrawer();openCompose({to:'${esc(c.email)}',subject:'',body:''})">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
-          Send email
-        </button>` : ''}
-        ${c.phone ? `<a class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;text-decoration:none" href="tel:${esc(c.phone)}">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-          Call
-        </a>` : ''}
-      </div>
-
-      <div class="label" style="letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;color:var(--text-3);margin-bottom:10px">Profile</div>
-      <div class="grid grid-2 gap-3 mb-3">
-        <div><label class="label">Name *</label><input class="input" id="cd-name" value="${esc(c.name)}"></div>
-        <div><label class="label">Phone</label><input class="input" id="cd-phone" value="${esc(c.phone||'')}" placeholder="—"></div>
-        <div><label class="label">Email</label><input class="input" id="cd-email" value="${esc(c.email||'')}" placeholder="—"></div>
-        <div><label class="label">Preferred City</label><input class="input" id="cd-city" value="${esc(c.preferredCity||'')}" placeholder="—"></div>
-        <div><label class="label">Budget (₹ Lakhs)</label><input class="input" id="cd-budget" type="number" min="0" max="100000" step="0.5" value="${c.budgetLakhs??''}" placeholder="—"></div>
-        <div><label class="label">Guest Count</label><input class="input" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}" placeholder="—"></div>
-        <div><label class="label">Event Date</label><input class="input" id="cd-date" type="date" min="1950-01-01" max="${maxEventDate()}" value="${dateVal}"></div>
-        <div><label class="label">Status</label>
-          <select class="input" id="cd-status">
-            ${['new','contacted','active','site-visit-scheduled','booked','closed','lost'].map(s=>`<option value="${s}" ${c.status===s?'selected':''}>${STATUS_META[s]?.l||s}</option>`).join('')}
-          </select>
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
+          <div class="cx-grid-3">
+            <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-hotel" type="number" min="0" step="0.5" value="${c.budgetHotelLakhs??''}" placeholder="0"></div></div>
+            <div><div class="cx-cap">Decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-decor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}" placeholder="0"></div></div>
+            <div><div class="cx-cap">Events</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-events" type="number" min="0" step="0.5" value="${c.budgetEventsLakhs??''}" placeholder="0"></div></div>
+          </div>
         </div>
-        <div style="grid-column:1/-1"><label class="label">Category</label>
-          <select class="input" id="cd-category">
-            <option value="" ${!c.category?'selected':''}>Uncategorized</option>
-            ${Object.entries(CATEGORY_META).map(([k,v])=>`<option value="${k}" ${c.category===k?'selected':''}>${v.label}</option>`).join('')}
-          </select>
+
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Event &amp; status</div>
+          <div class="cx-grid">
+            <div><label class="cx-lab" for="cd-checkin">Check-in date</label><input class="input cx-in" id="cd-checkin" type="date" min="1950-01-01" max="${maxEventDate()}" value="${dateVal}"></div>
+            <div><label class="cx-lab" for="cd-checkout">Check-out date</label><input class="input cx-in" id="cd-checkout" type="date" min="1950-01-01" max="${maxEventDate()}" value="${outVal}"></div>
+            <div>
+              <label class="cx-lab" for="cd-status">Status</label>
+              <select class="input cx-in" id="cd-status" onchange="onOtherSelectChange(this,'cd-status-other-wrap')">${statusOptionsHtml('cd', c.status)}</select>
+              <div id="cd-status-other-wrap" style="display:${c.status==='other'?'block':'none'};margin-top:8px">
+                <input class="input cx-in" id="cd-status-other" value="${esc(c.statusOther||'')}" placeholder="Describe the status…">
+              </div>
+            </div>
+            <div>
+              <label class="cx-lab" for="cd-eventtype">Event type</label>
+              <select class="input cx-in" id="cd-eventtype" onchange="onOtherSelectChange(this,'cd-eventtype-other-wrap')">
+                <option value="" ${!c.eventType?'selected':''}>Not set</option>
+                ${eventTypeOptionsHtml(c.eventType)}
+              </select>
+              <div id="cd-eventtype-other-wrap" style="display:${c.eventType==='other'?'block':'none'};margin-top:8px">
+                <input class="input cx-in" id="cd-eventtype-other" value="${esc(c.eventTypeOther||'')}" placeholder="Describe the event type…">
+              </div>
+            </div>
+            <div class="cx-full">
+              <label class="cx-lab" for="cd-category">Category <span class="hint">— auto-triaged from inbound enquiries</span></label>
+              <select class="input cx-in" id="cd-category">
+                <option value="" ${!c.category?'selected':''}>Uncategorized</option>
+                ${Object.entries(CATEGORY_META).map(([k,v])=>`<option value="${k}" ${c.category===k?'selected':''}>${v.label}</option>`).join('')}
+              </select>
+            </div>
+          </div>
         </div>
+
+        <div class="cx-dsec">
+          <div class="cx-dsec-t">Remarks</div>
+          ${remarksListHtml('cd-remarks-list', c.notes)}
+        </div>
+
+        ${functionsHtml}
       </div>
-      <div class="mb-4"><label class="label">Notes</label><textarea class="input" id="cd-notes" rows="4">${esc(c.notes||'')}</textarea></div>
-
-      ${(c.functions&&c.functions.length)?`
-      <div class="label" style="letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;color:var(--text-3);margin-bottom:8px">Functions</div>
-      <div class="mb-4">
-        ${c.functions.map(f=>`
-          <div class="flex items-center justify-between py-2" style="border-bottom:1px solid var(--border);font-size:13px">
-            <span style="font-weight:500;text-transform:capitalize">${esc(f.type)}</span>
-            <span class="text-xs text-muted">${[f.city, f.date?fmtDate(f.date):null, f.guestCount?f.guestCount+' guests':null].filter(Boolean).map(esc).join(' · ')||'—'}</span>
-          </div>`).join('')}
-      </div>`:''}
-
-      <div class="label" style="letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;color:var(--text-3);margin-bottom:8px">Record</div>
-      <div class="text-xs text-muted mb-1">Source: ${esc(c.source)}${c.channelUserId?` · ID ${esc(c.channelUserId)}`:''}</div>
-      <div class="text-xs text-muted mb-1">Added: ${fmtDate(c.createdAt)}</div>
-      ${c.lastContactAt?`<div class="text-xs text-muted mb-4">Last contact: ${fmtDate(c.lastContactAt)}</div>`:'<div class="mb-4"></div>'}
-
-      <div class="flex gap-2" style="justify-content:space-between">
-        <button class="btn btn-ghost" style="color:var(--red,#C0392B)" onclick="deleteClient(${c.id}, '${esc(c.name).replace(/'/g,'&#39;')}')">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      <div class="cx-dfoot">
+        <button class="cx-btn cx-btn-danger" onclick="deleteClient(${c.id}, '${safeName}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
           Delete
         </button>
         <div class="flex gap-2">
-          <button class="btn btn-ghost" onclick="closeDrawer()">Cancel</button>
-          <button class="btn btn-primary" onclick="saveClientDrawer(${c.id})">Save changes</button>
+          <button class="cx-btn cx-btn-ghost" onclick="setClientDrawerMode(false)">Cancel</button>
+          <button class="cx-btn cx-btn-primary" onclick="saveClientDrawer(${c.id})">Save changes</button>
         </div>
       </div>
     </div>`;
@@ -3737,32 +4178,66 @@ function maxEventDate() {
 function validateClientForm(prefix) {
   const f = suffix => $(prefix + suffix);
   const errors = [];
-  ['-name','-phone','-email','-budget','-guests','-date'].forEach(s => f(s)?.classList.remove('input-invalid'));
+  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-hotel','-budget-decor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource-other']
+    .forEach(s => f(s)?.classList.remove('input-invalid'));
 
   const name = f('-name')?.value.trim();
   if (!name) errors.push([f('-name'), 'Name is required']);
 
+  // The whole event block is compulsory when the team hand-adds an enquiry —
+  // they're on the call and have the answers. Editing stays permissive:
+  // Gmail/DM-sourced records arrive with none of this filled in, and forcing
+  // it here would make those profiles unsaveable.
+  if (prefix === 'nc') {
+    if (!f('-eventtype')?.value) errors.push([f('-eventtype'), 'Pick an event type']);
+    if (!f('-hotel')?.value.trim()) errors.push([f('-hotel'), 'Preferred hotel is required']);
+    if (!f('-checkin')?.value) errors.push([f('-checkin'), 'Check-in date is required']);
+    if (!f('-checkout')?.value) errors.push([f('-checkout'), 'Check-out date is required']);
+    if (!f('-guests')?.value.trim()) errors.push([f('-guests'), 'Guest count is required']);
+    if (!f('-rooms')?.value.trim()) errors.push([f('-rooms'), 'Number of rooms is required']);
+    if (!f('-status')?.value) errors.push([f('-status'), 'Pick a status']);
+  }
+
+  const phone = f('-phone')?.value.trim();
+  if (!phone) errors.push([f('-phone'), 'Phone number is required']);
+  else if (!/^[+()\-\s\d]+$/.test(phone)) errors.push([f('-phone'), 'Phone can only contain digits and + - ( )']);
+  else { const d = phone.replace(/\D/g, ''); if (d.length < 7 || d.length > 15) errors.push([f('-phone'), 'Phone must have 7–15 digits']); }
+
   const email = f('-email')?.value.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push([f('-email'), 'Enter a valid email like name@example.com']);
 
-  const phone = f('-phone')?.value.trim();
-  if (phone) {
-    if (!/^[+()\-\s\d]+$/.test(phone)) errors.push([f('-phone'), 'Phone can only contain digits and + - ( )']);
-    else { const d = phone.replace(/\D/g, ''); if (d.length < 7 || d.length > 15) errors.push([f('-phone'), 'Phone must have 7–15 digits']); }
-  }
+  ['-budget-hotel','-budget-decor','-budget-events'].forEach(s => {
+    const raw = f(s)?.value;
+    if (raw) { const b = Number(raw); if (!isFinite(b) || b < 0) errors.push([f(s), 'Budget must be a positive number']); }
+  });
 
-  const budgetRaw = f('-budget')?.value;
-  if (budgetRaw) { const b = Number(budgetRaw); if (!isFinite(b) || b < 0) errors.push([f('-budget'), 'Budget must be a positive number']); else if (b > 100000) errors.push([f('-budget'), 'Budget looks too large']); }
+  const roomsRaw = f('-rooms')?.value;
+  if (roomsRaw) { const r = Number(roomsRaw); if (!Number.isInteger(r) || r < 1) errors.push([f('-rooms'), 'Rooms must be a whole number of 1 or more']); else if (r > 100000) errors.push([f('-rooms'), 'Room count looks too large']); }
 
   const guestsRaw = f('-guests')?.value;
   if (guestsRaw) { const g = Number(guestsRaw); if (!Number.isInteger(g) || g < 1) errors.push([f('-guests'), 'Guest count must be a whole number of 1 or more']); else if (g > 1000000) errors.push([f('-guests'), 'Guest count looks too large']); }
 
-  const dateRaw = f('-date')?.value;
-  if (dateRaw) { const y = new Date(dateRaw).getFullYear(); const maxY = new Date().getFullYear() + 10; if (y < 1950 || y > maxY) errors.push([f('-date'), `Date must have a real year (1950–${maxY})`]); }
+  const maxY = new Date().getFullYear() + 10;
+  ['-checkin','-checkout'].forEach(s => {
+    const raw = f(s)?.value;
+    if (raw) { const y = new Date(raw).getFullYear(); if (y < 1950 || y > maxY) errors.push([f(s), `Date must have a real year (1950–${maxY})`]); }
+  });
+  const inRaw = f('-checkin')?.value, outRaw = f('-checkout')?.value;
+  if (inRaw && outRaw && outRaw < inRaw) errors.push([f('-checkout'), 'Check-out date must be on or after check-in']);
+
+  if (f('-status')?.value === 'other' && !f('-status-other')?.value.trim())
+    errors.push([f('-status-other'), 'Please describe the status']);
+  if (f('-eventtype')?.value === 'other' && !f('-eventtype-other')?.value.trim())
+    errors.push([f('-eventtype-other'), 'Please describe the event type']);
+  if (f('-enquirysource')?.value === 'other' && !f('-enquirysource-other')?.value.trim())
+    errors.push([f('-enquirysource-other'), 'Please describe the enquiry source']);
 
   if (errors.length) {
     errors.forEach(([el]) => el?.classList.add('input-invalid'));
-    errors[0][0]?.focus();
+    // The sheet/drawer body scrolls, so bring the field into view before
+    // focusing — otherwise the toast points at something off-screen.
+    errors[0][0]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    errors[0][0]?.focus({ preventScroll: true });
     showToast(errors[0][1], 'error');
     return false;
   }
@@ -3777,22 +4252,36 @@ document.addEventListener('input', e => {
 async function saveClientDrawer(id) {
   if (!validateClientForm('cd')) return;
   const name = $('cd-name').value.trim();
+  const status = $('cd-status').value;
+  const eventType = $('cd-eventtype')?.value || null;
+  const enquirySource = $('cd-enquirysource')?.value || null;
   const body = {
     name,
-    phone: $('cd-phone').value.trim() || null,
+    phone: $('cd-phone').value.trim(),
     email: $('cd-email').value.trim() || null,
-    preferredCity: $('cd-city').value.trim() || null,
-    budgetLakhs: $('cd-budget').value ? Number($('cd-budget').value) : null,
+    preferredHotel: $('cd-hotel').value.trim() || null,
     guestCount: $('cd-guests').value ? Number($('cd-guests').value) : null,
-    weddingDate: $('cd-date').value || null,
-    status: $('cd-status').value,
+    roomCount: $('cd-rooms').value ? Number($('cd-rooms').value) : null,
+    relationshipManager: $('cd-rm').value.trim() || null,
+    enquirySource: enquirySource || null,
+    enquirySourceOther: enquirySource === 'other' ? $('cd-enquirysource-other')?.value.trim() : null,
+    budgetHotelLakhs: $('cd-budget-hotel').value ? Number($('cd-budget-hotel').value) : null,
+    budgetDecorLakhs: $('cd-budget-decor').value ? Number($('cd-budget-decor').value) : null,
+    budgetEventsLakhs: $('cd-budget-events').value ? Number($('cd-budget-events').value) : null,
+    checkInDate: $('cd-checkin').value || null,
+    checkOutDate: $('cd-checkout').value || null,
+    status,
+    statusOther: status === 'other' ? $('cd-status-other')?.value.trim() : null,
     category: $('cd-category').value || null,
-    notes: $('cd-notes').value.trim() || null,
+    eventType: eventType || null,
+    eventTypeOther: eventType === 'other' ? $('cd-eventtype-other')?.value.trim() : null,
+    notes: collectRemarks('cd-remarks-list') || null,
   };
   try {
-    await apiPatch('/api/clients/' + id, body);
+    const updated = await apiPatch('/api/clients/' + id, body);
+    S.drawerClient = updated;
     showToast('Client updated', 'success');
-    closeDrawer();
+    setClientDrawerMode(false);
     cacheClear('clients:'); cacheClear('GET:/api/clients'); cacheClear('dash:');
     loadClientSummary();
     loadClients();
@@ -3807,128 +4296,205 @@ function openClientConversation(platform, senderId) {
   navigate('inbox');
 }
 
+// Reveals the paired "please specify" text field when a <select> with an
+// "other" option is set to it — shared by Status and Event Type, in both
+// the New Client modal ('nc-') and the client drawer's edit mode ('cd-').
+function onOtherSelectChange(selectEl, wrapId) {
+  const wrap = $(wrapId);
+  if (wrap) wrap.style.display = selectEl.value === 'other' ? 'block' : 'none';
+}
+
+function statusOptionsHtml(prefix, current) {
+  const opts = STATUS_OPTIONS.some(([k]) => k === current) || !current
+    ? STATUS_OPTIONS
+    : [[current, STATUS_META[current]?.l || current], ...STATUS_OPTIONS];
+  return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+}
+
+function eventTypeOptionsHtml(current) {
+  const opts = EVENT_TYPE_OPTIONS.some(([k]) => k === current) || !current
+    ? EVENT_TYPE_OPTIONS
+    : [[current, current], ...EVENT_TYPE_OPTIONS];
+  return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+}
+
+function enquirySourceOptionsHtml(current) {
+  const opts = ENQUIRY_SOURCE_OPTIONS.some(([k]) => k === current) || !current
+    ? ENQUIRY_SOURCE_OPTIONS
+    : [[current, current], ...ENQUIRY_SOURCE_OPTIONS];
+  return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+}
+
 function openNewClientModal() {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="position:relative;max-width:520px">
-        <div class="modal-title">New Client</div>
-        <div class="text-xs text-muted" style="margin:-8px 0 14px">For enquiries that came by phone call, walk-in, or referral</div>
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
-        <div class="mb-3" style="position:relative">
-          <label class="label">Check existing client (name or phone)</label>
-          <input class="input" id="nc-search" placeholder="Search name or phone number…" oninput="onNewClientSearch(this.value)" autocomplete="off">
-          <div id="nc-search-results"></div>
-        </div>
-        <div class="grid grid-2 gap-3 mb-3">
-          <div><label class="label">Full Name *</label><input class="input" id="nc-name" placeholder="Anjali Sharma"></div>
-          <div><label class="label">Phone</label><input class="input" id="nc-phone" placeholder="+91 98765 43210"></div>
-          <div><label class="label">Email</label><input class="input" id="nc-email" type="email" placeholder="email@example.com"></div>
-          <div><label class="label">Preferred City</label><input class="input" id="nc-city" placeholder="Jim Corbett"></div>
-          <div><label class="label">Budget (₹ Lakhs)</label><input class="input" id="nc-budget" type="number" min="0" max="100000" step="0.5" placeholder="50"></div>
-          <div><label class="label">Guest Count</label><input class="input" id="nc-guests" type="number" min="1" max="1000000" step="1" placeholder="300"></div>
-          <div><label class="label">Wedding Date</label><input class="input" id="nc-date" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
-          <div><label class="label">Status</label>
-            <select class="input" id="nc-status">
-              <option value="new">New</option>
-              <option value="contacted">Contacted</option>
-              <option value="active">Active</option>
-              <option value="closed">Closed</option>
-            </select>
+      <div class="modal cx-sheet" role="dialog" aria-modal="true" aria-labelledby="nc-heading">
+        <div class="cx-sheet-head">
+          <div>
+            <h3 id="nc-heading">New Client</h3>
+            <p>For enquiries that came in by phone call, walk-in or referral.</p>
           </div>
-          <div style="grid-column:1/-1"><label class="label">Category</label>
-            <select class="input" id="nc-category">
-              ${Object.entries(CATEGORY_META).map(([k,v])=>`<option value="${k}" ${k==='event_enquiry'?'selected':''}>${v.label}</option>`).join('')}
-            </select>
-          </div>
+          <button class="cx-x" onclick="closeModal()" title="Close">${ICO_CLOSE}</button>
         </div>
-        <div class="mb-4">
-          <label class="label">Remark</label>
-          <div id="nc-remarks-list">
-            <div class="nc-remark-row">
-              <div class="nc-remark-num">1</div>
-              <textarea class="input" rows="2" placeholder="What did they ask for? Where did the call come from?…"></textarea>
+
+        <div class="cx-sheet-body">
+          <div class="cx-sec">
+            <div class="cx-sec-t">Who</div>
+            <div class="cx-grid">
+              <div><label class="cx-lab" for="nc-name">Full name <span class="req">*</span></label><input class="input cx-in" id="nc-name" placeholder="Anjali Sharma"></div>
+              <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" id="nc-phone" placeholder="+91 98765 43210"></div>
+              <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" id="nc-email" type="email" placeholder="name@example.com"></div>
+              <div>
+                <label class="cx-lab" for="nc-enquirysource">How did they reach us?</label>
+                <select class="input cx-in" id="nc-enquirysource" onchange="onOtherSelectChange(this,'nc-enquirysource-other-wrap')">
+                  <option value="" selected>Not set</option>
+                  ${enquirySourceOptionsHtml('')}
+                </select>
+                <div id="nc-enquirysource-other-wrap" style="display:none;margin-top:8px">
+                  <input class="input cx-in" id="nc-enquirysource-other" placeholder="Where did this come from?">
+                </div>
+              </div>
             </div>
           </div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="addRemarkRow()">+ Add remark</button>
+
+          <div class="cx-sec">
+            <div class="cx-sec-t">The event <span class="cx-sec-req">all required</span></div>
+            <div class="cx-grid">
+              <div>
+                <label class="cx-lab" for="nc-eventtype">Event type <span class="req">*</span></label>
+                <select class="input cx-in" id="nc-eventtype" onchange="onOtherSelectChange(this,'nc-eventtype-other-wrap')">${eventTypeOptionsHtml('wedding')}</select>
+                <div id="nc-eventtype-other-wrap" style="display:none;margin-top:8px">
+                  <input class="input cx-in" id="nc-eventtype-other" placeholder="Describe the event type…">
+                </div>
+              </div>
+              <div><label class="cx-lab" for="nc-hotel">Preferred hotel <span class="req">*</span></label><input class="input cx-in" id="nc-hotel" placeholder="e.g. Aahana, Jim Corbett"></div>
+              <div><label class="cx-lab" for="nc-checkin">Check-in date <span class="req">*</span></label><input class="input cx-in" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-checkout">Check-out date <span class="req">*</span></label><input class="input cx-in" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-guests">Guest count <span class="req">*</span></label><input class="input cx-in" id="nc-guests" type="number" min="1" max="1000000" step="1" placeholder="300"></div>
+              <div><label class="cx-lab" for="nc-rooms">No. of rooms <span class="req">*</span></label><input class="input cx-in" id="nc-rooms" type="number" min="1" max="100000" step="1" placeholder="80"></div>
+              <div>
+                <label class="cx-lab" for="nc-status">Status <span class="req">*</span></label>
+                <select class="input cx-in" id="nc-status" onchange="onOtherSelectChange(this,'nc-status-other-wrap')">${statusOptionsHtml('nc', 'new')}</select>
+                <div id="nc-status-other-wrap" style="display:none;margin-top:8px">
+                  <input class="input cx-in" id="nc-status-other" placeholder="Describe the status…">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cx-sec">
+            <div class="cx-sec-t">Budget <span style="text-transform:none;letter-spacing:0;font-weight:500">· in ₹ lakhs</span></div>
+            <div class="cx-grid-3">
+              <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-hotel" type="number" min="0" step="0.5" placeholder="0"></div></div>
+              <div><div class="cx-cap">Decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-decor" type="number" min="0" step="0.5" placeholder="0"></div></div>
+              <div><div class="cx-cap">Events</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-events" type="number" min="0" step="0.5" placeholder="0"></div></div>
+            </div>
+          </div>
+
+          <div class="cx-sec">
+            <div class="cx-sec-t">Ownership</div>
+            <div class="cx-grid">
+              <div><label class="cx-lab" for="nc-rm">Relationship manager</label><input class="input cx-in" id="nc-rm" placeholder="Who's handling this client?"></div>
+              <div><label class="cx-lab">Filled by</label><input class="input cx-in" value="${esc(S.admin?.name||S.admin?.email||'—')}" disabled></div>
+            </div>
+          </div>
+
+          <div class="cx-sec">
+            <div class="cx-sec-t">Remarks</div>
+            ${remarksListHtml('nc-remarks-list', '')}
+          </div>
         </div>
-        <div class="flex gap-2" style="justify-content:flex-end">
-          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-primary" onclick="createClient()">Create Client</button>
+
+        <div class="cx-sheet-foot">
+          <button class="cx-btn cx-btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="cx-btn cx-btn-primary" onclick="createClient()">Create client</button>
         </div>
       </div>
     </div>`;
+  setTimeout(() => $('nc-name')?.focus(), 60);
 }
 
-function addRemarkRow() {
-  const list = $('nc-remarks-list');
-  if (!list) return;
-  const row = document.createElement('div');
-  row.className = 'nc-remark-row';
-  row.innerHTML = `
-    <div class="nc-remark-num">${list.children.length + 1}</div>
-    <textarea class="input" rows="2" placeholder="Additional remark…"></textarea>
+// ---- numbered remark rows ----
+// Shared by the New Client sheet ('nc-remarks-list') and the drawer's edit
+// mode ('cd-remarks-list'). Every row carries a remove button; CSS hides it
+// while a single row is left, so the list can never be emptied out.
+const REMARK_PLACEHOLDER = 'What did they ask for? Where did the call come from?…';
+
+function remarkRowHtml(n, value) {
+  return `<div class="nc-remark-row">
+    <div class="nc-remark-num">${n}</div>
+    <textarea class="input cx-in" rows="2" placeholder="${n === 1 ? REMARK_PLACEHOLDER : 'Additional remark…'}">${esc(value || '')}</textarea>
     <button type="button" class="nc-remark-remove" onclick="removeRemarkRow(this)" title="Remove remark">✕</button>
-  `;
-  list.appendChild(row);
-  row.querySelector('textarea').focus();
+  </div>`;
+}
+
+// collectRemarks stores 2+ remarks as "1. …\n2. …" in the single notes
+// column — split that back into rows so editing round-trips. Anything else
+// (including a plain multi-line note) stays one remark.
+function splitRemarks(notes) {
+  const t = String(notes || '').trim();
+  if (!t) return [''];
+  if (!/^1\.\s/.test(t)) return [t];
+  const parts = t.split(/\n(?=\d+\.\s)/).map(s => s.replace(/^\d+\.\s*/, '').trim()).filter(Boolean);
+  return parts.length ? parts : [t];
+}
+
+function remarksListHtml(id, notes) {
+  return `<div id="${id}" class="nc-remarks">${splitRemarks(notes).map((v, i) => remarkRowHtml(i + 1, v)).join('')}</div>
+    <button type="button" class="cx-addlink" onclick="addRemarkRow('${id}')">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      Add another remark
+    </button>`;
+}
+
+function addRemarkRow(listId) {
+  const list = $(listId || 'nc-remarks-list');
+  if (!list) return;
+  list.insertAdjacentHTML('beforeend', remarkRowHtml(list.children.length + 1, ''));
+  list.lastElementChild.querySelector('textarea').focus();
 }
 
 function removeRemarkRow(btn) {
-  const list = $('nc-remarks-list');
+  const list = btn.closest('.nc-remarks');
   if (!list || list.children.length <= 1) return;
   btn.closest('.nc-remark-row').remove();
   [...list.children].forEach((row, i) => { row.querySelector('.nc-remark-num').textContent = i + 1; });
 }
 
-function collectRemarks() {
-  const list = $('nc-remarks-list');
+function collectRemarks(listId) {
+  const list = $(listId || 'nc-remarks-list');
   if (!list) return undefined;
   const vals = [...list.querySelectorAll('textarea')].map(t => t.value.trim()).filter(Boolean);
   if (!vals.length) return undefined;
   return vals.length === 1 ? vals[0] : vals.map((v, i) => `${i + 1}. ${v}`).join('\n');
 }
 
-let ncSearchTimer;
-function onNewClientSearch(v) {
-  clearTimeout(ncSearchTimer);
-  const q = v.trim();
-  if (!q) { $('nc-search-results').innerHTML = ''; return; }
-  ncSearchTimer = setTimeout(async () => {
-    try {
-      const res = await api('/api/clients?limit=6&search=' + encodeURIComponent(q));
-      const list = res.clients || res.data || res.items || (Array.isArray(res) ? res : []);
-      const box = $('nc-search-results');
-      if (!box) return;
-      if (!list.length) { box.innerHTML = ''; return; }
-      box.className = 'nc-search-results';
-      box.innerHTML = list.map(c => `
-        <div class="nc-search-result" onclick="pickExistingClient(${c.id})">
-          <div class="r-name">${esc(c.name)}</div>
-          <div class="r-meta">${esc(c.phone || c.email || 'No contact info')}</div>
-        </div>
-      `).join('');
-    } catch (e) { /* silent — search-as-you-type shouldn't surface errors */ }
-  }, 300);
-}
-
-function pickExistingClient(id) {
-  closeModal();
-  openClientDrawer(id);
-}
-
 async function createClient() {
   if (!validateClientForm('nc')) return;
   const name = $('nc-name').value.trim();
+  const status = $('nc-status')?.value || 'new';
+  const eventType = $('nc-eventtype')?.value || undefined;
+  const enquirySource = $('nc-enquirysource')?.value || undefined;
   const body = {
     name,
-    phone: $('nc-phone')?.value||undefined,
-    email: $('nc-email')?.value||undefined,
-    preferredCity: $('nc-city')?.value||undefined,
-    budgetLakhs: $('nc-budget')?.value ? Number($('nc-budget').value) : undefined,
+    phone: $('nc-phone').value.trim(),
+    email: $('nc-email')?.value || undefined,
+    preferredHotel: $('nc-hotel')?.value || undefined,
     guestCount: $('nc-guests')?.value ? Number($('nc-guests').value) : undefined,
-    weddingDate: $('nc-date')?.value||undefined,
-    status: $('nc-status')?.value||'new',
-    category: $('nc-category')?.value||'general',
+    roomCount: $('nc-rooms')?.value ? Number($('nc-rooms').value) : undefined,
+    relationshipManager: $('nc-rm')?.value || undefined,
+    enquirySource,
+    enquirySourceOther: enquirySource === 'other' ? ($('nc-enquirysource-other')?.value || '').trim() : undefined,
+    budgetHotelLakhs: $('nc-budget-hotel')?.value ? Number($('nc-budget-hotel').value) : undefined,
+    budgetDecorLakhs: $('nc-budget-decor')?.value ? Number($('nc-budget-decor').value) : undefined,
+    budgetEventsLakhs: $('nc-budget-events')?.value ? Number($('nc-budget-events').value) : undefined,
+    checkInDate: $('nc-checkin')?.value || undefined,
+    checkOutDate: $('nc-checkout')?.value || undefined,
+    status,
+    statusOther: status === 'other' ? ($('nc-status-other')?.value || '').trim() : undefined,
+    category: 'event_enquiry',
+    eventType,
+    eventTypeOther: eventType === 'other' ? ($('nc-eventtype-other')?.value || '').trim() : undefined,
     notes: collectRemarks(),
   };
   try {
@@ -4146,7 +4712,7 @@ async function loadHwoliContext() {
     if (clientsRes.status === 'fulfilled') {
       const clients = clientsRes.value.data || [];
       ctx += `\n\nCLIENTS: ${clientsRes.value.meta?.total||clients.length} total\n`;
-      ctx += clients.map((c,i) => `${i+1}. ${c.name} | Status: ${c.status||'new'} | City: ${c.preferredCity||'—'} | Budget: ${c.budgetLakhs?'₹'+c.budgetLakhs+'L':'—'} | Guests: ${c.guestCount||'—'} | Date: ${c.weddingDate?fmtDate(c.weddingDate):'—'} | Ph: ${c.phone||'—'} | Email: ${c.email||'—'}`).join('\n');
+      ctx += clients.map((c,i) => { const b = budgetTotalLakhs(c); const d = eventDate(c); return `${i+1}. ${c.name} | Status: ${statusLabel(c)} | Hotel: ${preferredPlace(c)||'—'} | Budget: ${b!=null?'₹'+b+'L':'—'} | Guests: ${c.guestCount||'—'} | Date: ${d?fmtDate(d):'—'} | Ph: ${c.phone||'—'} | Email: ${c.email||'—'}`; }).join('\n');
     }
     if (emailsRes.status === 'fulfilled') {
       const emails = emailsRes.value?.data || [];
@@ -5291,6 +5857,7 @@ async function loadMailAccountsSettings() {
           <div class="settings-row-text">
             <div class="settings-row-email">${esc(a.email)}</div>
             <div class="settings-row-label">${esc(a.label)}${a.type==='imap'?' · IMAP':''}</div>
+            ${a.needsPassword ? `<div class="settings-row-warn">⚠ Saved password can't be unlocked — remove this mailbox and add it again to re-enter the password.</div>` : ''}
           </div>
           ${removeBtn}
         </div>`;
@@ -5325,20 +5892,21 @@ function openAddMailboxModal() {
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:460px">
         <div class="modal-title">Add a mailbox</div>
-        <div class="text-xs text-muted" style="margin:-8px 0 16px">Connect a GoDaddy Workspace or other IMAP mailbox (e.g. info@humsafarweddingsbygnk.com).</div>
+        <div class="text-xs text-muted" style="margin:-8px 0 16px">Connect a GoDaddy Titan or other IMAP mailbox (e.g. info@humsafarweddingsbygnk.in).</div>
         <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
         <div class="auth-field"><label class="label">Provider</label>
           <select class="input" id="mb-provider" onchange="onMbProviderChange()">
-            <option value="godaddy">GoDaddy Workspace</option>
+            <option value="titan">GoDaddy Professional Email (Titan)</option>
+            <option value="godaddy">GoDaddy Workspace (legacy)</option>
             <option value="office365">Microsoft 365 (Outlook)</option>
             <option value="custom">Custom IMAP/SMTP</option>
           </select>
         </div>
         <div class="auth-field" style="margin-top:12px"><label class="label">Email address</label>
-          <input class="input" id="mb-email" type="email" placeholder="info@humsafarweddingsbygnk.com" autocomplete="off"></div>
+          <input class="input" id="mb-email" type="email" placeholder="info@humsafarweddingsbygnk.in" autocomplete="off"></div>
         <div class="auth-field" style="margin-top:12px"><label class="label">Password</label>
           <input class="input" id="mb-password" type="password" placeholder="Mailbox password" autocomplete="off">
-          <div class="auth-hint">Stored encrypted. GoDaddy Workspace uses your full email as the username.</div></div>
+          <div class="auth-hint" id="mb-hint">Stored encrypted. Use your full email address as the username, and the mailbox password (not your GoDaddy account password).</div></div>
         <div id="mb-custom" style="display:none">
           <div class="grid grid-2 gap-3" style="margin-top:12px">
             <div><label class="label">IMAP host</label><input class="input" id="mb-imaphost" placeholder="imap.example.com"></div>
@@ -5356,9 +5924,20 @@ function openAddMailboxModal() {
     </div>`;
 }
 
+// Titan and Workspace are both "GoDaddy" to a user but share no hostnames —
+// spell out which servers each preset will actually use.
+const MB_PROVIDER_HINTS = {
+  titan:     'imap.titan.email · smtp.titan.email — GoDaddy Professional Email, sold since ~2020.',
+  godaddy:   'imap.secureserver.net · smtpout.secureserver.net — only for older Workspace mailboxes.',
+  office365: 'outlook.office365.com · smtp.office365.com',
+  custom:    'Enter the IMAP/SMTP hosts from your provider below.',
+};
+
 function onMbProviderChange() {
-  const custom = $('mb-provider').value === 'custom';
-  $('mb-custom').style.display = custom ? '' : 'none';
+  const v = $('mb-provider').value;
+  $('mb-custom').style.display = v === 'custom' ? '' : 'none';
+  const hint = $('mb-hint');
+  if (hint) hint.textContent = 'Stored encrypted. Use the full email address as the username. ' + (MB_PROVIDER_HINTS[v] || '');
 }
 
 async function submitAddMailbox() {

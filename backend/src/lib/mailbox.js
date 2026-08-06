@@ -6,9 +6,19 @@ const { simpleParser } = require('mailparser');
 
 // Known providers → default IMAP/SMTP hosts so the user only needs to type
 // their email + password. 'custom' lets them enter hosts manually.
+// GoDaddy sells two different email products and they share no hostnames:
+//   - Titan ("Professional Email") — everything sold since ~2020, *.titan.email
+//   - Workspace Email — the legacy product, *.secureserver.net
+// Pointing a Titan mailbox at secureserver.net fails to connect, so Titan is
+// listed first and is the fallback for an unrecognised provider.
 const PROVIDERS = {
+  titan: {
+    label: 'GoDaddy Professional Email (Titan)',
+    imapHost: 'imap.titan.email', imapPort: 993,
+    smtpHost: 'smtp.titan.email', smtpPort: 465,
+  },
   godaddy: {
-    label: 'GoDaddy Workspace',
+    label: 'GoDaddy Workspace (legacy)',
     imapHost: 'imap.secureserver.net', imapPort: 993,
     smtpHost: 'smtpout.secureserver.net', smtpPort: 465,
   },
@@ -62,13 +72,41 @@ async function verifyImap({ imapHost, imapPort, email, password }) {
   }
 }
 
+// The two GoDaddy products are indistinguishable from the customer's side — the
+// MX record is the only real tell — and picking the wrong one fails with a plain
+// auth error rather than anything diagnostic. So when a GoDaddy preset is used
+// verbatim, verifyImapWithFallback silently retries against the sibling product.
+const GODADDY_SIBLING = { titan: 'godaddy', godaddy: 'titan' };
+
+// Verify credentials, transparently retrying the sibling GoDaddy host if the
+// selected one is rejected. Returns the provider/hosts that actually worked so
+// the caller persists the working configuration, not the one that was picked.
+async function verifyImapWithFallback({ provider, overrides = {}, email, password }) {
+  const order = [provider];
+  // Only fall back when the preset was used as-is; explicit hosts are a
+  // deliberate choice and shouldn't be silently swapped out.
+  if (!overrides.imapHost && GODADDY_SIBLING[provider]) order.push(GODADDY_SIBLING[provider]);
+
+  let firstErr;
+  for (const prov of order) {
+    const hosts = resolveHosts(prov, overrides);
+    try {
+      await verifyImap({ imapHost: hosts.imapHost, imapPort: hosts.imapPort, email, password });
+      return { provider: prov, hosts };
+    } catch (err) {
+      if (!firstErr) firstErr = err;
+    }
+  }
+  throw firstErr;
+}
+
 function friendlyImapError(err) {
   const m = (err && (err.message || err.responseText)) || String(err);
   // imapflow sets authenticationFailed when the LOGIN command is rejected; the
   // raw message for that is often just "Command failed".
   if (err && (err.authenticationFailed || err.serverResponseCode === 'AUTHENTICATIONFAILED')
       || /auth|credential|login|AUTHENTICATIONFAILED|Command failed/i.test(m)) {
-    return 'Login failed — check the email and password. GoDaddy Workspace uses your full email address as the username.';
+    return 'Login failed — use your full email address as the username and the mailbox password (not your GoDaddy account password). If the mailbox has 2-step verification on, create an app password and use that.';
   }
   if (/ENOTFOUND|EAI_AGAIN|getaddrinfo/i.test(m)) return 'Could not reach the mail server — check the IMAP host.';
   if (/timeout|ETIMEDOUT/i.test(m)) return 'Connection to the mail server timed out — check the host, port, or firewall.';
@@ -169,4 +207,4 @@ async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, subject, 
   return info.messageId;
 }
 
-module.exports = { PROVIDERS, resolveHosts, verifyImap, fetchRecent, sendSmtp, fetchAttachment };
+module.exports = { PROVIDERS, resolveHosts, verifyImap, verifyImapWithFallback, fetchRecent, sendSmtp, fetchAttachment };

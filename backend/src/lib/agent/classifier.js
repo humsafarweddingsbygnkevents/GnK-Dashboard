@@ -3,7 +3,7 @@
 // LLM triage for inbound messages (Instagram DMs, Facebook Messenger, Gmail).
 //
 // One classification call per message: buckets the sender into a category
-// (event_enquiry / collaboration / job_internship / general) and extracts any
+// (event_enquiry / collaboration / general) and extracts any
 // client details they mentioned (phone, email, city, event date, guest count,
 // budget). The result is upserted into the Client table so every enquiry shows
 // up in the dashboard's Clients section with the right source + category.
@@ -15,7 +15,7 @@
 const prisma = require('../prisma');
 const { callOpenRouter, extractJson } = require('./orchestrator');
 
-const CATEGORIES = ['event_enquiry', 'collaboration', 'job_internship', 'general'];
+const CATEGORIES = ['event_enquiry', 'collaboration', 'general'];
 
 // Free-tier OpenRouter models are individually flaky (upstream rate limits,
 // slugs getting retired), so classification tries a chain: the configured
@@ -31,7 +31,6 @@ const PER_MODEL_TIMEOUT_MS = 20000;
 const CATEGORY_LABELS = {
   event_enquiry: 'Event Enquiry',
   collaboration: 'Collaboration',
-  job_internship: 'Job / Internship',
   general: 'General',
 };
 
@@ -40,7 +39,7 @@ const CLASSIFY_PROMPT = `You are the message-triage system for Humsafar Weddings
 Classify the inbound message below and extract any details the sender shared about themselves. Reply with RAW JSON only — a single object, no markdown fences, no commentary:
 
 {
-  "category": "event_enquiry" | "collaboration" | "job_internship" | "general",
+  "category": "event_enquiry" | "collaboration" | "general",
   "name": string or null,
   "phone": string or null,
   "email": string or null,
@@ -54,8 +53,7 @@ Classify the inbound message below and extract any details the sender shared abo
 Category rules:
 - "event_enquiry": a potential client asking about weddings, events, venues, pricing, packages, availability, dates, decor, catering, or planning services.
 - "collaboration": influencers, photographers, makeup artists, vendors, venues, or brands proposing a partnership, collab, promotion, barter, or cross-posting.
-- "job_internship": someone asking for a job, internship, freelance work, or to join the team.
-- "general": greetings, spam, unclear one-liners, or anything that fits none of the above.
+- "general": job/internship requests, greetings, spam, unclear one-liners, or anything that fits none of the above.
 
 Extraction rules:
 - Only extract details the sender explicitly stated. Never invent values.
@@ -65,7 +63,6 @@ Extraction rules:
 
 // --- keyword fallback (used when the LLM is unavailable) ---------------------
 const HEURISTICS = [
-  { category: 'job_internship', re: /\b(job|intern(ship)?|hiring|vacanc|opening|resume|cv\b|freelanc|work with you|join (your|the) team|career)/i },
   { category: 'collaboration', re: /\b(collab|partner(ship)?|influencer|barter|promot|sponsor|brand deal|cross[- ]?post|tie[- ]?up|vendor registration|feature (us|me))/i },
   { category: 'event_enquiry', re: /\b(wedding|shaadi|marriage|engagement|sangeet|mehendi|haldi|reception|venue|banquet|event|function|book|price|pricing|package|quotation|quote|budget|guest|pax|destination|decor|caterin|planner|planning|date[s]? available|availab)/i },
 ];

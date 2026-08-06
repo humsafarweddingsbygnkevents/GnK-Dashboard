@@ -8,7 +8,7 @@ const { Router } = require('express');
 const prisma = require('../lib/prisma');
 const gmailClient = require('../lib/gmailClient');
 const mailbox = require('../lib/mailbox');
-const { encrypt, decrypt } = require('../lib/crypto');
+const { encrypt, decrypt, DecryptError, keySource } = require('../lib/crypto');
 const requireAdmin = require('../middleware/requireAdmin');
 
 const router = Router();
@@ -29,12 +29,41 @@ function imapAccountLabel(m) {
   return m.label || mailbox.PROVIDERS[m.provider]?.label || 'Email';
 }
 
-// Never returns the password or its ciphertext.
+// Decrypt a stored mailbox password, turning the one failure mode users
+// actually hit — ciphertext saved under a different MAIL_ENC_KEY/JWT_SECRET
+// than the one this deploy runs with — into a message that says which
+// mailbox broke and what to do. Node's own wording for this is
+// "Unsupported state or unable to authenticate data", which tells nobody
+// anything and reads like the mail provider rejected the login.
+function unlock(acct) {
+  try {
+    return decrypt(acct.passwordEnc);
+  } catch (err) {
+    if (err instanceof DecryptError) {
+      console.error(
+        `[mail] Cannot decrypt saved password for ${acct.email} — the encryption key changed ` +
+        `since it was saved (currently using ${keySource()}). Re-save the password in Settings → Mailboxes.`,
+      );
+      throw Object.assign(
+        new Error(`Saved password for ${acct.email} can't be unlocked — re-enter it in Settings → Mailboxes`),
+        { status: 400, code: 'DECRYPT_FAILED' },
+      );
+    }
+    throw err;
+  }
+}
+
+// Never returns the password or its ciphertext. `needsPassword` lets Settings
+// flag a mailbox whose stored password no longer opens under the current key,
+// so it's obvious which one to re-save without digging through server logs.
 function publicMailAccount(a) {
+  let needsPassword = false;
+  try { decrypt(a.passwordEnc); } catch (err) { needsPassword = err instanceof DecryptError; }
   return {
     id: 'imap:' + a.id, email: a.email, type: 'imap',
     label: imapAccountLabel(a), provider: a.provider,
     imapHost: a.imapHost, smtpHost: a.smtpHost,
+    needsPassword,
   };
 }
 
@@ -73,7 +102,7 @@ router.post('/accounts', requireAdmin, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const prov = mailbox.PROVIDERS[provider] ? provider : 'godaddy';
+  const prov = mailbox.PROVIDERS[provider] ? provider : 'titan';
   const hosts = mailbox.resolveHosts(prov, { imapHost, imapPort, smtpHost, smtpPort });
   if (!hosts.imapHost || !hosts.smtpHost) {
     return res.status(400).json({ error: 'IMAP and SMTP host are required for a custom provider' });
@@ -84,8 +113,16 @@ router.post('/accounts', requireAdmin, async (req, res) => {
     if (existing) return res.status(409).json({ error: 'This mailbox is already connected' });
 
     // Verify credentials before persisting; a bad login here is a 400, not a 500.
+    // Falls back to the sibling GoDaddy product when the picked one is rejected,
+    // so we store the hosts that actually authenticated.
+    let working;
     try {
-      await mailbox.verifyImap({ imapHost: hosts.imapHost, imapPort: hosts.imapPort, email: normalizedEmail, password });
+      working = await mailbox.verifyImapWithFallback({
+        provider: prov,
+        overrides: { imapHost, imapPort, smtpHost, smtpPort },
+        email: normalizedEmail,
+        password,
+      });
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
@@ -94,9 +131,9 @@ router.post('/accounts', requireAdmin, async (req, res) => {
       data: {
         email: normalizedEmail,
         label: label ? String(label).trim() : null,
-        provider: prov,
-        imapHost: hosts.imapHost, imapPort: hosts.imapPort,
-        smtpHost: hosts.smtpHost, smtpPort: hosts.smtpPort,
+        provider: working.provider,
+        imapHost: working.hosts.imapHost, imapPort: working.hosts.imapPort,
+        smtpHost: working.hosts.smtpHost, smtpPort: working.hosts.smtpPort,
         passwordEnc: encrypt(password),
       },
     });
@@ -151,7 +188,7 @@ router.get('/recent', async (req, res) => {
       }));
     }),
     ...maccts.map((m) => async () => {
-      const password = decrypt(m.passwordEnc);
+      const password = unlock(m);
       const emails = await mailbox.fetchRecent(
         { imapHost: m.imapHost, imapPort: m.imapPort, email: m.email, password }, perAccount,
       );
@@ -203,7 +240,7 @@ router.post('/send', async (req, res) => {
       if (!admin && !EMPLOYEE_VISIBLE_EMAILS.has(acct.email)) {
         return res.status(403).json({ error: 'Not allowed to send from this account' });
       }
-      const password = decrypt(acct.passwordEnc);
+      const password = unlock(acct);
       const messageId = await mailbox.sendSmtp(
         { smtpHost: acct.smtpHost, smtpPort: acct.smtpPort, email: acct.email, password },
         { to, subject, body, attachments },
@@ -308,7 +345,7 @@ router.get('/attachment', async (req, res) => {
 
     const acct = await prisma.mailAccount.findUnique({ where: { id: acctId } });
     if (!acct) return res.status(404).json({ error: 'Account not found' });
-    const password = decrypt(acct.passwordEnc);
+    const password = unlock(acct);
     const att = await mailbox.fetchAttachment(
       { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password }, msgPart, filename,
     );

@@ -164,10 +164,14 @@ model Client {
   name          String
   phone         String?
   email         String?
+  // Legacy single-value fields, still written by Hwoli's Gmail/DM auto-triage
+  // (classifier.js / tools.js), which can only extract one city/budget/date
+  // from an inbound message. The staff-facing manual form below uses the
+  // more specific fields instead.
   weddingDate   DateTime?
   preferredCity String?
-  guestCount    Int?
   budgetLakhs   Float?
+  guestCount    Int?
   notes         String?
   // Preference fields populated by Hwoli's logClientDetails tool.
   cateringPreference String?
@@ -175,9 +179,29 @@ model Client {
   mustHaveFeatures   String?
   source        String    @default("manual")
   status        String    @default("new")
+  // Free-text detail when status = 'other'.
+  statusOther   String?
   // LLM triage of what this person wants:
-  // 'event_enquiry' | 'collaboration' | 'job_internship' | 'general'
+  // 'event_enquiry' | 'collaboration' | 'general'
+  // (older rows may still hold the retired 'job_internship' value)
   category      String?
+  // What kind of function this is, set by staff on manual entries:
+  // 'wedding' | 'birthday' | 'anniversary' | 'other'
+  eventType      String?
+  eventTypeOther String? // free-text detail when eventType = 'other'
+  // Staff-facing fields (New Client form / client drawer).
+  preferredHotel      String?
+  roomCount           Int?    // hotel rooms the party needs
+  budgetHotelLakhs    Float?
+  budgetDecorLakhs    Float?
+  budgetEventsLakhs   Float?
+  checkInDate         DateTime?
+  checkOutDate         DateTime?
+  createdByName        String? // employee who created this profile
+  relationshipManager  String? // staff member handling this client
+  // How this enquiry reached us: 'phone' | 'walkin' | 'referral' | 'other'
+  enquirySource        String?
+  enquirySourceOther   String? // free-text detail when enquirySource = 'other'
   // Stable per-channel sender identity — IGSID/PSID for instagram/facebook,
   // email address for gmail, null for manual. Lets the webhook upsert the
   // same person instead of creating a duplicate on every message.
