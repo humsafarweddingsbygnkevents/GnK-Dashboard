@@ -4199,6 +4199,13 @@ function validateClientForm(prefix) {
   // only has a name and a number. Whatever they do fill in still has to be
   // sane, which the format checks below handle.
 
+  // Source is required on hand-added enquiries: whoever takes the call knows
+  // where it came from, and it's the one thing nobody can reconstruct later.
+  // Editing stays permissive — Gmail/DM-sourced records arrive with no source
+  // and requiring one here would make those profiles unsaveable.
+  if (prefix === 'nc' && !f('-enquirysource')?.value.trim())
+    errors.push([f('-enquirysource'), 'Source is required']);
+
   const phone = f('-phone')?.value.trim();
   if (!phone) errors.push([f('-phone'), 'Phone number is required']);
   else if (!/^[+()\-\s\d]+$/.test(phone)) errors.push([f('-phone'), 'Phone can only contain digits and + - ( )']);
@@ -4340,7 +4347,7 @@ function openNewClientModal() {
               <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" id="nc-phone" placeholder="+91 98765 43210"></div>
               <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" id="nc-email" type="email" placeholder="name@example.com"></div>
               <div>
-                <label class="cx-lab" for="nc-enquirysource">Source</label>
+                <label class="cx-lab" for="nc-enquirysource">Source <span class="req">*</span></label>
                 <input class="input cx-in" id="nc-enquirysource" placeholder="Phone call, walk-in, referral, hotel name…">
               </div>
             </div>
