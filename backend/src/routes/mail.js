@@ -102,7 +102,7 @@ router.post('/accounts', requireAdmin, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
   const normalizedEmail = String(email).trim().toLowerCase();
-  const prov = mailbox.PROVIDERS[provider] ? provider : 'titan';
+  const prov = mailbox.PROVIDERS[provider] ? provider : 'godaddy';
   const hosts = mailbox.resolveHosts(prov, { imapHost, imapPort, smtpHost, smtpPort });
   if (!hosts.imapHost || !hosts.smtpHost) {
     return res.status(400).json({ error: 'IMAP and SMTP host are required for a custom provider' });

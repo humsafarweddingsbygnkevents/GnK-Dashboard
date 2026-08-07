@@ -9,8 +9,10 @@ const { simpleParser } = require('mailparser');
 // GoDaddy sells two different email products and they share no hostnames:
 //   - Titan ("Professional Email") — everything sold since ~2020, *.titan.email
 //   - Workspace Email — the legacy product, *.secureserver.net
-// Pointing a Titan mailbox at secureserver.net fails to connect, so Titan is
-// listed first and is the fallback for an unrecognised provider.
+// The two share no hostnames, so picking the wrong one cannot work — which is
+// why verifyImapWithFallback below always tries the sibling product too.
+// humsafarweddingsbygnk.in is on Workspace (MX = mailstore1.secureserver.net),
+// so 'godaddy' is the default both in the UI and for an unrecognised provider.
 const PROVIDERS = {
   titan: {
     label: 'GoDaddy Professional Email (Titan)',
@@ -87,7 +89,11 @@ async function verifyImapWithFallback({ provider, overrides = {}, email, passwor
   // deliberate choice and shouldn't be silently swapped out.
   if (!overrides.imapHost && GODADDY_SIBLING[provider]) order.push(GODADDY_SIBLING[provider]);
 
+  // When every host fails, report the most actionable error rather than the
+  // first one: a host we merely couldn't reach says nothing, but a server that
+  // reached LOGIN and rejected it tells the user their password is wrong.
   let firstErr;
+  let authErr;
   for (const prov of order) {
     const hosts = resolveHosts(prov, overrides);
     try {
@@ -95,9 +101,10 @@ async function verifyImapWithFallback({ provider, overrides = {}, email, passwor
       return { provider: prov, hosts };
     } catch (err) {
       if (!firstErr) firstErr = err;
+      if (!authErr && /^Login failed/.test(err.message || '')) authErr = err;
     }
   }
-  throw firstErr;
+  throw authErr || firstErr;
 }
 
 function friendlyImapError(err) {
