@@ -211,6 +211,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .btn-ghost:hover{background:var(--nb-sage)}
 .btn-sm{padding:6px 12px;font-size:12.5px;border-radius:8px}
 .btn-icon{width:36px;height:36px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--radius)}
+/* Inline icons sit on the text baseline by default, which reads a touch low
+   next to lowercase text; nudge them onto the optical centre. Ignored inside
+   flex rows, which align them properly on their own. */
+.ico{flex:none;vertical-align:-.18em}
+
+/* The iOS icon set in /icons is solid-black raster art, which would otherwise
+   be stuck black wherever it landed — wrong in the gold settings badges. Each
+   file has an alpha channel, so it's used as a mask over currentColor instead
+   of as an image: the PNG supplies the shape, the surrounding text colour
+   supplies the fill. Recolours exactly like the inline SVGs do.
+   Sized at 2x the display box so the 50px source stays sharp on retina. */
+.pico{display:inline-block;flex:none;background-color:currentColor;
+  -webkit-mask:var(--pico) center/contain no-repeat;mask:var(--pico) center/contain no-repeat}
+/* .ph-icon tints its contents gold for the stroked SVGs it was built around.
+   These filled icons carry far more ink than a 1.8px stroke, so gold-on-gold
+   goes muddy — keep them near-black against the gold badge instead. */
+.ph-icon .pico{background-color:var(--text)}
 
 /* chips / filter */
 .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:99px;padding:6px 14px;font-size:12.5px;font-weight:600;color:var(--text-2);background:#fff;transition:transform 120ms var(--ease-out),border-color 120ms,color 120ms,background 120ms}
@@ -766,8 +783,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .dash-hero::after{content:"";position:absolute;bottom:-90px;right:120px;width:220px;height:220px;border-radius:50%;
   background:radial-gradient(circle,rgba(242,185,168,.16),transparent 60%);pointer-events:none}
 .dash-hero-inner{position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap}
-.dash-eyebrow{font:600 11px Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--rose-300);margin-bottom:9px;display:flex;align-items:center;gap:8px}
-.dash-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--rose-400);box-shadow:0 0 0 3px rgba(226,148,126,.25)}
+.dash-eyebrow{font:600 11px Inter,sans-serif;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-400);margin-bottom:9px;display:flex;align-items:center;gap:8px}
+.dash-eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--gold-400);box-shadow:0 0 0 3px rgba(217,180,91,.25)}
 .dash-greeting{font-family:Fraunces,serif;font-weight:600;font-size:32px;line-height:1.1;letter-spacing:-.01em;color:#fff}
 .dash-greeting .spark{color:var(--rose-400)}
 .dash-subline{font:400 14px Inter,sans-serif;color:rgba(247,243,233,.78);margin-top:8px}
@@ -1216,11 +1233,11 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
     </label>
     <div class="topbar-spacer"></div>
     <button class="topbar-icon-btn" title="Report an issue" id="feedback-report-btn" onclick="openFeedbackModal()">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span class="pico" style="--pico:url('/icons/message.png');width:17px;height:17px"></span>
     </button>
     <div class="topbar-usermenu" id="notif-menu">
       <button class="topbar-icon-btn" title="Notifications" id="notif-btn" style="position:relative" onclick="toggleNotifMenu(event)">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+        <span class="pico" style="--pico:url('/icons/bell.png');width:17px;height:17px"></span>
         <span id="notif-dot" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--red);color:#fff;font:700 9.5px Inter,sans-serif;align-items:center;justify-content:center;border:2px solid var(--nb-charcoal)"></span>
       </button>
       <div class="usermenu-pop" id="notif-pop" role="menu" style="min-width:310px;max-width:340px;right:-10px">
@@ -1322,6 +1339,35 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
 <div id="compose-container"></div>
 
 <script>
+// ============================================================
+// ICONS
+// ============================================================
+// Line icons matching the 24x24 stroked set already used inline throughout
+// the markup. They stroke currentColor, so each one takes the colour of
+// whatever it sits in.
+//
+// These replace the emoji and text glyphs that were standing in for icons
+// (📞 ✉ ⚠ ✓ ＋ 🔒 🎉 ✕ ✦). Emoji render as a different picture on every OS,
+// ignore the surrounding colour, and sit on the text baseline rather than
+// aligning with it — hence the .ico nudge in the stylesheet.
+const ico = (path, size = 14, w = 1.8) =>
+  `<svg class="ico" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
+
+const ICO_CLOSE = ico('<path d="M18 6 6 18M6 6l12 12"/>', 16, 2);
+const ICO_PHONE = ico('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/>');
+const ICO_MAIL  = ico('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/>');
+const ICO_ALERT = ico('<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/>');
+const ICO_CHECK = ico('<path d="M20 6 9 17l-5-5"/>', 14, 2.2);
+const ICO_PLUS  = ico('<path d="M12 5v14M5 12h14"/>', 14, 2.2);
+const ICO_LOCK  = ico('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 13);
+const ICO_SPARK = ico('<path d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/>');
+
+// The iOS raster set in /icons, drawn as a mask over currentColor — see .pico.
+// Used for the topbar buttons and the Settings panel badges; the sidebar keeps
+// its stroked SVGs so the two sets never sit side by side.
+const pico = (name, size = 16) =>
+  `<span class="pico" style="--pico:url('/icons/${name}.png');width:${size}px;height:${size}px"></span>`;
+
 // ============================================================
 // STATE
 // ============================================================
@@ -1522,7 +1568,7 @@ function eventTypeBadgeHtml(c) {
   const label = eventTypeLabel(c);
   return label ? `<span class="badge badge-green">${esc(label)}</span>` : '';
 }
-// Budget is entered as two figures — wedding (budgetHotelLakhs) and event &
+// Budget is entered as two figures — hotel (budgetHotelLakhs) and event &
 // decor (budgetDecorLakhs). budgetEventsLakhs is a third figure from the older
 // hotel/decor/events split and still counts toward the total on those records;
 // older ones again may only have the single legacy budgetLakhs.
@@ -2072,7 +2118,7 @@ async function renderDashboard() {
       <div class="dash-hero-inner">
         <div>
           <div class="dash-eyebrow"><span class="dot"></span>Humsafar Weddings by GnK Events · Workspace</div>
-          <div class="dash-greeting">${greet}, Team <span class="spark">✦</span></div>
+          <div class="dash-greeting">${greet}, Team <span class="spark">${ICO_SPARK}</span></div>
           <div class="dash-subline">Here's everything happening across your venues, clients, and inbox today.</div>
         </div>
         <div class="dash-hero-date">
@@ -2221,7 +2267,6 @@ function paintDashClients(clientsRes) {
       const calSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
       cb.innerHTML = list.length ? list.map(c=>{
         const nm = c.name||'?';
-        const ini = nm.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
         const accent = avatarColor(nm);
         const sm = STATUS_META[c.status] || {c:accent};
         const place = preferredPlace(c);
@@ -2234,7 +2279,7 @@ function paintDashClients(clientsRes) {
         if (date) pills.push(`<span class="cl-pill">${calSvg}${fmtDate(date)}</span>`);
         return `
         <div class="cl-card" style="--accent:${accent}" onclick="navigate('clients')">
-          <div class="cl-avatar" style="background:${accent}">${esc(ini)}<span class="cl-dot" style="background:${sm.c}"></span></div>
+          <div class="cl-avatar" style="background:${accent}">${pico('person', 26)}<span class="cl-dot" style="background:${sm.c}"></span></div>
           <div class="cl-body">
             <div class="cl-name-row">
               <span class="cl-name">${esc(nm)}</span>
@@ -2639,13 +2684,13 @@ async function openHotelDrawer(id) {
 
     const primaryContactLines = [
       hasVal(h.contactPerson) ? `<div class="text-sm mb-1">${esc(h.contactPerson)}${h.contactDesignation?' · '+esc(h.contactDesignation):''}</div>` : '',
-      hasVal(h.contactNumber) ? `<div class="text-sm mb-1">📞 ${esc(h.contactNumber)}</div>` : '',
-      hasVal(h.contactEmail) ? `<div class="text-sm mb-1">✉ ${esc(h.contactEmail)}</div>` : '',
+      hasVal(h.contactNumber) ? `<div class="text-sm mb-1">${ICO_PHONE} ${esc(h.contactNumber)}</div>` : '',
+      hasVal(h.contactEmail) ? `<div class="text-sm mb-1">${ICO_MAIL} ${esc(h.contactEmail)}</div>` : '',
     ].join('');
 
     const secondaryContactLines = [
       hasVal(h.contactPerson2) ? `<div class="text-sm mb-1">${esc(h.contactPerson2)}${h.contactDesignation2?' · '+esc(h.contactDesignation2):''}</div>` : '',
-      hasVal(h.contactNumber2) ? `<div class="text-sm mb-1">📞 ${esc(h.contactNumber2)}</div>` : '',
+      hasVal(h.contactNumber2) ? `<div class="text-sm mb-1">${ICO_PHONE} ${esc(h.contactNumber2)}</div>` : '',
     ].join('');
 
     dc.querySelector('.drawer').innerHTML = `
@@ -2654,7 +2699,7 @@ async function openHotelDrawer(id) {
           <div style="font-family:Fraunces,serif;font-size:22px;font-weight:600">${esc(h.name)}</div>
           <div class="text-muted text-sm">${esc([h.area,h.city?.name].filter(Boolean).join(', '))}</div>
         </div>
-        <button class="btn btn-ghost btn-icon" onclick="closeDrawer()">✕</button>
+        <button class="btn btn-ghost btn-icon" onclick="closeDrawer()">${ICO_CLOSE}</button>
       </div>
       ${stats ? `<div class="grid grid-2 gap-3 mb-5">${stats}</div>` : ''}
       ${apRateLines ? `<div class="mb-5"><div class="label mb-2">AP Plan Rate</div>${apRateLines}</div>` : ''}
@@ -3124,6 +3169,17 @@ function socialAvatarHtml(name, size=38, avatarUrl=null, useGradient=false) {
   return `<div style="width:${size}px;height:${size}px;flex:none;border-radius:50%;background:${bg};color:#fff;font:600 ${fontSize}px Inter,sans-serif;display:flex;align-items:center;justify-content:center">${initial}</div>`;
 }
 
+// Client rows and cards show a person mark rather than the name's initials.
+// Unlike the inbox avatars above there's never a photo to fall back from — a
+// client profile has no picture — so the letter was standing in permanently.
+// The per-client colour stays, which is what actually distinguishes one row
+// from the next when scanning.
+function clientAvatarHtml(name, size = 34) {
+  const bg = avatarColor(name || '?');
+  const inner = Math.round(size * 0.56);
+  return `<div style="width:${size}px;height:${size}px;flex:none;border-radius:50%;background:${bg};color:#fff;display:flex;align-items:center;justify-content:center">${pico('person', inner)}</div>`;
+}
+
 // Gmail-style manual refresh — spins the toolbar icon and bypasses the 60s cache.
 async function refreshGmail() {
   const btn = $('gmail-refresh-btn');
@@ -3237,7 +3293,7 @@ function hdListHtml() {
   const accts = S.mailAccounts || [];
   const multi = accts.length > 1;
   const errBar = (S.mailErrors && S.mailErrors.length)
-    ? `<div class="mail-warn">⚠ ${esc(S.mailErrors[0])}</div>` : '';
+    ? `<div class="mail-warn">${ICO_ALERT} ${esc(S.mailErrors[0])}</div>` : '';
   return `
     <div class="hd-list-head">
       <div class="hd-list-title">${inboxViewLabel()}<span class="hd-list-count">${list.length}</span></div>
@@ -3337,7 +3393,7 @@ async function previewAttachment(ev, e, att) {
     $('modal-container').innerHTML = `
       <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
         <div class="modal" style="position:relative;max-width:760px;max-height:82vh;display:flex;flex-direction:column">
-          <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+          <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
           <div class="modal-title">${esc(att.filename)}</div>
           <div id="doc-preview-body" style="overflow-y:auto;flex:1;padding:2px 4px 4px;font-size:13.5px;line-height:1.65;color:var(--text-2)">
             <div class="spinner" style="margin:30px auto;display:block"></div>
@@ -3364,7 +3420,7 @@ async function previewAttachment(ev, e, att) {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:400px;text-align:center">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">${esc(att.filename)}</div>
         <p class="text-sm text-muted mb-4">This file type can't be previewed in the browser.</p>
         <a class="btn btn-primary" href="${attachmentUrl(e,att)}&download=1" target="_blank" rel="noopener" onclick="closeModal()">Download ${esc(att.filename)}</a>
@@ -3675,7 +3731,7 @@ function renderAttachChips() {
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
       <span class="aname">${esc(a.filename)}</span>
       <span style="color:var(--text-4)">${fmtSize(a.size)}</span>
-      <button onclick="removeAttachment(${i})" title="Remove">✕</button>
+      <button onclick="removeAttachment(${i})" title="Remove">${ICO_CLOSE}</button>
     </span>`).join('');
 }
 
@@ -3952,7 +4008,7 @@ function paintClients(data, meta) {
           <tr onclick="openClientDrawer(${c.id})">
             <td>
               <div class="flex items-center gap-3">
-                ${socialAvatarHtml(c.name, 34)}
+                ${clientAvatarHtml(c.name, 34)}
                 <div style="min-width:0">
                   <div class="cx-nm">${esc(c.name)}</div>
                   ${sub ? `<div class="cx-sm truncate">${esc(sub)}</div>` : ''}
@@ -3989,6 +4045,19 @@ async function syncInboxClients() {
 }
 
 // ---- client detail drawer ----
+// Browsers offer contact autofill on anything that looks like a name, phone or
+// email field, dropping a suggestion list over the form. These forms record
+// someone else's details — never the operator's own — so every suggestion is
+// wrong. Chrome ignores autocomplete="off" when it recognises a field by its
+// name or id, so each input also gets a name it has never seen before.
+function suppressAutofill(root) {
+  root?.querySelectorAll('input').forEach((el, i) => {
+    el.setAttribute('autocomplete', 'off');
+    el.setAttribute('spellcheck', 'false');
+    if (!el.name) el.name = `nf${Date.now().toString(36)}${i}`;
+  });
+}
+
 async function openClientDrawer(id) {
   const dc = $('drawer-container');
   dc.innerHTML = `
@@ -3998,6 +4067,7 @@ async function openClientDrawer(id) {
     const c = await api('/api/clients/' + id);
     S.drawerClient = c;
     dc.querySelector('.drawer').innerHTML = clientDrawerHtml(c, false);
+    suppressAutofill(dc);
   } catch(e) {
     dc.querySelector('.drawer').innerHTML = `<div class="empty" style="padding:40px"><p>Failed to load client: ${esc(e.message)}</p></div>`;
   }
@@ -4009,7 +4079,7 @@ function setClientDrawerMode(editing) {
   const c = S.drawerClient;
   if (!c) return;
   const drawer = document.querySelector('#drawer-container .drawer');
-  if (drawer) drawer.innerHTML = clientDrawerHtml(c, editing);
+  if (drawer) { drawer.innerHTML = clientDrawerHtml(c, editing); suppressAutofill(drawer); }
 }
 
 // One key/value line in the drawer. `value` is trusted HTML (callers escape);
@@ -4021,7 +4091,6 @@ function infoRow(label, value, showEmpty) {
   return `<div class="cx-row"><span class="k">${esc(label)}</span><span class="v">${empty ? clDash : value}</span></div>`;
 }
 
-const ICO_CLOSE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>';
 
 function clientDrawerHtml(c, editing) {
   const isDM = (c.source==='instagram'||c.source==='facebook') && c.channelUserId;
@@ -4029,7 +4098,7 @@ function clientDrawerHtml(c, editing) {
   const header = `
       <div class="cx-dh">
         <div class="flex items-start gap-3">
-          ${socialAvatarHtml(c.name, 48)}
+          ${clientAvatarHtml(c.name, 48)}
           <div style="flex:1;min-width:0">
             <div class="cx-dh-name">${esc(c.name)}</div>
             <div class="flex items-center gap-2" style="margin-top:7px;flex-wrap:wrap">
@@ -4080,7 +4149,7 @@ function clientDrawerHtml(c, editing) {
 
         <div class="cx-dsec">
           <div class="cx-dsec-t">Event details</div>
-          ${infoRow('Preferred hotel', esc(preferredPlace(c)||''), true)}
+          ${infoRow('Preferred hotels', esc(preferredPlace(c)||''), true)}
           ${infoRow('Guest count', c.guestCount ?? '', true)}
           ${infoRow('No. of rooms', c.roomCount ?? '', true)}
           ${infoRow('Check-in', c.checkInDate ? fmtDate(c.checkInDate) : (c.weddingDate ? fmtDate(c.weddingDate) : ''), true)}
@@ -4089,7 +4158,7 @@ function clientDrawerHtml(c, editing) {
 
         ${budget!=null ? `<div class="cx-dsec">
           <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
-          ${infoRow('Wedding', c.budgetHotelLakhs!=null ? '₹'+c.budgetHotelLakhs+'L' : '')}
+          ${infoRow('Hotel', c.budgetHotelLakhs!=null ? '₹'+c.budgetHotelLakhs+'L' : '')}
           ${infoRow('Event & decor', c.budgetDecorLakhs!=null ? '₹'+c.budgetDecorLakhs+'L' : '')}
           ${c.budgetEventsLakhs!=null ? infoRow('Events (legacy)', '₹'+c.budgetEventsLakhs+'L') : ''}
           <div class="cx-row total"><span class="k">Total</span><span class="v">₹${budget}L</span></div>
@@ -4132,40 +4201,40 @@ function clientDrawerHtml(c, editing) {
         <div class="cx-dsec">
           <div class="cx-dsec-t">Profile</div>
           <div class="cx-grid">
-            <div><label class="cx-lab" for="cd-name">Name <span class="req">*</span></label><input class="input cx-in" id="cd-name" value="${esc(c.name)}"></div>
-            <div><label class="cx-lab" for="cd-phone">Phone <span class="req">*</span></label><input class="input cx-in" id="cd-phone" value="${esc(c.phone||'')}" placeholder="+91 98765 43210"></div>
-            <div><label class="cx-lab" for="cd-email">Email</label><input class="input cx-in" id="cd-email" value="${esc(c.email||'')}" placeholder="name@example.com"></div>
-            <div><label class="cx-lab" for="cd-hotel">Preferred hotel</label><input class="input cx-in" id="cd-hotel" value="${esc(preferredPlace(c)||'')}" placeholder="e.g. Aahana, Jim Corbett"></div>
-            <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}" placeholder="300"></div>
-            <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}" placeholder="80"></div>
-            <div><label class="cx-lab" for="cd-rm">Relationship manager</label><input class="input cx-in" id="cd-rm" value="${esc(c.relationshipManager||'')}" placeholder="Who's handling this?"></div>
+            <div><label class="cx-lab" for="cd-name">Name <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-name" value="${esc(c.name)}"></div>
+            <div><label class="cx-lab" for="cd-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-phone" value="${esc(c.phone||'')}"></div>
+            <div><label class="cx-lab" for="cd-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-email" value="${esc(c.email||'')}"></div>
+            <div><label class="cx-lab" for="cd-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-hotel" value="${esc(preferredPlace(c)||'')}"></div>
+            <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}"></div>
+            <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}"></div>
+            <div><label class="cx-lab" for="cd-rm">Relationship manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rm" value="${esc(c.relationshipManager||'')}"></div>
             <div>
               <label class="cx-lab" for="cd-enquirysource">Source</label>
-              <input class="input cx-in" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}" placeholder="Phone call, walk-in, referral, hotel name…">
+              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}">
             </div>
-            <div><label class="cx-lab">Added by</label><input class="input cx-in" value="${esc(c.createdByName||'—')}" disabled></div>
+            <div><label class="cx-lab">Added by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(c.createdByName||'—')}" disabled></div>
           </div>
         </div>
 
         <div class="cx-dsec">
           <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
           <div class="cx-grid">
-            <div><div class="cx-cap">Wedding</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-wedding" type="number" min="0" step="0.5" value="${c.budgetHotelLakhs??''}" placeholder="0"></div></div>
-            <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-eventdecor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}" placeholder="0"></div></div>
-            ${c.budgetEventsLakhs!=null ? `<div><div class="cx-cap">Events <span style="text-transform:none;letter-spacing:0;font-weight:400">· legacy</span></div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-events" type="number" min="0" step="0.5" value="${c.budgetEventsLakhs}" placeholder="0"></div></div>` : ''}
+            <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-hotel" type="number" min="0" step="0.5" value="${c.budgetHotelLakhs??''}"></div></div>
+            <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-eventdecor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}"></div></div>
+            ${c.budgetEventsLakhs!=null ? `<div><div class="cx-cap">Events <span style="text-transform:none;letter-spacing:0;font-weight:400">· legacy</span></div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-events" type="number" min="0" step="0.5" value="${c.budgetEventsLakhs}"></div></div>` : ''}
           </div>
         </div>
 
         <div class="cx-dsec">
           <div class="cx-dsec-t">Event &amp; status</div>
           <div class="cx-grid">
-            <div><label class="cx-lab" for="cd-checkin">Check-in date</label><input class="input cx-in" id="cd-checkin" type="date" min="1950-01-01" max="${maxEventDate()}" value="${dateVal}"></div>
-            <div><label class="cx-lab" for="cd-checkout">Check-out date</label><input class="input cx-in" id="cd-checkout" type="date" min="1950-01-01" max="${maxEventDate()}" value="${outVal}"></div>
+            <div><label class="cx-lab" for="cd-checkin">Check-in date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-checkin" type="date" min="1950-01-01" max="${maxEventDate()}" value="${dateVal}"></div>
+            <div><label class="cx-lab" for="cd-checkout">Check-out date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-checkout" type="date" min="1950-01-01" max="${maxEventDate()}" value="${outVal}"></div>
             <div>
               <label class="cx-lab" for="cd-status">Status</label>
               <select class="input cx-in" id="cd-status" onchange="onOtherSelectChange(this,'cd-status-other-wrap')">${statusOptionsHtml('cd', c.status)}</select>
               <div id="cd-status-other-wrap" style="display:${c.status==='other'?'block':'none'};margin-top:8px">
-                <input class="input cx-in" id="cd-status-other" value="${esc(c.statusOther||'')}" placeholder="Describe the status…">
+                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-status-other" value="${esc(c.statusOther||'')}">
               </div>
             </div>
             <div>
@@ -4175,7 +4244,7 @@ function clientDrawerHtml(c, editing) {
                 ${eventTypeOptionsHtml(c.eventType)}
               </select>
               <div id="cd-eventtype-other-wrap" style="display:${c.eventType==='other'?'block':'none'};margin-top:8px">
-                <input class="input cx-in" id="cd-eventtype-other" value="${esc(c.eventTypeOther||'')}" placeholder="Describe the event type…">
+                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-eventtype-other" value="${esc(c.eventTypeOther||'')}">
               </div>
             </div>
             <div class="cx-full">
@@ -4233,7 +4302,7 @@ function maxEventDate() {
 function validateClientForm(prefix) {
   const f = suffix => $(prefix + suffix);
   const errors = [];
-  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-wedding','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource']
+  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-hotel','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource']
     .forEach(s => f(s)?.classList.remove('input-invalid'));
 
   const name = f('-name')?.value.trim();
@@ -4258,7 +4327,7 @@ function validateClientForm(prefix) {
   const email = f('-email')?.value.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push([f('-email'), 'Enter a valid email like name@example.com']);
 
-  ['-budget-wedding','-budget-eventdecor','-budget-events'].forEach(s => {
+  ['-budget-hotel','-budget-eventdecor','-budget-events'].forEach(s => {
     const raw = f(s)?.value;
     if (raw) { const b = Number(raw); if (!isFinite(b) || b < 0) errors.push([f(s), 'Budget must be a positive number']); }
   });
@@ -4315,10 +4384,9 @@ async function saveClientDrawer(id) {
     relationshipManager: $('cd-rm').value.trim() || null,
     enquirySource: src.enquirySource,
     enquirySourceOther: src.enquirySourceOther,
-    // See createClient: wedding → budgetHotelLakhs, event & decor →
-    // budgetDecorLakhs. The Events input only renders for old records that
-    // already carry a value, so it stays editable without coming back.
-    budgetHotelLakhs: $('cd-budget-wedding').value ? Number($('cd-budget-wedding').value) : null,
+    // The Events input only renders for old records that already carry a
+    // value, so it stays editable without ever coming back on new ones.
+    budgetHotelLakhs: $('cd-budget-hotel').value ? Number($('cd-budget-hotel').value) : null,
     budgetDecorLakhs: $('cd-budget-eventdecor').value ? Number($('cd-budget-eventdecor').value) : null,
     budgetEventsLakhs: $('cd-budget-events')?.value ? Number($('cd-budget-events').value) : null,
     checkInDate: $('cd-checkin').value || null,
@@ -4385,14 +4453,13 @@ function openNewClientModal() {
 
         <div class="cx-sheet-body">
           <div class="cx-sec">
-            <div class="cx-sec-t">Who</div>
             <div class="cx-grid">
-              <div><label class="cx-lab" for="nc-name">Full name <span class="req">*</span></label><input class="input cx-in" id="nc-name" placeholder="Anjali Sharma"></div>
-              <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" id="nc-phone" placeholder="+91 98765 43210"></div>
-              <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" id="nc-email" type="email" placeholder="name@example.com"></div>
+              <div><label class="cx-lab" for="nc-name">Full name <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-name"></div>
+              <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-phone"></div>
+              <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-email" type="email"></div>
               <div>
                 <label class="cx-lab" for="nc-enquirysource">Source <span class="req">*</span></label>
-                <input class="input cx-in" id="nc-enquirysource" placeholder="Phone call, walk-in, referral, hotel name…">
+                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-enquirysource">
               </div>
             </div>
           </div>
@@ -4407,24 +4474,24 @@ function openNewClientModal() {
                   ${eventTypeOptionsHtml('')}
                 </select>
                 <div id="nc-eventtype-other-wrap" style="display:none;margin-top:8px">
-                  <input class="input cx-in" id="nc-eventtype-other" placeholder="Describe the event type…">
+                  <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-eventtype-other">
                 </div>
               </div>
-              <div><label class="cx-lab" for="nc-hotel">Preferred hotel</label><input class="input cx-in" id="nc-hotel" placeholder="e.g. Aahana, Jim Corbett"></div>
-              <div><label class="cx-lab" for="nc-checkin">Check-in date</label><input class="input cx-in" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
-              <div><label class="cx-lab" for="nc-checkout">Check-out date</label><input class="input cx-in" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
-              <div><label class="cx-lab" for="nc-guests">Guest count</label><input class="input cx-in" id="nc-guests" type="number" min="1" max="1000000" step="1" placeholder="300"></div>
-              <div><label class="cx-lab" for="nc-rooms">No. of rooms</label><input class="input cx-in" id="nc-rooms" type="number" min="1" max="100000" step="1" placeholder="80"></div>
+              <div><label class="cx-lab" for="nc-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-hotel"></div>
+              <div><label class="cx-lab" for="nc-checkin">Check-in date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-checkout">Check-out date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-guests" type="number" min="1" max="1000000" step="1"></div>
+              <div><label class="cx-lab" for="nc-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rooms" type="number" min="1" max="100000" step="1"></div>
               <div>
                 <label class="cx-lab" for="nc-status">Status</label>
                 <select class="input cx-in" id="nc-status" onchange="onOtherSelectChange(this,'nc-status-other-wrap')">${statusOptionsHtml('nc', 'new')}</select>
                 <div id="nc-status-other-wrap" style="display:none;margin-top:8px">
-                  <input class="input cx-in" id="nc-status-other" placeholder="Describe the status…">
+                  <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-status-other">
                 </div>
               </div>
               <div class="cx-full">
                 <label class="cx-lab" for="nc-event-other">Other <span class="hint">— anything the fields above don't cover</span></label>
-                <textarea class="input cx-in" id="nc-event-other" rows="3" placeholder="Sangeet on the lawn, needs 12 vegetarian menus, groom's side arriving a day early…"></textarea>
+                <textarea class="input cx-in" id="nc-event-other" rows="3"></textarea>
               </div>
             </div>
           </div>
@@ -4432,16 +4499,16 @@ function openNewClientModal() {
           <div class="cx-sec">
             <div class="cx-sec-t">Budget <span style="text-transform:none;letter-spacing:0;font-weight:500">· in ₹ lakhs</span></div>
             <div class="cx-grid">
-              <div><div class="cx-cap">Wedding</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-wedding" type="number" min="0" step="0.5" placeholder="0"></div></div>
-              <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-eventdecor" type="number" min="0" step="0.5" placeholder="0"></div></div>
+              <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-budget-hotel" type="number" min="0" step="0.5"></div></div>
+              <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-budget-eventdecor" type="number" min="0" step="0.5"></div></div>
             </div>
           </div>
 
           <div class="cx-sec">
             <div class="cx-sec-t">Ownership</div>
             <div class="cx-grid">
-              <div><label class="cx-lab" for="nc-rm">Relationship manager</label><input class="input cx-in" id="nc-rm" placeholder="Who's handling this client?"></div>
-              <div><label class="cx-lab">Filled by</label><input class="input cx-in" value="${esc(S.admin?.name||S.admin?.email||'—')}" disabled></div>
+              <div><label class="cx-lab" for="nc-rm">Relationship manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rm"></div>
+              <div><label class="cx-lab">Filled by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(S.admin?.name||S.admin?.email||'—')}" disabled></div>
             </div>
           </div>
 
@@ -4457,6 +4524,7 @@ function openNewClientModal() {
         </div>
       </div>
     </div>`;
+  suppressAutofill($('modal-container'));
   setTimeout(() => $('nc-name')?.focus(), 60);
 }
 
@@ -4464,13 +4532,11 @@ function openNewClientModal() {
 // Shared by the New Client sheet ('nc-remarks-list') and the drawer's edit
 // mode ('cd-remarks-list'). Every row carries a remove button; CSS hides it
 // while a single row is left, so the list can never be emptied out.
-const REMARK_PLACEHOLDER = 'What did they ask for? Where did the call come from?…';
-
 function remarkRowHtml(n, value) {
   return `<div class="nc-remark-row">
     <div class="nc-remark-num">${n}</div>
-    <textarea class="input cx-in" rows="2" placeholder="${n === 1 ? REMARK_PLACEHOLDER : 'Additional remark…'}">${esc(value || '')}</textarea>
-    <button type="button" class="nc-remark-remove" onclick="removeRemarkRow(this)" title="Remove remark">✕</button>
+    <textarea class="input cx-in" rows="2">${esc(value || '')}</textarea>
+    <button type="button" class="nc-remark-remove" onclick="removeRemarkRow(this)" title="Remove remark">${ICO_CLOSE}</button>
   </div>`;
 }
 
@@ -4543,11 +4609,10 @@ async function createClient() {
     relationshipManager: $('nc-rm')?.value || undefined,
     enquirySource: src.enquirySource || undefined,
     enquirySourceOther: src.enquirySourceOther || undefined,
-    // Budget is captured as two figures now (Wedding, Event & decor). They ride
-    // on the existing columns — budgetHotelLakhs = wedding, budgetDecorLakhs =
-    // event & decor — so no migration is needed. budgetEventsLakhs is legacy:
-    // still summed into the total for old records, never written again.
-    budgetHotelLakhs: $('nc-budget-wedding')?.value ? Number($('nc-budget-wedding').value) : undefined,
+    // Budget is captured as two figures — Hotel and Event & decor — landing on
+    // the columns of the same name. budgetEventsLakhs is legacy: still summed
+    // into the total for old records, never written again.
+    budgetHotelLakhs: $('nc-budget-hotel')?.value ? Number($('nc-budget-hotel').value) : undefined,
     budgetDecorLakhs: $('nc-budget-eventdecor')?.value ? Number($('nc-budget-eventdecor').value) : undefined,
     checkInDate: $('nc-checkin')?.value || undefined,
     checkOutDate: $('nc-checkout')?.value || undefined,
@@ -4710,13 +4775,13 @@ function setHwoliTyping(on) {
 // Draft card with one-click Send (reuses /api/gmail/send) + Edit in compose.
 function hwoliDraftCardHTML(a, i, sent) {
   return `<div class="chat-bubble ai" style="align-self:flex-start;max-width:94%;background:var(--cream);border:1px solid var(--border)">
-    <div style="font-weight:600;margin-bottom:6px">✉️ Email draft</div>
+    <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:7px">${ICO_MAIL} Email draft</div>
     <div style="font-size:12.5px;color:var(--text-3)"><b>To:</b> ${esc(a.to)}</div>
     <div style="font-size:12.5px;color:var(--text-3);margin-bottom:7px"><b>Subject:</b> ${esc(a.subject || '(no subject)')}</div>
     <div style="white-space:pre-wrap;border-top:1px solid var(--cream-3);padding-top:8px;font-size:13px">${esc(a.body || '')}</div>
     <div style="display:flex;gap:8px;margin-top:11px;align-items:center">
       ${sent
-        ? `<span class="badge badge-green">✓ Sent to ${esc(a.to)}</span>`
+        ? `<span class="badge badge-green">${ICO_CHECK} Sent to ${esc(a.to)}</span>`
         : `<button class="btn btn-primary btn-sm" onclick="hwoliSendDraft(${i})">Send</button>
            <button class="btn btn-ghost btn-sm" onclick="hwoliEditDraft(${i})">Edit &amp; send</button>`}
     </div>
@@ -4896,7 +4961,7 @@ function absencesBodyHTML(data, { compact = false, monthPhrase = 'this month' } 
   if (!data) return emptyPanel('absence', 'Could not load absences');
   const today = data.today;
   if (data.scope === 'self') {
-    if (!data.absentCount) return `<div class="abs-empty">🎉 No absences ${monthPhrase} — nice work.</div>`;
+    if (!data.absentCount) return `<div class="abs-empty">${ICO_SPARK} No absences ${monthPhrase} — nice work.</div>`;
     const dates = compact ? data.absentDates.slice(0, 8) : data.absentDates;
     const more = data.absentDates.length - dates.length;
     return `<div style="margin-bottom:8px"><span class="abs-count">${data.absentCount}</span> <span class="text-sm text-muted">absent ${data.absentCount === 1 ? 'day' : 'days'} ${monthPhrase}</span></div>
@@ -4906,7 +4971,7 @@ function absencesBodyHTML(data, { compact = false, monthPhrase = 'this month' } 
   const emps = data.employees || [];
   if (!emps.length) return emptyPanel('absence', 'No employees yet');
   const withAbs = emps.filter(e => e.absentCount > 0);
-  if (!withAbs.length) return `<div class="abs-empty">🎉 Everyone's present ${monthPhrase}.</div>`;
+  if (!withAbs.length) return `<div class="abs-empty">${ICO_SPARK} Everyone's present ${monthPhrase}.</div>`;
   const head = `<div class="text-sm text-muted" style="margin-bottom:10px"><strong style="color:#b3261e">${data.absentTodayCount}</strong> absent today · <strong>${data.totalAbsences}</strong> total ${monthPhrase}</div>`;
   const rows = withAbs.map(e => {
     const dates = compact ? e.absentDates.slice(0, 6) : e.absentDates;
@@ -4946,7 +5011,7 @@ function attRowsHTML(entries, { showEmployee = false, lockedDates = null } = {})
     // Remark stays editable even on a locked day — unlike Edit/Delete, it
     // carries no lock criteria (e.g. noting work done after the 7:30 cutoff).
     const actions = locked
-      ? `<span class="badge badge-gray" title="This day has closed">🔒 Locked</span>
+      ? `<span class="badge badge-gray" title="This day has closed">${ICO_LOCK} Locked</span>
          <button class="btn btn-ghost btn-sm" onclick="attOpenRemarkModal(${e.id})">Remark${e.remarks ? ` (${attParseRemarks(e.remarks).length})` : ''}</button>`
       : `<button class="btn btn-ghost btn-sm" onclick="attOpenEntryModal(${e.id})">Edit</button>
          <button class="btn btn-ghost btn-sm" onclick="attOpenRemarkModal(${e.id})">Remark${e.remarks ? ` (${attParseRemarks(e.remarks).length})` : ''}</button>
@@ -5020,7 +5085,7 @@ function paintAttendance(entries, status) {
   let banner = '';
   if (todayDay) {
     if (todayDay.status === 'present') {
-      banner = `<div class="att-banner att-banner-ok">✓ Today's attendance is logged. Days lock at <strong>7:30 PM</strong>.</div>`;
+      banner = `<div class="att-banner att-banner-ok">${ICO_CHECK} Today's attendance is logged. Days lock at <strong>7:30 PM</strong>.</div>`;
     } else if (todayDay.status === 'pending') {
       banner = `<div class="att-banner att-banner-warn">You haven't logged today yet — attendance locks at <strong>7:30 PM</strong>, after which the day is marked absent.</div>`;
     } else if (todayDay.status === 'absent') {
@@ -5059,7 +5124,7 @@ function paintAttendance(entries, status) {
       const absentDates = (status?.days || []).filter(d => d.status === 'absent').map(d => d.date);
       return `<div class="card" style="padding:16px 18px;margin:0 0 20px;max-width:640px">
         <div class="stat-label" style="margin-bottom:10px">Your absent days this month</div>
-        ${absentDates.length ? attAbsChipsHTML(absentDates, today) : '<div class="abs-empty">🎉 No absences this month.</div>'}
+        ${absentDates.length ? attAbsChipsHTML(absentDates, today) : '<div class="abs-empty">${ICO_SPARK} No absences this month.</div>'}
       </div>`;
     })()}
     <div class="card" style="padding:0;overflow:auto">
@@ -5082,7 +5147,7 @@ function attOpenEntryModal(entryId, prefillDate) {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:460px">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">${entry ? 'Edit entry' : 'New attendance entry'}</div>
         <input type="hidden" id="att-entry-id" value="${entry ? entry.id : ''}">
         ${isAdmin && !entry ? `
@@ -5155,7 +5220,7 @@ function attOpenRemarkModal(entryId) {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:460px">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">Remarks — ${esc(attFmtDate(entry.date))}</div>
         <input type="hidden" id="att-remark-entry-id" value="${entry.id}">
         <div class="mb-4">
@@ -5165,7 +5230,7 @@ function attOpenRemarkModal(entryId) {
             <div class="nc-remark-row">
               <div class="nc-remark-num">${i + 1}</div>
               <textarea class="input" rows="2" placeholder="Add a remark…">${esc(r)}</textarea>
-              ${i > 0 ? `<button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">✕</button>` : ''}
+              ${i > 0 ? `<button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">${ICO_CLOSE}</button>` : ''}
             </div>`).join('')}
           </div>
           <button type="button" class="btn btn-ghost btn-sm" onclick="attAddRemarkRow()">+ Add remark</button>
@@ -5183,7 +5248,7 @@ function attAddRemarkRow() {
   row.innerHTML = `
     <div class="nc-remark-num">${list.children.length + 1}</div>
     <textarea class="input" rows="2" placeholder="Add a remark…"></textarea>
-    <button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">✕</button>
+    <button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">${ICO_CLOSE}</button>
   `;
   list.appendChild(row);
   row.querySelector('textarea').focus();
@@ -5404,7 +5469,7 @@ function teamOpenAddEmployee() {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:420px">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">Add account</div>
         <div class="auth-field"><label class="label">Name</label>
           <input class="input" type="text" id="team-new-name" placeholder="e.g. Priya Sharma"></div>
@@ -5462,7 +5527,7 @@ function teamShowCodeModal(account, code) {
 function teamCopyCode() {
   const code = $('att-code-value')?.textContent || '';
   navigator.clipboard.writeText(code).then(
-    () => { const b = $('att-copy-btn'); if (b) b.textContent = 'Copied ✓'; },
+    () => { const b = $('att-copy-btn'); if (b) b.innerHTML = `${ICO_CHECK} Copied`; },
     () => showToast('Could not copy — select it manually', 'error')
   );
 }
@@ -5492,7 +5557,7 @@ function teamOpenDeleteModal(id, name) {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:420px">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">Delete ${esc(name || 'this account')}?</div>
         <p class="text-sm text-muted">This permanently removes their account and attendance history. This cannot be undone.</p>
         <div class="auth-field" style="margin-top:12px"><label class="label">Enter your login code to confirm</label>
@@ -5551,7 +5616,7 @@ function openFeedbackModal() {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:440px">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">Report an issue</div>
         <p class="text-sm text-muted">Spot something broken or confusing? This lands on the admin's Feedback page right away.</p>
         <div class="auth-field" style="margin-top:10px"><label class="label">What's wrong?</label>
@@ -5566,7 +5631,7 @@ function openFeedbackModal() {
           </div>
           <div id="feedback-modal-preview" style="display:none;position:relative;margin-top:8px">
             <img id="feedback-modal-preview-img" style="max-width:100%;max-height:160px;border-radius:8px;border:1px solid var(--border);display:block">
-            <button type="button" class="btn btn-ghost btn-icon" style="position:absolute;top:6px;right:6px;background:#fff" onclick="feedbackRemoveImage()" title="Remove image">✕</button>
+            <button type="button" class="btn btn-ghost btn-icon" style="position:absolute;top:6px;right:6px;background:#fff" onclick="feedbackRemoveImage()" title="Remove image">${ICO_CLOSE}</button>
           </div>
         </div>
         <div class="text-xs text-muted" style="margin-top:10px">Reported from: <strong>${esc(screenLabel)}</strong></div>
@@ -5733,7 +5798,7 @@ async function viewFeedbackImage(id) {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:min(88vw,720px);text-align:center">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div style="display:flex;justify-content:center;padding:50px"><div class="spinner"></div></div>
       </div>
     </div>`;
@@ -5742,13 +5807,13 @@ async function viewFeedbackImage(id) {
     const modal = document.querySelector('#modal-container .modal');
     if (!modal) return;
     modal.innerHTML = res.data?.image
-      ? `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+      ? `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
          <img src="${res.data.image}" style="max-width:100%;max-height:78vh;border-radius:10px;object-fit:contain;margin-top:6px">`
-      : `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+      : `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
          <p class="text-sm text-muted" style="padding:30px 0">No image on this report.</p>`;
   } catch (e) {
     const modal = document.querySelector('#modal-container .modal');
-    if (modal) modal.innerHTML = `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+    if (modal) modal.innerHTML = `<button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
       <p class="text-sm" style="color:var(--red);padding:30px 0">${esc(attErrMsg(e))}</p>`;
   }
 }
@@ -5822,7 +5887,7 @@ function renderSettings() {
       <!-- Account -->
       <div class="settings-panel" style="--stagger:0ms">
         <div class="settings-panel-head">
-          <span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span>
+          <span class="ph-icon">${pico('person', 15)}</span>
           <div class="settings-panel-head-text">
             <div class="settings-panel-title">Account</div>
             <div class="settings-panel-sub">${esc(S.admin?.name || 'Signed in')} · ${esc(S.admin?.email || '')}</div>
@@ -5833,7 +5898,7 @@ function renderSettings() {
       <!-- Email accounts -->
       <div class="settings-panel" style="--stagger:60ms">
         <div class="settings-panel-head">
-          <span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/></svg></span>
+          <span class="ph-icon">${pico('message', 15)}</span>
           <div class="settings-panel-head-text">
             <div class="settings-panel-title">Email Accounts</div>
             <div class="settings-panel-sub">${S.admin?.role === 'employee' ? 'The shared mailbox available to you.' : 'All connected mailboxes feed into one merged inbox.'}</div>
@@ -5844,15 +5909,15 @@ function renderSettings() {
           <div id="mail-accounts-list" class="text-sm text-muted">Loading…</div>
           ${S.admin?.role === 'employee' ? '' : `
           <div class="mt-4 flex gap-2 flex-wrap">
-            <a href="/auth/google" class="btn btn-ghost btn-sm">＋ Connect Gmail</a>
-            <button class="btn btn-ghost btn-sm" onclick="openAddMailboxModal()">＋ Add other mailbox (GoDaddy / IMAP)</button>
+            <a href="/auth/google" class="btn btn-ghost btn-sm">${ICO_PLUS} Connect Gmail</a>
+            <button class="btn btn-ghost btn-sm" onclick="openAddMailboxModal()">${ICO_PLUS} Add other mailbox (GoDaddy / IMAP)</button>
           </div>`}
         </div>
       </div>
       <!-- OpenRouter -->
       <div class="settings-panel" style="--stagger:120ms">
         <div class="settings-panel-head">
-          <span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/></svg></span>
+          <span class="ph-icon">${pico('key', 15)}</span>
           <div class="settings-panel-head-text">
             <div class="settings-panel-title">OpenRouter API Key</div>
             <div class="settings-panel-sub">Used by Hwoli AI (stored locally in browser, never sent to server)</div>
@@ -5864,13 +5929,13 @@ function renderSettings() {
             <input class="input" type="password" id="or-key-input" placeholder="sk-or-…" value="${esc(savedKey)}">
             <button class="btn btn-primary" onclick="saveOpenRouterKey()">Save</button>
           </div>
-          ${savedKey ? `<div class="text-xs text-muted mt-2">✓ Key saved · Hwoli is ready</div>` : `<div class="text-xs" style="color:var(--gold-600);margin-top:8px">⚠ No key set — Hwoli AI will not work</div>`}
+          ${savedKey ? `<div class="text-xs text-muted mt-2">${ICO_CHECK} Key saved · Hwoli is ready</div>` : `<div class="text-xs" style="color:var(--gold-600);margin-top:8px">⚠ No key set — Hwoli AI will not work</div>`}
         </div>
       </div>
       <!-- DB stats -->
       <div class="settings-panel" style="--stagger:180ms">
         <div class="settings-panel-head">
-          <span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/></svg></span>
+          <span class="ph-icon">${pico('building', 15)}</span>
           <div class="settings-panel-head-text">
             <div class="settings-panel-title">Venue Database</div>
             <div class="settings-panel-sub">Cities and hotels currently indexed</div>
@@ -5920,7 +5985,7 @@ async function loadMailAccountsSettings() {
           <div class="settings-row-text">
             <div class="settings-row-email">${esc(a.email)}</div>
             <div class="settings-row-label">${esc(a.label)}${a.type==='imap'?' · IMAP':''}</div>
-            ${a.needsPassword ? `<div class="settings-row-warn">⚠ Saved password can't be unlocked — remove this mailbox and add it again to re-enter the password.</div>` : ''}
+            ${a.needsPassword ? `<div class="settings-row-warn">${ICO_ALERT} Saved password can't be unlocked — remove this mailbox and add it again to re-enter the password.</div>` : ''}
           </div>
           ${removeBtn}
         </div>`;
@@ -5956,7 +6021,7 @@ function openAddMailboxModal() {
       <div class="modal" style="position:relative;max-width:460px">
         <div class="modal-title">Add a mailbox</div>
         <div class="text-xs text-muted" style="margin:-8px 0 16px">Connect a GoDaddy or other IMAP mailbox (e.g. info@humsafarweddingsbygnk.in). If the GoDaddy product is wrong, we retry the other one automatically.</div>
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
+        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="auth-field"><label class="label">Provider</label>
           <select class="input" id="mb-provider" onchange="onMbProviderChange()">
             <option value="godaddy">GoDaddy Workspace (legacy)</option>
