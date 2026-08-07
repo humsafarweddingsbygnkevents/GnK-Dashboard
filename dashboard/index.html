@@ -1666,7 +1666,11 @@ function showApp() {
   }
   applyRoleUI();
   const isEmployee = S.admin?.role === 'employee';
-  navigate(S.screen || (isEmployee ? 'attendance' : 'dashboard'));
+  // A deep link wins over whatever was last on screen; '/' falls through to
+  // the role's home. replace, not push, so back doesn't return to the URL we
+  // just normalised away.
+  const initial = screenForPath(location.pathname) || S.screen || (isEmployee ? 'attendance' : 'dashboard');
+  navigate(initial, { replace: true });
   startFeedbackPolling();
 }
 
@@ -1982,12 +1986,44 @@ const AUTH_ERROR_MESSAGES = {
 // ============================================================
 // NAVIGATION
 // ============================================================
-function navigate(screen) {
+// Each screen gets its own URL so links can be shared, bookmarked, and
+// reloaded in place. Deep links already work server-side: vercel.json rewrites
+// everything that isn't /api, /auth or /health to index.html, and app.js has
+// the same fallback for local runs.
+//
+// Both attendance screens live at /attendance — an admin sees the team's, an
+// employee sees their own — which is unambiguous because no session is both.
+const SCREEN_PATHS = {
+  dashboard: '/dashboard',
+  hotels: '/hotels',
+  inbox: '/inbox',
+  clients: '/clients',
+  team: '/attendance',
+  attendance: '/attendance',
+  feedback: '/feedback',
+  hwoli: '/hwoli',
+  settings: '/settings',
+};
+
+function screenForPath(pathname) {
+  const p = '/' + String(pathname || '').replace(/^\/+|\/+$/g, '').toLowerCase();
+  if (p === '/attendance') return S.admin?.role === 'employee' ? 'attendance' : 'team';
+  return Object.keys(SCREEN_PATHS).find(s => SCREEN_PATHS[s] === p) || null;
+}
+
+// push: normal navigation, adds a history entry. replace: first render on
+// boot, so the deep-linked URL is normalised without a bogus back step.
+// Neither: replaying a popstate, where the URL is already correct.
+function navigate(screen, { push = true, replace = false } = {}) {
   // Team (other people's accounts/attendance) and Settings stay admin-only;
   // a direct call for either no-ops to attendance (the API would 403 anyway).
   if (S.admin?.role === 'employee' && EMPLOYEE_HIDDEN_SCREENS.includes(screen)) screen = 'attendance';
   stopMessagesPolling();
   S.screen = screen;
+  const path = SCREEN_PATHS[screen];
+  if (path && (replace || push) && (replace || path !== location.pathname)) {
+    history[replace ? 'replaceState' : 'pushState']({ screen }, '', path);
+  }
   document.querySelectorAll('.nav-btn').forEach(b => {
     const isActive = b.dataset.screen === screen;
     b.classList.toggle('active', isActive);
@@ -2001,6 +2037,14 @@ function navigate(screen) {
   const renders = { dashboard: renderDashboard, hotels: renderHotels, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance, feedback: renderFeedback };
   (renders[screen] || (S.admin?.role === 'employee' ? renderAttendance : renderDashboard))();
 }
+
+// Back/forward. The URL is already what the user asked for, so re-render
+// without touching history again.
+window.addEventListener('popstate', () => {
+  if (!S.admin) return;
+  const screen = screenForPath(location.pathname);
+  if (screen && screen !== S.screen) navigate(screen, { push: false });
+});
 
 $('toggle-sidebar').onclick = () => {
   S.sidebarCollapsed = !S.sidebarCollapsed;
