@@ -1102,8 +1102,6 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
 .cx-sec{padding:20px 0;border-bottom:1px solid var(--cx-line-soft)}
 .cx-sec:last-child{border-bottom:none;padding-bottom:24px}
 .cx-sec-t{font:700 11px Inter,sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--text);margin-bottom:15px}
-.cx-sec-req{margin-left:8px;font:600 10px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;
-  color:#7a5e10;background:var(--gold-100);border-radius:6px;padding:2px 7px;vertical-align:1px}
 /* One remark left = nothing to remove, so the button hides itself rather
    than sitting there dead. */
 .nc-remarks .nc-remark-row:only-child .nc-remark-remove{display:none}
@@ -1481,10 +1479,19 @@ const STATUS_META = {
 };
 const STATUS_OPTIONS = [['new','New'],['active','Active'],['closed','Closed'],['lost','Lost'],['other','Other']];
 const EVENT_TYPE_OPTIONS = [['wedding','Wedding'],['birthday','Birthday'],['anniversary','Anniversary'],['other','Other']];
-const ENQUIRY_SOURCE_OPTIONS = [['phone','Phone Call'],['walkin','Walk-in'],['referral','Referral'],['other','Other']];
+const ENQUIRY_SOURCE_OPTIONS = [['phone','Phone Call'],['walkin','Walk-in'],['referral','Referral'],['hotel','Hotel'],['other','Other']];
+// Both of these carry a free-text detail in enquirySourceOther: which hotel
+// sent them, or where else the enquiry came from. Naming the hotel is
+// optional, so 'Hotel' has to stand on its own when the box is left blank.
+const ENQUIRY_SOURCES_WITH_DETAIL = ['hotel', 'other'];
+const ENQUIRY_SOURCE_DETAIL_PLACEHOLDER = {
+  hotel: 'Which hotel sent them?',
+  other: 'Where did this come from?',
+};
 function enquirySourceLabel(c) {
   if (!c.enquirySource) return null;
   if (c.enquirySource === 'other') return c.enquirySourceOther || 'Other';
+  if (c.enquirySource === 'hotel') return c.enquirySourceOther ? `Hotel — ${c.enquirySourceOther}` : 'Hotel';
   return ENQUIRY_SOURCE_OPTIONS.find(([k]) => k === c.enquirySource)?.[1] || c.enquirySource;
 }
 
@@ -1507,8 +1514,10 @@ function eventTypeBadgeHtml(c) {
   const label = eventTypeLabel(c);
   return label ? `<span class="badge badge-green">${esc(label)}</span>` : '';
 }
-// New manual entries split budget by hotel/decor/events; older records may
-// only have the single legacy budgetLakhs figure.
+// Budget is entered as two figures — wedding (budgetHotelLakhs) and event &
+// decor (budgetDecorLakhs). budgetEventsLakhs is a third figure from the older
+// hotel/decor/events split and still counts toward the total on those records;
+// older ones again may only have the single legacy budgetLakhs.
 function budgetTotalLakhs(c) {
   const parts = [c.budgetHotelLakhs, c.budgetDecorLakhs, c.budgetEventsLakhs].filter(v => v != null);
   if (parts.length) return parts.reduce((a, b) => a + b, 0);
@@ -4028,9 +4037,9 @@ function clientDrawerHtml(c, editing) {
 
         ${budget!=null ? `<div class="cx-dsec">
           <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
-          ${infoRow('Hotel', c.budgetHotelLakhs!=null ? '₹'+c.budgetHotelLakhs+'L' : '')}
-          ${infoRow('Decor', c.budgetDecorLakhs!=null ? '₹'+c.budgetDecorLakhs+'L' : '')}
-          ${infoRow('Events', c.budgetEventsLakhs!=null ? '₹'+c.budgetEventsLakhs+'L' : '')}
+          ${infoRow('Wedding', c.budgetHotelLakhs!=null ? '₹'+c.budgetHotelLakhs+'L' : '')}
+          ${infoRow('Event & decor', c.budgetDecorLakhs!=null ? '₹'+c.budgetDecorLakhs+'L' : '')}
+          ${c.budgetEventsLakhs!=null ? infoRow('Events (legacy)', '₹'+c.budgetEventsLakhs+'L') : ''}
           <div class="cx-row total"><span class="k">Total</span><span class="v">₹${budget}L</span></div>
         </div>` : ''}
 
@@ -4080,12 +4089,12 @@ function clientDrawerHtml(c, editing) {
             <div><label class="cx-lab" for="cd-rm">Relationship manager</label><input class="input cx-in" id="cd-rm" value="${esc(c.relationshipManager||'')}" placeholder="Who's handling this?"></div>
             <div>
               <label class="cx-lab" for="cd-enquirysource">Enquiry source</label>
-              <select class="input cx-in" id="cd-enquirysource" onchange="onOtherSelectChange(this,'cd-enquirysource-other-wrap')">
+              <select class="input cx-in" id="cd-enquirysource" onchange="onEnquirySourceChange(this,'cd-enquirysource-other-wrap','cd-enquirysource-other')">
                 <option value="" ${!c.enquirySource?'selected':''}>Not set</option>
                 ${enquirySourceOptionsHtml(c.enquirySource)}
               </select>
-              <div id="cd-enquirysource-other-wrap" style="display:${c.enquirySource==='other'?'block':'none'};margin-top:8px">
-                <input class="input cx-in" id="cd-enquirysource-other" value="${esc(c.enquirySourceOther||'')}" placeholder="Where did this come from?">
+              <div id="cd-enquirysource-other-wrap" style="display:${ENQUIRY_SOURCES_WITH_DETAIL.includes(c.enquirySource)?'block':'none'};margin-top:8px">
+                <input class="input cx-in" id="cd-enquirysource-other" value="${esc(c.enquirySourceOther||'')}" placeholder="${ENQUIRY_SOURCE_DETAIL_PLACEHOLDER[c.enquirySource]||'Where did this come from?'}">
               </div>
             </div>
             <div><label class="cx-lab">Added by</label><input class="input cx-in" value="${esc(c.createdByName||'—')}" disabled></div>
@@ -4094,10 +4103,10 @@ function clientDrawerHtml(c, editing) {
 
         <div class="cx-dsec">
           <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
-          <div class="cx-grid-3">
-            <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-hotel" type="number" min="0" step="0.5" value="${c.budgetHotelLakhs??''}" placeholder="0"></div></div>
-            <div><div class="cx-cap">Decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-decor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}" placeholder="0"></div></div>
-            <div><div class="cx-cap">Events</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-events" type="number" min="0" step="0.5" value="${c.budgetEventsLakhs??''}" placeholder="0"></div></div>
+          <div class="cx-grid">
+            <div><div class="cx-cap">Wedding</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-wedding" type="number" min="0" step="0.5" value="${c.budgetHotelLakhs??''}" placeholder="0"></div></div>
+            <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-eventdecor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}" placeholder="0"></div></div>
+            ${c.budgetEventsLakhs!=null ? `<div><div class="cx-cap">Events <span style="text-transform:none;letter-spacing:0;font-weight:400">· legacy</span></div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="cd-budget-events" type="number" min="0" step="0.5" value="${c.budgetEventsLakhs}" placeholder="0"></div></div>` : ''}
           </div>
         </div>
 
@@ -4178,25 +4187,15 @@ function maxEventDate() {
 function validateClientForm(prefix) {
   const f = suffix => $(prefix + suffix);
   const errors = [];
-  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-hotel','-budget-decor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource-other']
+  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-wedding','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource-other']
     .forEach(s => f(s)?.classList.remove('input-invalid'));
 
   const name = f('-name')?.value.trim();
   if (!name) errors.push([f('-name'), 'Name is required']);
 
-  // The whole event block is compulsory when the team hand-adds an enquiry —
-  // they're on the call and have the answers. Editing stays permissive:
-  // Gmail/DM-sourced records arrive with none of this filled in, and forcing
-  // it here would make those profiles unsaveable.
-  if (prefix === 'nc') {
-    if (!f('-eventtype')?.value) errors.push([f('-eventtype'), 'Pick an event type']);
-    if (!f('-hotel')?.value.trim()) errors.push([f('-hotel'), 'Preferred hotel is required']);
-    if (!f('-checkin')?.value) errors.push([f('-checkin'), 'Check-in date is required']);
-    if (!f('-checkout')?.value) errors.push([f('-checkout'), 'Check-out date is required']);
-    if (!f('-guests')?.value.trim()) errors.push([f('-guests'), 'Guest count is required']);
-    if (!f('-rooms')?.value.trim()) errors.push([f('-rooms'), 'Number of rooms is required']);
-    if (!f('-status')?.value) errors.push([f('-status'), 'Pick a status']);
-  }
+  // Nothing in the event block is compulsory — on a first call the team often
+  // only has a name and a number. Whatever they do fill in still has to be
+  // sane, which the format checks below handle.
 
   const phone = f('-phone')?.value.trim();
   if (!phone) errors.push([f('-phone'), 'Phone number is required']);
@@ -4206,7 +4205,7 @@ function validateClientForm(prefix) {
   const email = f('-email')?.value.trim();
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errors.push([f('-email'), 'Enter a valid email like name@example.com']);
 
-  ['-budget-hotel','-budget-decor','-budget-events'].forEach(s => {
+  ['-budget-wedding','-budget-eventdecor','-budget-events'].forEach(s => {
     const raw = f(s)?.value;
     if (raw) { const b = Number(raw); if (!isFinite(b) || b < 0) errors.push([f(s), 'Budget must be a positive number']); }
   });
@@ -4264,10 +4263,13 @@ async function saveClientDrawer(id) {
     roomCount: $('cd-rooms').value ? Number($('cd-rooms').value) : null,
     relationshipManager: $('cd-rm').value.trim() || null,
     enquirySource: enquirySource || null,
-    enquirySourceOther: enquirySource === 'other' ? $('cd-enquirysource-other')?.value.trim() : null,
-    budgetHotelLakhs: $('cd-budget-hotel').value ? Number($('cd-budget-hotel').value) : null,
-    budgetDecorLakhs: $('cd-budget-decor').value ? Number($('cd-budget-decor').value) : null,
-    budgetEventsLakhs: $('cd-budget-events').value ? Number($('cd-budget-events').value) : null,
+    enquirySourceOther: ENQUIRY_SOURCES_WITH_DETAIL.includes(enquirySource) ? $('cd-enquirysource-other')?.value.trim() : null,
+    // See createClient: wedding → budgetHotelLakhs, event & decor →
+    // budgetDecorLakhs. The Events input only renders for old records that
+    // already carry a value, so it stays editable without coming back.
+    budgetHotelLakhs: $('cd-budget-wedding').value ? Number($('cd-budget-wedding').value) : null,
+    budgetDecorLakhs: $('cd-budget-eventdecor').value ? Number($('cd-budget-eventdecor').value) : null,
+    budgetEventsLakhs: $('cd-budget-events')?.value ? Number($('cd-budget-events').value) : null,
     checkInDate: $('cd-checkin').value || null,
     checkOutDate: $('cd-checkout').value || null,
     status,
@@ -4302,6 +4304,16 @@ function openClientConversation(platform, senderId) {
 function onOtherSelectChange(selectEl, wrapId) {
   const wrap = $(wrapId);
   if (wrap) wrap.style.display = selectEl.value === 'other' ? 'block' : 'none';
+}
+
+// Enquiry source reveals its text box for both 'Hotel' and 'Other', and
+// re-labels the placeholder so it's obvious what to type in each case.
+function onEnquirySourceChange(selectEl, wrapId, inputId) {
+  const wrap = $(wrapId);
+  const show = ENQUIRY_SOURCES_WITH_DETAIL.includes(selectEl.value);
+  if (wrap) wrap.style.display = show ? 'block' : 'none';
+  const input = $(inputId);
+  if (input && show) input.placeholder = ENQUIRY_SOURCE_DETAIL_PLACEHOLDER[selectEl.value] || '';
 }
 
 function statusOptionsHtml(prefix, current) {
@@ -4346,7 +4358,7 @@ function openNewClientModal() {
               <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" id="nc-email" type="email" placeholder="name@example.com"></div>
               <div>
                 <label class="cx-lab" for="nc-enquirysource">How did they reach us?</label>
-                <select class="input cx-in" id="nc-enquirysource" onchange="onOtherSelectChange(this,'nc-enquirysource-other-wrap')">
+                <select class="input cx-in" id="nc-enquirysource" onchange="onEnquirySourceChange(this,'nc-enquirysource-other-wrap','nc-enquirysource-other')">
                   <option value="" selected>Not set</option>
                   ${enquirySourceOptionsHtml('')}
                 </select>
@@ -4358,36 +4370,42 @@ function openNewClientModal() {
           </div>
 
           <div class="cx-sec">
-            <div class="cx-sec-t">The event <span class="cx-sec-req">all required</span></div>
+            <div class="cx-sec-t">The event</div>
             <div class="cx-grid">
               <div>
-                <label class="cx-lab" for="nc-eventtype">Event type <span class="req">*</span></label>
-                <select class="input cx-in" id="nc-eventtype" onchange="onOtherSelectChange(this,'nc-eventtype-other-wrap')">${eventTypeOptionsHtml('wedding')}</select>
+                <label class="cx-lab" for="nc-eventtype">Event type</label>
+                <select class="input cx-in" id="nc-eventtype" onchange="onOtherSelectChange(this,'nc-eventtype-other-wrap')">
+                  <option value="" selected>Not set</option>
+                  ${eventTypeOptionsHtml('')}
+                </select>
                 <div id="nc-eventtype-other-wrap" style="display:none;margin-top:8px">
                   <input class="input cx-in" id="nc-eventtype-other" placeholder="Describe the event type…">
                 </div>
               </div>
-              <div><label class="cx-lab" for="nc-hotel">Preferred hotel <span class="req">*</span></label><input class="input cx-in" id="nc-hotel" placeholder="e.g. Aahana, Jim Corbett"></div>
-              <div><label class="cx-lab" for="nc-checkin">Check-in date <span class="req">*</span></label><input class="input cx-in" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
-              <div><label class="cx-lab" for="nc-checkout">Check-out date <span class="req">*</span></label><input class="input cx-in" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
-              <div><label class="cx-lab" for="nc-guests">Guest count <span class="req">*</span></label><input class="input cx-in" id="nc-guests" type="number" min="1" max="1000000" step="1" placeholder="300"></div>
-              <div><label class="cx-lab" for="nc-rooms">No. of rooms <span class="req">*</span></label><input class="input cx-in" id="nc-rooms" type="number" min="1" max="100000" step="1" placeholder="80"></div>
+              <div><label class="cx-lab" for="nc-hotel">Preferred hotel</label><input class="input cx-in" id="nc-hotel" placeholder="e.g. Aahana, Jim Corbett"></div>
+              <div><label class="cx-lab" for="nc-checkin">Check-in date</label><input class="input cx-in" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-checkout">Check-out date</label><input class="input cx-in" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-guests">Guest count</label><input class="input cx-in" id="nc-guests" type="number" min="1" max="1000000" step="1" placeholder="300"></div>
+              <div><label class="cx-lab" for="nc-rooms">No. of rooms</label><input class="input cx-in" id="nc-rooms" type="number" min="1" max="100000" step="1" placeholder="80"></div>
               <div>
-                <label class="cx-lab" for="nc-status">Status <span class="req">*</span></label>
+                <label class="cx-lab" for="nc-status">Status</label>
                 <select class="input cx-in" id="nc-status" onchange="onOtherSelectChange(this,'nc-status-other-wrap')">${statusOptionsHtml('nc', 'new')}</select>
                 <div id="nc-status-other-wrap" style="display:none;margin-top:8px">
                   <input class="input cx-in" id="nc-status-other" placeholder="Describe the status…">
                 </div>
+              </div>
+              <div class="cx-full">
+                <label class="cx-lab" for="nc-event-other">Other <span class="hint">— anything the fields above don't cover</span></label>
+                <textarea class="input cx-in" id="nc-event-other" rows="3" placeholder="Sangeet on the lawn, needs 12 vegetarian menus, groom's side arriving a day early…"></textarea>
               </div>
             </div>
           </div>
 
           <div class="cx-sec">
             <div class="cx-sec-t">Budget <span style="text-transform:none;letter-spacing:0;font-weight:500">· in ₹ lakhs</span></div>
-            <div class="cx-grid-3">
-              <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-hotel" type="number" min="0" step="0.5" placeholder="0"></div></div>
-              <div><div class="cx-cap">Decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-decor" type="number" min="0" step="0.5" placeholder="0"></div></div>
-              <div><div class="cx-cap">Events</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-events" type="number" min="0" step="0.5" placeholder="0"></div></div>
+            <div class="cx-grid">
+              <div><div class="cx-cap">Wedding</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-wedding" type="number" min="0" step="0.5" placeholder="0"></div></div>
+              <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" id="nc-budget-eventdecor" type="number" min="0" step="0.5" placeholder="0"></div></div>
             </div>
           </div>
 
@@ -4469,6 +4487,18 @@ function collectRemarks(listId) {
   return vals.length === 1 ? vals[0] : vals.map((v, i) => `${i + 1}. ${v}`).join('\n');
 }
 
+// Fold the event section's "Other" box into the notes column, tagged so it
+// stays recognisable in the drawer. Renumbering is left to collectRemarks'
+// format: a single remark stays plain, two or more get "1. / 2." prefixes.
+function withEventOther(notes, other) {
+  const extra = String(other || '').trim();
+  if (!extra) return notes;
+  const line = `Other (event): ${extra}`;
+  if (!notes) return line;
+  const parts = splitRemarks(notes).concat(line);
+  return parts.map((v, i) => `${i + 1}. ${v}`).join('\n');
+}
+
 async function createClient() {
   if (!validateClientForm('nc')) return;
   const name = $('nc-name').value.trim();
@@ -4484,10 +4514,13 @@ async function createClient() {
     roomCount: $('nc-rooms')?.value ? Number($('nc-rooms').value) : undefined,
     relationshipManager: $('nc-rm')?.value || undefined,
     enquirySource,
-    enquirySourceOther: enquirySource === 'other' ? ($('nc-enquirysource-other')?.value || '').trim() : undefined,
-    budgetHotelLakhs: $('nc-budget-hotel')?.value ? Number($('nc-budget-hotel').value) : undefined,
-    budgetDecorLakhs: $('nc-budget-decor')?.value ? Number($('nc-budget-decor').value) : undefined,
-    budgetEventsLakhs: $('nc-budget-events')?.value ? Number($('nc-budget-events').value) : undefined,
+    enquirySourceOther: ENQUIRY_SOURCES_WITH_DETAIL.includes(enquirySource) ? ($('nc-enquirysource-other')?.value || '').trim() : undefined,
+    // Budget is captured as two figures now (Wedding, Event & decor). They ride
+    // on the existing columns — budgetHotelLakhs = wedding, budgetDecorLakhs =
+    // event & decor — so no migration is needed. budgetEventsLakhs is legacy:
+    // still summed into the total for old records, never written again.
+    budgetHotelLakhs: $('nc-budget-wedding')?.value ? Number($('nc-budget-wedding').value) : undefined,
+    budgetDecorLakhs: $('nc-budget-eventdecor')?.value ? Number($('nc-budget-eventdecor').value) : undefined,
     checkInDate: $('nc-checkin')?.value || undefined,
     checkOutDate: $('nc-checkout')?.value || undefined,
     status,
@@ -4495,7 +4528,9 @@ async function createClient() {
     category: 'event_enquiry',
     eventType,
     eventTypeOther: eventType === 'other' ? ($('nc-eventtype-other')?.value || '').trim() : undefined,
-    notes: collectRemarks(),
+    // The event section's free-text "Other" box has no column of its own, so it
+    // rides along in notes as a labelled remark rather than needing a migration.
+    notes: withEventOther(collectRemarks(), $('nc-event-other')?.value),
   };
   try {
     await apiPost('/api/clients', body);
@@ -5892,12 +5927,12 @@ function openAddMailboxModal() {
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:460px">
         <div class="modal-title">Add a mailbox</div>
-        <div class="text-xs text-muted" style="margin:-8px 0 16px">Connect a GoDaddy Titan or other IMAP mailbox (e.g. info@humsafarweddingsbygnk.in).</div>
+        <div class="text-xs text-muted" style="margin:-8px 0 16px">Connect a GoDaddy or other IMAP mailbox (e.g. info@humsafarweddingsbygnk.in). If the GoDaddy product is wrong, we retry the other one automatically.</div>
         <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">✕</button>
         <div class="auth-field"><label class="label">Provider</label>
           <select class="input" id="mb-provider" onchange="onMbProviderChange()">
-            <option value="titan">GoDaddy Professional Email (Titan)</option>
             <option value="godaddy">GoDaddy Workspace (legacy)</option>
+            <option value="titan">GoDaddy Professional Email (Titan)</option>
             <option value="office365">Microsoft 365 (Outlook)</option>
             <option value="custom">Custom IMAP/SMTP</option>
           </select>
@@ -5922,13 +5957,15 @@ function openAddMailboxModal() {
         </div>
       </div>
     </div>`;
+  // Show the default provider's hosts straight away, not only after a change.
+  onMbProviderChange();
 }
 
 // Titan and Workspace are both "GoDaddy" to a user but share no hostnames —
 // spell out which servers each preset will actually use.
 const MB_PROVIDER_HINTS = {
   titan:     'imap.titan.email · smtp.titan.email — GoDaddy Professional Email, sold since ~2020.',
-  godaddy:   'imap.secureserver.net · smtpout.secureserver.net — only for older Workspace mailboxes.',
+  godaddy:   'imap.secureserver.net · smtpout.secureserver.net — what humsafarweddingsbygnk.in uses.',
   office365: 'outlook.office365.com · smtp.office365.com',
   custom:    'Enter the IMAP/SMTP hosts from your provider below.',
 };

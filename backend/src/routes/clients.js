@@ -29,7 +29,10 @@ const LEGACY_STATUSES = ['contacted', 'site-visit-scheduled', 'booked'];
 const WRITABLE_STATUSES = [...STATUSES, ...LEGACY_STATUSES];
 const EVENT_TYPES = ['wedding', 'birthday', 'anniversary', 'other'];
 // How a manually-entered enquiry reached us.
-const ENQUIRY_SOURCES = ['phone', 'walkin', 'referral', 'other'];
+// 'hotel' and 'other' both carry a free-text detail in enquirySourceOther —
+// which hotel sent them, or where else the enquiry came from.
+const ENQUIRY_SOURCES = ['phone', 'walkin', 'referral', 'hotel', 'other'];
+const ENQUIRY_SOURCES_WITH_DETAIL = ['hotel', 'other'];
 
 function parseIntField(value, name, { min, max } = {}) {
   if (value === null || value === undefined || value === '') return null;
@@ -160,11 +163,14 @@ function parseClientBody(body, requireCore = false) {
       throw Object.assign(new Error(`enquirySource must be one of: ${ENQUIRY_SOURCES.join(', ')}`), { status: 400 });
     }
     result.enquirySource = src;
-    if (src === 'other') {
-      if (!body.enquirySourceOther || !String(body.enquirySourceOther).trim()) {
+    if (ENQUIRY_SOURCES_WITH_DETAIL.includes(src)) {
+      const detail = body.enquirySourceOther ? String(body.enquirySourceOther).trim() : '';
+      // 'Other' is meaningless without the detail; 'Hotel' already says enough
+      // on its own, so naming the hotel stays optional.
+      if (src === 'other' && !detail) {
         throw Object.assign(new Error('Please describe the enquiry source when choosing "Other"'), { status: 400 });
       }
-      result.enquirySourceOther = String(body.enquirySourceOther).trim();
+      result.enquirySourceOther = detail || null;
     } else {
       result.enquirySourceOther = null;
     }

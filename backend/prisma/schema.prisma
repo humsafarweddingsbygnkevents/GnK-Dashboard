@@ -199,9 +199,11 @@ model Client {
   checkOutDate         DateTime?
   createdByName        String? // employee who created this profile
   relationshipManager  String? // staff member handling this client
-  // How this enquiry reached us: 'phone' | 'walkin' | 'referral' | 'other'
+  // How this enquiry reached us: 'phone' | 'walkin' | 'referral' | 'hotel' | 'other'
   enquirySource        String?
-  enquirySourceOther   String? // free-text detail when enquirySource = 'other'
+  // Free-text detail for the sources that carry one: which hotel sent them
+  // ('hotel', optional), or where else it came from ('other', required).
+  enquirySourceOther   String?
   // Stable per-channel sender identity — IGSID/PSID for instagram/facebook,
   // email address for gmail, null for manual. Lets the webhook upsert the
   // same person instead of creating a duplicate on every message.
