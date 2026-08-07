@@ -1288,7 +1288,7 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
         </button>
         <button class="nav-btn" data-screen="team" onclick="navigate('team')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h4M15 12h4M5.5 16.5c.6-1.5 1.9-2.5 3.5-2.5s2.9 1 3.5 2.5"/></svg>
-          <span class="nav-label">Team</span>
+          <span class="nav-label">Attendance</span>
         </button>
         <button class="nav-btn" data-screen="feedback" onclick="navigate('feedback')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -1479,20 +1479,28 @@ const STATUS_META = {
 };
 const STATUS_OPTIONS = [['new','New'],['active','Active'],['closed','Closed'],['lost','Lost'],['other','Other']];
 const EVENT_TYPE_OPTIONS = [['wedding','Wedding'],['birthday','Birthday'],['anniversary','Anniversary'],['other','Other']];
+// Source is a free-text box now. These stay because older records still hold
+// one of the fixed keys, and because typing a name that matches one keeps
+// storing it as that key rather than churning it to free text.
 const ENQUIRY_SOURCE_OPTIONS = [['phone','Phone Call'],['walkin','Walk-in'],['referral','Referral'],['hotel','Hotel'],['other','Other']];
-// Both of these carry a free-text detail in enquirySourceOther: which hotel
-// sent them, or where else the enquiry came from. Naming the hotel is
-// optional, so 'Hotel' has to stand on its own when the box is left blank.
-const ENQUIRY_SOURCES_WITH_DETAIL = ['hotel', 'other'];
-const ENQUIRY_SOURCE_DETAIL_PLACEHOLDER = {
-  hotel: 'Which hotel sent them?',
-  other: 'Where did this come from?',
-};
 function enquirySourceLabel(c) {
   if (!c.enquirySource) return null;
   if (c.enquirySource === 'other') return c.enquirySourceOther || 'Other';
   if (c.enquirySource === 'hotel') return c.enquirySourceOther ? `Hotel — ${c.enquirySourceOther}` : 'Hotel';
   return ENQUIRY_SOURCE_OPTIONS.find(([k]) => k === c.enquirySource)?.[1] || c.enquirySource;
+}
+
+// Turn whatever was typed into the pair of columns the API expects. The
+// backend still validates enquirySource against a fixed list, so anything
+// that isn't one of the known labels rides in as 'other' + the raw text —
+// which is exactly how enquirySourceLabel renders it back.
+function parseEnquirySource(text) {
+  const t = String(text || '').trim();
+  if (!t) return { enquirySource: null, enquirySourceOther: null };
+  const known = ENQUIRY_SOURCE_OPTIONS.find(([k, l]) =>
+    k !== 'other' && (l.toLowerCase() === t.toLowerCase() || k === t.toLowerCase()));
+  if (known) return { enquirySource: known[0], enquirySourceOther: null };
+  return { enquirySource: 'other', enquirySourceOther: t };
 }
 
 // A status of 'other' carries its real value in statusOther — surface that
@@ -4045,7 +4053,7 @@ function clientDrawerHtml(c, editing) {
 
         <div class="cx-dsec">
           <div class="cx-dsec-t">Ownership</div>
-          ${infoRow('How they reached us', esc(enquirySourceLabel(c)||''), true)}
+          ${infoRow('Source', esc(enquirySourceLabel(c)||''), true)}
           ${infoRow('Relationship manager', esc(c.relationshipManager||''), true)}
           ${infoRow('Added by', c.createdByName ? esc(c.createdByName) : '<span class="cx-none">Not recorded</span>', true)}
           ${infoRow('Added on', fmtDate(c.createdAt), true)}
@@ -4088,14 +4096,8 @@ function clientDrawerHtml(c, editing) {
             <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}" placeholder="80"></div>
             <div><label class="cx-lab" for="cd-rm">Relationship manager</label><input class="input cx-in" id="cd-rm" value="${esc(c.relationshipManager||'')}" placeholder="Who's handling this?"></div>
             <div>
-              <label class="cx-lab" for="cd-enquirysource">Enquiry source</label>
-              <select class="input cx-in" id="cd-enquirysource" onchange="onEnquirySourceChange(this,'cd-enquirysource-other-wrap','cd-enquirysource-other')">
-                <option value="" ${!c.enquirySource?'selected':''}>Not set</option>
-                ${enquirySourceOptionsHtml(c.enquirySource)}
-              </select>
-              <div id="cd-enquirysource-other-wrap" style="display:${ENQUIRY_SOURCES_WITH_DETAIL.includes(c.enquirySource)?'block':'none'};margin-top:8px">
-                <input class="input cx-in" id="cd-enquirysource-other" value="${esc(c.enquirySourceOther||'')}" placeholder="${ENQUIRY_SOURCE_DETAIL_PLACEHOLDER[c.enquirySource]||'Where did this come from?'}">
-              </div>
+              <label class="cx-lab" for="cd-enquirysource">Source</label>
+              <input class="input cx-in" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}" placeholder="Phone call, walk-in, referral, hotel name…">
             </div>
             <div><label class="cx-lab">Added by</label><input class="input cx-in" value="${esc(c.createdByName||'—')}" disabled></div>
           </div>
@@ -4187,7 +4189,7 @@ function maxEventDate() {
 function validateClientForm(prefix) {
   const f = suffix => $(prefix + suffix);
   const errors = [];
-  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-wedding','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource-other']
+  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-wedding','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource']
     .forEach(s => f(s)?.classList.remove('input-invalid'));
 
   const name = f('-name')?.value.trim();
@@ -4228,8 +4230,6 @@ function validateClientForm(prefix) {
     errors.push([f('-status-other'), 'Please describe the status']);
   if (f('-eventtype')?.value === 'other' && !f('-eventtype-other')?.value.trim())
     errors.push([f('-eventtype-other'), 'Please describe the event type']);
-  if (f('-enquirysource')?.value === 'other' && !f('-enquirysource-other')?.value.trim())
-    errors.push([f('-enquirysource-other'), 'Please describe the enquiry source']);
 
   if (errors.length) {
     errors.forEach(([el]) => el?.classList.add('input-invalid'));
@@ -4253,7 +4253,7 @@ async function saveClientDrawer(id) {
   const name = $('cd-name').value.trim();
   const status = $('cd-status').value;
   const eventType = $('cd-eventtype')?.value || null;
-  const enquirySource = $('cd-enquirysource')?.value || null;
+  const src = parseEnquirySource($('cd-enquirysource')?.value);
   const body = {
     name,
     phone: $('cd-phone').value.trim(),
@@ -4262,8 +4262,8 @@ async function saveClientDrawer(id) {
     guestCount: $('cd-guests').value ? Number($('cd-guests').value) : null,
     roomCount: $('cd-rooms').value ? Number($('cd-rooms').value) : null,
     relationshipManager: $('cd-rm').value.trim() || null,
-    enquirySource: enquirySource || null,
-    enquirySourceOther: ENQUIRY_SOURCES_WITH_DETAIL.includes(enquirySource) ? $('cd-enquirysource-other')?.value.trim() : null,
+    enquirySource: src.enquirySource,
+    enquirySourceOther: src.enquirySourceOther,
     // See createClient: wedding → budgetHotelLakhs, event & decor →
     // budgetDecorLakhs. The Events input only renders for old records that
     // already carry a value, so it stays editable without coming back.
@@ -4306,16 +4306,6 @@ function onOtherSelectChange(selectEl, wrapId) {
   if (wrap) wrap.style.display = selectEl.value === 'other' ? 'block' : 'none';
 }
 
-// Enquiry source reveals its text box for both 'Hotel' and 'Other', and
-// re-labels the placeholder so it's obvious what to type in each case.
-function onEnquirySourceChange(selectEl, wrapId, inputId) {
-  const wrap = $(wrapId);
-  const show = ENQUIRY_SOURCES_WITH_DETAIL.includes(selectEl.value);
-  if (wrap) wrap.style.display = show ? 'block' : 'none';
-  const input = $(inputId);
-  if (input && show) input.placeholder = ENQUIRY_SOURCE_DETAIL_PLACEHOLDER[selectEl.value] || '';
-}
-
 function statusOptionsHtml(prefix, current) {
   const opts = STATUS_OPTIONS.some(([k]) => k === current) || !current
     ? STATUS_OPTIONS
@@ -4327,13 +4317,6 @@ function eventTypeOptionsHtml(current) {
   const opts = EVENT_TYPE_OPTIONS.some(([k]) => k === current) || !current
     ? EVENT_TYPE_OPTIONS
     : [[current, current], ...EVENT_TYPE_OPTIONS];
-  return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
-}
-
-function enquirySourceOptionsHtml(current) {
-  const opts = ENQUIRY_SOURCE_OPTIONS.some(([k]) => k === current) || !current
-    ? ENQUIRY_SOURCE_OPTIONS
-    : [[current, current], ...ENQUIRY_SOURCE_OPTIONS];
   return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }
 
@@ -4357,14 +4340,8 @@ function openNewClientModal() {
               <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" id="nc-phone" placeholder="+91 98765 43210"></div>
               <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" id="nc-email" type="email" placeholder="name@example.com"></div>
               <div>
-                <label class="cx-lab" for="nc-enquirysource">How did they reach us?</label>
-                <select class="input cx-in" id="nc-enquirysource" onchange="onEnquirySourceChange(this,'nc-enquirysource-other-wrap','nc-enquirysource-other')">
-                  <option value="" selected>Not set</option>
-                  ${enquirySourceOptionsHtml('')}
-                </select>
-                <div id="nc-enquirysource-other-wrap" style="display:none;margin-top:8px">
-                  <input class="input cx-in" id="nc-enquirysource-other" placeholder="Where did this come from?">
-                </div>
+                <label class="cx-lab" for="nc-enquirysource">Source</label>
+                <input class="input cx-in" id="nc-enquirysource" placeholder="Phone call, walk-in, referral, hotel name…">
               </div>
             </div>
           </div>
@@ -4504,7 +4481,7 @@ async function createClient() {
   const name = $('nc-name').value.trim();
   const status = $('nc-status')?.value || 'new';
   const eventType = $('nc-eventtype')?.value || undefined;
-  const enquirySource = $('nc-enquirysource')?.value || undefined;
+  const src = parseEnquirySource($('nc-enquirysource')?.value);
   const body = {
     name,
     phone: $('nc-phone').value.trim(),
@@ -4513,8 +4490,8 @@ async function createClient() {
     guestCount: $('nc-guests')?.value ? Number($('nc-guests').value) : undefined,
     roomCount: $('nc-rooms')?.value ? Number($('nc-rooms').value) : undefined,
     relationshipManager: $('nc-rm')?.value || undefined,
-    enquirySource,
-    enquirySourceOther: ENQUIRY_SOURCES_WITH_DETAIL.includes(enquirySource) ? ($('nc-enquirysource-other')?.value || '').trim() : undefined,
+    enquirySource: src.enquirySource || undefined,
+    enquirySourceOther: src.enquirySourceOther || undefined,
     // Budget is captured as two figures now (Wedding, Event & decor). They ride
     // on the existing columns — budgetHotelLakhs = wedding, budgetDecorLakhs =
     // event & decor — so no migration is needed. budgetEventsLakhs is legacy:
@@ -5262,7 +5239,7 @@ function paintTeam(employees, att, status, absences, absMonth) {
   setContent(`
     <div class="page-header mb-6">
       <div>
-        <div class="page-title">Team</div>
+        <div class="page-title">Attendance</div>
         <div class="page-sub">Accounts and attendance</div>
       </div>
       <button class="btn btn-primary" onclick="teamOpenAddEmployee()">+ Add account</button>
@@ -5514,7 +5491,7 @@ async function teamConfirmDelete(id) {
 // ============================================================
 const FEEDBACK_SCREEN_LABELS = {
   dashboard: 'Dashboard', hotels: 'Hotels', inbox: 'Inbox', clients: 'Clients',
-  team: 'Team', attendance: 'My Attendance', hwoli: 'Hwoli AI', settings: 'Settings', feedback: 'Feedback',
+  team: 'Attendance', attendance: 'My Attendance', hwoli: 'Hwoli AI', settings: 'Settings', feedback: 'Feedback',
 };
 
 function openFeedbackModal() {
