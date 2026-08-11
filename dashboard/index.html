@@ -3187,6 +3187,46 @@ async function refreshGmail() {
   try { await loadGmail(true); } finally { btn?.classList.remove('spinning'); }
 }
 
+// ---- opened-email read state (localStorage) ----
+// The mail provider owns read/unread (Gmail's UNREAD label, IMAP's \Seen flag)
+// and /api/mail/read sets it when an email is opened. But that call can legally
+// fail — a Gmail account connected before the gmail.modify scope existed can't
+// have the label removed until it's reconnected — and the next poll would then
+// re-report an email the reader has visibly already opened as unread. So every
+// email opened here is also remembered locally and re-applied on top of what
+// the server says. Scoped per signed-in admin, like the inbox cache below.
+const READ_IDS_MAX = 800;
+
+function readIdsKey() {
+  return S.admin?.id ? `hw_inbox_read_${S.admin.id}` : null;
+}
+
+function loadReadIds() {
+  const key = readIdsKey();
+  if (!key) return new Set();
+  if (S.readIds) return S.readIds;
+  let ids = [];
+  try { ids = JSON.parse(localStorage.getItem(key) || '[]'); } catch (_) {}
+  S.readIds = new Set(Array.isArray(ids) ? ids : []);
+  return S.readIds;
+}
+
+function rememberRead(id) {
+  const key = readIdsKey();
+  if (!key) return;
+  // Kept newest-last so the cap trims the oldest ids first — those emails fell
+  // out of the fetch window long ago, so nothing can re-report them as unread.
+  const arr = [...loadReadIds().add(id)].slice(-READ_IDS_MAX);
+  S.readIds = new Set(arr);
+  try { localStorage.setItem(key, JSON.stringify(arr)); } catch (_) {}
+}
+
+function applyReadState(emails) {
+  const ids = loadReadIds();
+  if (ids.size) emails.forEach(e => { if (ids.has(e.id)) e.unread = false; });
+  return emails;
+}
+
 // ---- inbox cache (localStorage) ----
 // Survives a full page reload, scoped per signed-in admin so one browser can
 // never show a different admin's mail. loadGmail() paints this instantly on
@@ -3202,7 +3242,7 @@ function hydrateEmailCache() {
   try {
     const cached = JSON.parse(localStorage.getItem(key) || 'null');
     if (cached && Array.isArray(cached.emails)) {
-      S.emails = cached.emails;
+      S.emails = applyReadState(cached.emails);
       S.mailAccounts = cached.mailAccounts || null;
       S.emailsFetchedAt = 0; // treat restored cache as stale so a background refresh always follows
     }
@@ -3242,8 +3282,10 @@ async function loadGmail(force) {
     // Incremental merge by id: fresh copies win; older cached emails that fell
     // outside the fetch window stay in the list instead of disappearing.
     const freshIds = new Set(fresh.map(e => e.id));
-    const merged = fresh.concat((S.emails || []).filter(e => !freshIds.has(e.id)))
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    const merged = applyReadState(
+      fresh.concat((S.emails || []).filter(e => !freshIds.has(e.id)))
+        .sort((a, b) => new Date(b.date) - new Date(a.date)),
+    );
     // Re-point the selection at the fresh copy so the active row survives refresh
     if (S.selectedEmail) S.selectedEmail = merged.find(e => e.id === S.selectedEmail.id) || S.selectedEmail;
     S.emails = merged;
@@ -3357,9 +3399,41 @@ function emailRowHtml(e, i) {
 }
 
 function selectInboxItem(i) {
-  S.selectedEmail = (S.visibleEmails || [])[i];
+  const e = (S.visibleEmails || [])[i];
+  S.selectedEmail = e;
   document.querySelectorAll('#hd-list-rows .mail-row').forEach((r,j) => r.classList.toggle('active', j===i));
   renderThreadPane();
+  if (e) markEmailRead(e, i);
+}
+
+// Opening an email marks it read. The row is restyled in place — bold/white
+// unread becomes the lighter read treatment — rather than re-rendering the
+// list, so the Unread view doesn't yank the email out from under the reader the
+// instant they open it (it drops out on the next refresh, like Gmail). The rail
+// re-renders on its own to drop the unread count. The provider is told in the
+// background; if it refuses, the local read state still holds.
+function markEmailRead(e, i) {
+  if (!e.unread) return;
+  e.unread = false;
+  rememberRead(e.id);
+  const row = document.querySelectorAll('#hd-list-rows .mail-row')[i];
+  if (row) row.classList.replace('unread', 'read');
+  const rail = document.querySelector('#hd-shell .hd-rail');
+  if (rail) rail.innerHTML = hdRailHtml();
+  persistEmailCache();
+  apiPost('/api/mail/read', { id: e.id })
+    .then(r => { if (r && r.needsReconnect) warnGmailReconnect(); })
+    .catch(() => {});
+}
+
+// Gmail wouldn't take the read flag because the connected account predates the
+// gmail.modify scope. Said once per session, not once per email — the row is
+// already read here, so this is about the mailbox drifting out of step, and
+// repeating it on every click would be noise.
+function warnGmailReconnect() {
+  if (S.gmailReconnectWarned) return;
+  S.gmailReconnectWarned = true;
+  showToast('Reconnect Gmail in Settings so opened mail is marked read in Gmail too', 'error');
 }
 
 function formatBytes(n) {

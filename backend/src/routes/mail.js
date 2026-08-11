@@ -260,6 +260,62 @@ router.post('/send', async (req, res) => {
   }
 });
 
+// POST /api/mail/read — mark one message read at the provider (Gmail's UNREAD
+// label / IMAP's \Seen flag), so an opened email stays read across the inbox's
+// 60s refetch and in the mailbox itself. `id` is the unified message id from
+// /recent: "gmail:<acctId>:<msgId>" or "imap:<acctId>:<uid>".
+//
+// A provider that refuses the flag answers 200 { ok: false }, not an error: the
+// dashboard has already greyed the row and remembers the message as read
+// locally. The one refusal a user *can* act on is a Gmail token that predates
+// the gmail.modify scope — that one comes back as needsReconnect so the
+// dashboard can say "reconnect Gmail in Settings" instead of leaving the
+// dashboard showing read while Gmail still shows unread.
+router.post('/read', async (req, res) => {
+  const m = /^(gmail|imap):(\d+):(.+)$/.exec(String(req.body?.id || ''));
+  if (!m) return res.status(400).json({ error: 'A message id is required' });
+  const [, type, acctIdStr, msgPart] = m;
+  const acctId = Number(acctIdStr);
+  const admin = isAdmin(req);
+  if (!admin && type === 'gmail') return res.status(403).json({ error: 'Not allowed' });
+
+  try {
+    if (type === 'gmail') {
+      const gacct = await prisma.googleAccount.findUnique({ where: { id: acctId } });
+      if (!gacct) return res.status(404).json({ error: 'Account not found' });
+      await gmailClient.markRead(gacct, msgPart);
+      return res.json({ ok: true });
+    }
+
+    const acct = await prisma.mailAccount.findUnique({ where: { id: acctId } });
+    if (!acct) return res.status(404).json({ error: 'Account not found' });
+    if (!admin && !EMPLOYEE_VISIBLE_EMAILS.has(acct.email)) {
+      return res.status(403).json({ error: 'Not allowed' });
+    }
+    const password = unlock(acct);
+    await mailbox.markSeen(
+      { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password }, msgPart,
+    );
+    return res.json({ ok: true });
+  } catch (err) {
+    // Google answers a token missing gmail.modify with 403 ACCESS_TOKEN_SCOPE_
+    // INSUFFICIENT. Nothing server-side can fix that — the account holder has to
+    // re-grant the scope — so it's the one failure the dashboard surfaces.
+    const insufficientScope = type === 'gmail'
+      && (err.status === 403 || err.code === 403)
+      && /scope|insufficient/i.test(err.message || '');
+    if (insufficientScope) {
+      console.error(
+        '[mail] Gmail refused to mark a message read — this account was connected before the '
+        + 'gmail.modify scope was requested. Reconnect Gmail in Settings to re-grant it.',
+      );
+      return res.json({ ok: false, needsReconnect: true });
+    }
+    console.error('Mail mark-read error:', err.message);
+    return res.json({ ok: false, error: err.message });
+  }
+});
+
 // GET /api/mail/favicon — proxies a sender domain's favicon from DuckDuckGo's
 // icon service. DuckDuckGo returns its generic "no icon" placeholder with a
 // *valid* image body (even on a 404 status) for domains it can't resolve, so a

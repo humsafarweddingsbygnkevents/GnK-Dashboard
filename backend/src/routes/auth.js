@@ -9,6 +9,11 @@ const router = Router();
 const SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
+  // Opening an email marks it read, which means removing its UNREAD label —
+  // something readonly can't do. Gmail accounts connected before this scope was
+  // added keep working; /api/mail/read reports their 403 as a soft failure and
+  // the dashboard falls back to its own read state until they're reconnected.
+  'https://www.googleapis.com/auth/gmail.modify',
 ];
 
 function makeOAuth2Client() {

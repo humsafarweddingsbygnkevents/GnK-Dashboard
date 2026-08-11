@@ -191,6 +191,21 @@ async function fetchAttachment({ imapHost, imapPort, email, password }, uid, fil
   }
 }
 
+// Sets the \Seen flag on one message by UID, so opening an email in the
+// dashboard makes it read in the real mailbox too — and it stays read the next
+// time fetchRecent() reports its flags.
+async function markSeen({ imapHost, imapPort, email, password }, uid) {
+  const client = makeImapClient({ imapHost, imapPort, email, password });
+  await client.connect();
+  const lock = await client.getMailboxLock('INBOX');
+  try {
+    return await client.messageFlagsAdd(String(uid), ['\\Seen'], { uid: true });
+  } finally {
+    lock.release();
+    try { await client.logout(); } catch (_) {}
+  }
+}
+
 // Send a message over SMTP for a non-Gmail (IMAP) account.
 async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, subject, body, attachments }) {
   const port = Number(smtpPort) || 465;
@@ -214,4 +229,4 @@ async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, subject, 
   return info.messageId;
 }
 
-module.exports = { PROVIDERS, resolveHosts, verifyImap, verifyImapWithFallback, fetchRecent, sendSmtp, fetchAttachment };
+module.exports = { PROVIDERS, resolveHosts, verifyImap, verifyImapWithFallback, fetchRecent, sendSmtp, fetchAttachment, markSeen };

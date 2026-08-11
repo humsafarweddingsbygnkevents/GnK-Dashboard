@@ -171,6 +171,18 @@ async function getAttachment(account, messageId, attachmentId) {
   return Buffer.from(res.data.data, 'base64url');
 }
 
+// Drops the UNREAD label from one message, so an email opened in the dashboard
+// is read in Gmail too. Needs the gmail.modify scope: accounts connected before
+// that scope was requested throw a 403 here until they're reconnected in
+// Settings, which /api/mail/read reports as a soft failure.
+async function markRead(account, messageId) {
+  const auth = makeAuthClient(account);
+  const gmail = google.gmail({ version: 'v1', auth });
+  await gmail.users.messages.modify({
+    userId: 'me', id: messageId, requestBody: { removeLabelIds: ['UNREAD'] },
+  });
+}
+
 async function sendMessage(account, { to, subject, body, attachments }) {
   const auth = makeAuthClient(account);
   const gmail = google.gmail({ version: 'v1', auth });
@@ -181,5 +193,5 @@ async function sendMessage(account, { to, subject, body, attachments }) {
 
 module.exports = {
   makeAuthClient, headerValue, extractBody, extractHtml, extractAttachments, buildRawMessage,
-  fetchRecent, sendMessage, getAttachment,
+  fetchRecent, sendMessage, getAttachment, markRead,
 };
