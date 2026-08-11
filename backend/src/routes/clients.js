@@ -312,6 +312,104 @@ router.get('/summary', async (_req, res) => {
   }
 });
 
+// Both follow-up routes below are read-only derivations of Client rows —
+// there is no separate Notification/Reminder table. A reminder is simply
+// "status is active/confirmed and nextFollowUpAt is due", so it disappears
+// exactly when an RM saves the client with a later follow-up date (or moves
+// it off active/confirmed) — never on a timer, and never just because
+// someone viewed it. Editing the remark alone, without pushing the date
+// forward, deliberately leaves it in place.
+async function requesterName(req) {
+  if (!req.admin?.sub) return null;
+  const admin = await prisma.admin.findUnique({ where: { id: req.admin.sub }, select: { name: true, email: true } });
+  return admin?.name || admin?.email || null;
+}
+
+function startOfDayUTC(d) {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+// GET /api/clients/followups — clients owed a follow-up. With no `date`,
+// returns everything due today or overdue (the persistent reminder set).
+// With `date=YYYY-MM-DD`, returns only that calendar day's follow-ups — lets
+// an admin check a particular future/past date rather than just "today".
+// Employees always see their own (matched on relationshipManager by name);
+// admins see everyone unless scope=mine.
+router.get('/followups', async (req, res) => {
+  try {
+    const isAdmin = req.admin?.role !== 'employee';
+    const where = { status: { in: STATUSES_REQUIRING_FOLLOWUP } };
+
+    if (req.query.date) {
+      const day = parseDateField(req.query.date, 'date');
+      if (!day) return res.status(400).json({ error: 'date must be a valid date' });
+      const start = startOfDayUTC(day);
+      const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+      where.nextFollowUpAt = { gte: start, lt: end };
+    } else {
+      const end = new Date(startOfDayUTC(new Date()).getTime() + 24 * 60 * 60 * 1000);
+      where.nextFollowUpAt = { lt: end };
+    }
+
+    if (!isAdmin || req.query.scope === 'mine') {
+      const name = await requesterName(req);
+      if (name) where.relationshipManager = { equals: name, mode: 'insensitive' };
+      else where.id = -1; // no resolvable name -> never matches, empty result
+    }
+
+    const clients = await prisma.client.findMany({
+      where,
+      orderBy: { nextFollowUpAt: 'asc' },
+      select: {
+        id: true, name: true, phone: true, email: true, status: true, statusOther: true,
+        relationshipManager: true, nextFollowUpAt: true, notes: true, preferredCity: true,
+      },
+    });
+
+    const startOfToday = startOfDayUTC(new Date());
+    const data = clients.map((c) => ({ ...c, overdue: c.nextFollowUpAt < startOfToday }));
+    return res.json({ data });
+  } catch (err) {
+    if (err.status === 400) return res.status(400).json({ error: err.message });
+    console.error(err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /api/clients/followups/summary — lightweight counts for the bell badge
+// and the dashboard stat cards. Registered before /:id for the same reason
+// /summary above is — Express would otherwise try to parse "followups" as an
+// id.
+router.get('/followups/summary', async (req, res) => {
+  try {
+    const isAdmin = req.admin?.role !== 'employee';
+    const startOfToday = startOfDayUTC(new Date());
+    const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
+    const where = { status: { in: STATUSES_REQUIRING_FOLLOWUP }, nextFollowUpAt: { lt: endOfToday } };
+    if (!isAdmin) {
+      const name = await requesterName(req);
+      if (name) where.relationshipManager = { equals: name, mode: 'insensitive' };
+      else where.id = -1; // no resolvable name -> never matches, empty result
+    }
+
+    const [dueCount, overdueCount, byManagerRaw] = await Promise.all([
+      prisma.client.count({ where }),
+      prisma.client.count({ where: { ...where, nextFollowUpAt: { lt: startOfToday } } }),
+      isAdmin
+        ? prisma.client.groupBy({ by: ['relationshipManager'], where, _count: { _all: true } })
+        : Promise.resolve([]),
+    ]);
+    const byManager = byManagerRaw
+      .map((r) => ({ manager: r.relationshipManager || 'Unassigned', count: r._count._all }))
+      .sort((a, b) => b.count - a.count);
+
+    return res.json({ data: { dueCount, overdueCount, byManager } });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // POST /api/clients/sync-inbox — backfill Clients from stored Instagram /
 // Facebook messages that arrived before auto-triage existed (or while it was
 // down). Classifies each sender with no Client record yet. Optionally scoped

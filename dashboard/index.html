@@ -4,16 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Humsafar Weddings by GnK Events</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <!-- Renders .docx attachments to HTML entirely client-side (no document content leaves the browser) -->
 <script src="https://cdn.jsdelivr.net/npm/mammoth@1.7.2/mammoth.browser.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%;overflow:hidden}
-body{font-family:Inter,system-ui,sans-serif;color:#23291F;-webkit-font-smoothing:antialiased;
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#23291F;-webkit-font-smoothing:antialiased;
   background:#fff}
+/* True Apple typography can't be shipped as a webfont — SF Pro's license
+   restricts the font files to Apple's own platforms/apps. -apple-system
+   resolves to the real SF Pro already on a visitor's Mac/iPhone (this is
+   what apple.com itself does); everyone else gets their OS's native font.
+   !important because the app also sets Fraunces/Inter explicitly all over
+   (headings, names, stat numbers, inline styles) — this overrides every
+   one of them app-wide instead of hunting each declaration down. */
+body,body *{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","SF Pro Display",system-ui,"Segoe UI",Roboto,Helvetica,Arial,sans-serif!important}
 ::selection{background:var(--green-200)}
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{background:#E6E0CF;border-radius:8px;border:2px solid #F7F3E9}
@@ -88,7 +93,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 .topbar-brand{display:flex;align-items:center;gap:11px;min-width:230px}
 .topbar-brand img{height:50px;width:auto;filter:drop-shadow(0 1px 1px rgba(0,0,0,.55)) drop-shadow(0 0 5px rgba(0,0,0,.25))}
-.topbar-brand-text{display:flex;flex-direction:column;line-height:1;gap:2px}
+.topbar-brand-text{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:row;align-items:baseline;white-space:nowrap;gap:8px;pointer-events:none}
 .topbar-brand-text .name,.topbar-brand-text .sub{
   font-family:Fraunces,serif;background:linear-gradient(180deg,var(--gold-100) 0%,var(--gold-600) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent
@@ -164,7 +169,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .nav-btn .nav-label{white-space:nowrap;overflow:hidden}
 #sidebar.collapsed .nav-label{display:none}
 .nav-btn .nav-badge{margin-left:auto;font-size:10.5px;background:var(--green-700);color:#fff;border-radius:99px;padding:1px 6px;min-width:18px;text-align:center}
-#sidebar.collapsed .nav-badge{display:none}
+#sidebar.collapsed .nav-badge{display:none!important}
 .nav-active-bar{position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--gold-600)}
 .nav-divider{height:1px;background:var(--border);margin:8px 12px}
 #sidebar.collapsed .nav-divider{margin:8px 10px}
@@ -202,9 +207,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .btn-primary{background:var(--nb-charcoal);color:#fff;letter-spacing:.01em;box-shadow:6px 6px 0 0 #000}
 .btn-primary:hover{background:var(--nb-charcoal);box-shadow:3px 3px 0 0 #000;transform:translate(3px,3px)}
 .btn-primary:active{transform:translate(6px,6px);box-shadow:0 0 0 0 #000}
-.btn-detail{background:#fff;color:var(--nb-charcoal);font-weight:600;box-shadow:4px 4px 0 0 #000}
-.btn-detail:hover{box-shadow:2px 2px 0 0 #000;transform:translate(2px,2px)}
-.btn-detail:active{box-shadow:0 0 0 0 #000;transform:translate(4px,4px)}
+.btn-detail{background:#fff;color:var(--green-700);font-weight:600;border:1px solid var(--border-soft);box-shadow:none}
+.btn-detail:hover{background:var(--green-50);border-color:var(--gold-400)}
+.btn-detail:active{transform:scale(.98)}
 .btn-gold{background:#fff;color:#000;box-shadow:4px 4px 0 0 #000}
 .btn-gold:hover{box-shadow:2px 2px 0 0 #000;transform:translate(2px,2px)}
 .btn-ghost{background:transparent;border:2px solid var(--nb-charcoal);color:var(--text-2);box-shadow:none}
@@ -236,7 +241,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .chip.active{background:var(--green-700);color:#fff;border-color:var(--green-700)}
 
 /* filter panel */
-.filter-panel{background:var(--cream-2);border:1px solid var(--border);border-radius:16px;box-shadow:0 2px 12px rgba(31,61,43,.06);overflow:hidden}
+.filter-panel{background:#fff;border:1px solid rgba(35,41,31,.05);border-radius:20px;box-shadow:var(--soft);overflow:hidden}
 .filter-section{padding:18px 20px;border-bottom:1px solid var(--cream-3)}
 .filter-section:last-of-type{border-bottom:none}
 .filter-label{font:700 11px Inter,sans-serif;text-transform:uppercase;letter-spacing:.07em;color:#a9af9f;margin-bottom:12px}
@@ -520,10 +525,21 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:60px 20px;color:var(--text-3);text-align:center}
 .empty svg{opacity:.35}
 .empty p{font-size:14px}
+/* Fill variant — for empty states inside a panel that's stretched tall by a
+   sibling (e.g. Follow-up Reminders matching the stats+clients column on
+   dashboard home). Centers in the full available height instead of sitting
+   pinned to the top with dead space below, and reads as a considered "all
+   caught up" moment rather than a placeholder. */
+.empty.empty-fill{height:100%;flex:1 1 auto;padding:20px;gap:16px}
+.empty-fill .empty-icon{width:56px;height:56px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(155deg,var(--green-50) 0%,#fff 100%);color:var(--green-700);box-shadow:inset 0 0 0 1px var(--border-soft)}
+.empty-fill .empty-icon svg{opacity:1}
+.empty-fill p{font:600 14.5px Inter,sans-serif;color:var(--text-2)}
+.empty-fill .empty-sub{font:400 13px Inter,sans-serif;color:var(--text-4);margin-top:-8px}
 
 /* hotel card */
-.hotel-card{background:#fff;border:1px solid var(--border);border-radius:16px;box-shadow:0 2px 12px rgba(31,61,43,.06);padding:16px 18px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s,transform .12s;cursor:pointer;align-self:start}
-.hotel-card:hover{box-shadow:var(--shadow);border-color:var(--border-2);transform:translateY(-2px)}
+.hotel-card{background:#fff;border:1px solid rgba(35,41,31,.05);border-radius:20px;box-shadow:var(--soft);padding:16px 18px;display:flex;flex-direction:column;gap:10px;transition:box-shadow .15s,border-color .15s,transform .12s;cursor:pointer;align-self:start}
+.hotel-card:hover{box-shadow:var(--soft);border-color:rgba(35,41,31,.14);transform:translateY(-2px)}
 .hotel-name{font-family:Fraunces,serif;font-size:16.5px;font-weight:600;color:var(--text);line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .hotel-line{font-size:12.5px;line-height:1.5;color:var(--text-2)}
 .hotel-line b{font-weight:600;color:var(--text)}
@@ -771,6 +787,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .divider{height:1px;background:var(--border);margin:16px 0}
 
 /* ============ DASHBOARD ============ */
+/* #content has a fixed 28px/32px padding shared by every screen — break out
+   of it here (negative margin) and re-add the same padding inside, so only
+   the dashboard gets a tinted canvas behind it. White bento tiles need a
+   page background that isn't also white to actually read as separate
+   cards instead of bleeding into the page (a bare border was not enough). */
+.dash-screen{margin:-28px -32px;padding:28px 32px;background:var(--cream-2)}
 /* hero greeting */
 .dash-hero{position:relative;overflow:hidden;border-radius:var(--radius-lg);padding:30px 34px;margin-bottom:24px;
   background:
@@ -794,14 +816,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 
 /* stat cards — rich */
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:18px;margin-bottom:24px}
-.stat-card{position:relative;overflow:hidden;background:linear-gradient(165deg,#fff 0%,var(--cream-2) 100%);border:1px solid var(--border-soft);border-radius:var(--radius-lg);
-  padding:20px 22px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--soft-sm);
+.stat-card{position:relative;overflow:hidden;background:#fff;border:1px solid rgba(35,41,31,.05);border-radius:20px;
+  padding:22px 24px;display:flex;flex-direction:column;gap:14px;box-shadow:var(--soft);
   transition:box-shadow .18s,transform .18s,border-color .18s;
   opacity:0;animation:fadeup .42s var(--ease-out) both;animation-delay:var(--stagger,0ms)}
 .stat-card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent,var(--gold-400)),transparent 130%)}
 .stat-card::after{content:"";position:absolute;top:-30%;right:-20%;width:60%;height:60%;border-radius:50%;pointer-events:none;
   background:radial-gradient(circle,var(--accent-bg,var(--green-50)),transparent 70%);opacity:.6}
-.stat-card:hover{box-shadow:var(--soft);border-color:var(--border-2);transform:translateY(-2px)}
+.stat-card:hover{box-shadow:var(--soft);border-color:rgba(35,41,31,.14);transform:translateY(-2px)}
 .stat-top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
 .stat-icon{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;
   background:linear-gradient(155deg,var(--accent-bg,var(--green-50)) 0%,#fff 100%);color:var(--accent,var(--green-700));
@@ -810,15 +832,18 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .stat-trend{font:600 11px Inter,sans-serif;display:inline-flex;align-items:center;gap:3px;padding:3px 8px;border-radius:99px;
   background:var(--green-50);color:var(--green-700)}
 .stat-label{font:600 11px Inter,sans-serif;color:var(--text-4);letter-spacing:.08em;text-transform:uppercase}
-.stat-value{font-family:Fraunces,serif;font-size:38px;font-weight:600;color:var(--text);line-height:.95;letter-spacing:-.02em}
+/* Big number takes the tile's own accent color (green for Venues, gold for
+   Clients) instead of plain dark text — the colored digits are what make a
+   bento stat card read as "designed" rather than a plain data label. */
+.stat-value{font:800 46px/.95 Inter,sans-serif;color:var(--accent,var(--text));letter-spacing:-.03em}
 .stat-sub{font:400 12px Inter,sans-serif;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* dashboard panels */
-.dash-panel{background:linear-gradient(175deg,#fff 0%,var(--cream-2) 100%);border:1px solid var(--border-soft);border-radius:var(--radius-lg);box-shadow:var(--soft-sm);overflow:hidden}
+.dash-panel{background:#fff;border:1px solid rgba(35,41,31,.05);border-radius:20px;box-shadow:var(--soft);overflow:hidden}
 .dash-panel-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--cream-3);
   background:linear-gradient(180deg,rgba(255,255,255,.6),transparent)}
 .dash-panel-title{display:flex;align-items:center;gap:10px;font-family:Fraunces,serif;font-weight:600;font-size:16.5px;color:var(--text)}
-.dash-panel-title .ph-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,var(--gold-100) 0%,#fff 100%);color:var(--gold-600);box-shadow:inset 0 0 0 1px var(--border-soft)}
+.dash-panel-title .ph-icon{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:linear-gradient(155deg,var(--ph-bg,var(--gold-100)) 0%,#fff 100%);color:var(--ph-accent,var(--gold-600));box-shadow:inset 0 0 0 1px var(--border-soft)}
 .dash-panel-head .btn-ghost{border-color:var(--border-soft);border-width:1px;font-weight:600;color:var(--green-700)}
 .dash-panel-head .btn-ghost:hover{background:var(--cream);border-color:var(--gold-400)}
 .dash-panel-body{padding:8px 10px}
@@ -833,28 +858,37 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .dash-list-row:hover .dash-row-arrow{opacity:1;transform:none}
 .dash-panel-body.rich{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
 
-/* rich client cards */
-.cl-card{position:relative;overflow:hidden;display:flex;gap:15px;align-items:flex-start;padding:16px 17px;border-radius:15px;
-  border:1px solid var(--border-soft);background:linear-gradient(135deg,#fff 0%,var(--cream-2) 100%);cursor:pointer;
-  transition:box-shadow .18s,border-color .18s,transform .15s}
-.cl-card:hover{box-shadow:var(--shadow);border-color:var(--border-2);transform:translateY(-2px)}
+/* rich client cards — flat, borderless tiles (a background tint carries the
+   separation instead of an outline) so a list of these doesn't read as
+   boxes-within-a-box inside an already-bordered panel. */
+.cl-card{position:relative;overflow:hidden;display:flex;gap:15px;align-items:flex-start;padding:16px 18px;border-radius:20px;
+  background:var(--cream-2);cursor:pointer;
+  transition:box-shadow .18s,transform .15s,background .15s}
+.cl-card:hover{box-shadow:var(--soft);transform:translateY(-2px);background:#fff}
 .cl-card::after{content:"";position:absolute;right:-26px;bottom:-30px;width:120px;height:120px;opacity:.06;pointer-events:none;
   background:var(--accent,var(--green-700));
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2c1.5 3 1.5 5 0 7 1.8-1.4 4-1.4 6 0-3 .5-4.5 1.8-6 4 1.5-2.2 1.5-4.2 0-6.4M12 2c-1.5 3-1.5 5 0 7-1.8-1.4-4-1.4-6 0 3 .5 4.5 1.8 6 4-1.5-2.2-1.5-4.2 0-6.4M12 13c1.5 3 1.5 5 0 7M12 13c-1.5 3-1.5 5 0 7'/%3E%3C/svg%3E") center/contain no-repeat;
   mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 2c1.5 3 1.5 5 0 7 1.8-1.4 4-1.4 6 0-3 .5-4.5 1.8-6 4 1.5-2.2 1.5-4.2 0-6.4'/%3E%3C/svg%3E") center/contain no-repeat}
-.cl-avatar{position:relative;width:54px;height:54px;border-radius:15px;flex:none;display:flex;align-items:center;justify-content:center;
-  font:600 19px Fraunces,serif;color:#fff;box-shadow:0 4px 12px -3px var(--accent,rgba(46,93,59,.4)),inset 0 1px 0 rgba(255,255,255,.25)}
-.cl-avatar::before{content:"";position:absolute;inset:0;border-radius:inherit;background:radial-gradient(circle at 32% 26%,rgba(255,255,255,.35),transparent 58%)}
-.cl-dot{position:absolute;right:-2px;bottom:-2px;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--cream-2)}
+.cl-avatar-ring{position:relative;width:52px;height:52px;flex:none;display:flex;align-items:center;justify-content:center}
+.cl-avatar{position:relative;width:100%;height:100%;flex:none;display:flex;align-items:center;justify-content:center}
+.cl-avatar img{width:100%;height:100%;object-fit:contain}
+.cl-dot{position:absolute;right:0;bottom:0;width:14px;height:14px;border-radius:50%;border:2.5px solid var(--cream-2);z-index:1}
 .cl-body{flex:1;min-width:0;position:relative;z-index:1}
-.cl-name-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:9px}
+/* Name + category stay grouped as one cluster on the left with a status pill
+   pinned to the right — a plain 3-item space-between here stretches into a
+   huge dead gap on a wide panel, since it spaces every child evenly instead
+   of keeping the name and its category together. */
+.cl-name-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px;flex-wrap:wrap}
+.cl-name-cluster{display:flex;align-items:center;gap:9px;min-width:0;flex-wrap:wrap}
 .cl-name{font:600 15.5px Fraunces,serif;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cl-meta{display:flex;flex-wrap:wrap;gap:7px}
 .cl-pill{display:inline-flex;align-items:center;gap:5px;font:600 11.5px Inter,sans-serif;color:var(--text-2);
-  background:#fff;border:1px solid var(--border-soft);border-radius:99px;padding:4px 10px}
+  background:var(--cream-3);border-radius:99px;padding:4px 10px}
 .cl-pill svg{color:var(--accent,var(--green-700));flex:none}
-.cl-pill.gold{background:#fff;border-color:var(--gold-400);color:#7a5e10}
+.cl-pill.gold{background:var(--gold-100);color:#7a5e10}
 .cl-pill.gold svg{color:var(--gold-600)}
+.cl-pill.red{background:#FDECEA;color:#B0311F}
+.cl-pill.red svg{color:#B0311F}
 .cl-note{margin-top:9px;font:italic 400 12px Inter,sans-serif;color:var(--text-3);line-height:1.45;
   display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
   padding-left:9px;border-left:2px solid var(--gold-100)}
@@ -881,7 +915,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 /* attendance rows */
 .att-row{display:flex;gap:13px;align-items:center;padding:11px 13px;border-radius:13px;cursor:pointer;transition:background .12s}
 .att-row:hover{background:var(--cream)}
-.att-date{width:42px;height:42px;border-radius:12px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--green-50);border:1px solid var(--border-soft);line-height:1}
+.att-date{width:44px;height:44px;border-radius:14px;flex:none;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--green-50);line-height:1}
 .att-date .d{font:600 15px Fraunces,serif;color:var(--green-700)}
 .att-date .m{font:600 9px Inter,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--text-3);margin-top:2px}
 .att-main{flex:1;min-width:0}
@@ -918,12 +952,29 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .att-daycell .dc-date{font:600 12.5px Inter,sans-serif;color:var(--text)}
 .att-daycell .dc-wd{font:400 11px Inter,sans-serif;color:var(--text-3);margin-left:4px}
 
-/* dashboard panel columns */
-.dash-cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
-.dash-span{grid-column:1/-1}
-.dash-col-stack{display:flex;flex-direction:column;gap:18px}
-@media(max-width:1080px){.stat-grid{grid-template-columns:repeat(2,1fr)}.dash-cols{grid-template-columns:1fr}}
-@media(max-width:560px){.stat-grid{grid-template-columns:1fr}}
+/* dashboard bento mosaic — one grid, two stat tiles + panels, each pinned to
+   a named area (instead of nested grids) so the home screen reads as a
+   single tiled composition. Follow-up Reminders (rm) spans both the stat
+   row and the Recent Clients row, so it reads as the biggest, most
+   important panel on the screen. Never set align-items:start here —
+   default stretch is what keeps every tile in a row the same height. */
+.dash-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;
+  grid-template-areas:"s1 s2 rm rm" "cl cl rm rm" "att att abs abs"}
+.dash-bento>*{min-width:0}
+.dash-tile-tall{height:400px;display:flex;flex-direction:column}
+.dash-tile-tall .dash-panel-body{flex:1;min-height:0;overflow-y:auto}
+.dash-tile-short{height:280px;display:flex;flex-direction:column}
+.dash-tile-short .dash-panel-body{flex:1;min-height:0;overflow-y:auto}
+/* rm has no fixed height on desktop — it stretches across its two spanned
+   grid rows on its own, which is what makes it bigger than a single tile. */
+.dash-tile-fill{display:flex;flex-direction:column}
+.dash-tile-fill .dash-panel-body{flex:1;min-height:0;overflow-y:auto}
+@media(max-width:1080px){.dash-bento{grid-template-columns:repeat(2,1fr);
+  grid-template-areas:"s1 s2" "cl cl" "rm rm" "att abs"}
+  .dash-tile-fill{height:460px}}
+@media(max-width:640px){.dash-bento{grid-template-columns:1fr;
+  grid-template-areas:"s1" "s2" "cl" "rm" "att" "abs"}
+  .dash-tile-tall,.dash-tile-short,.dash-tile-fill{height:340px}}
 
 /* Settings — calm hairline/soft-elevation cards (mirrors .dash-panel / .stat-card),
    replacing the site-wide neobrutalist .card look for this page only. */
@@ -1008,15 +1059,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .cx-btn-sm{height:34px;padding:0 13px;font-size:12.5px;border-radius:9px}
 
 /* ── source tabs: underline, not boxes ─────────────────────────── */
-.cx-tabs{display:flex;align-items:center;gap:28px;border-bottom:1px solid var(--cx-line);margin-bottom:18px;overflow-x:auto}
-.cx-tab{position:relative;flex:none;border:none;background:none;padding:0 1px 12px;cursor:pointer;
-  display:inline-flex;align-items:center;gap:7px;font:500 13.5px Inter,sans-serif;color:var(--text-3);
-  transition:color 170ms var(--hd-ease)}
-.cx-tab:hover{color:var(--text)}
-.cx-tab.active{color:var(--green-900);font-weight:600}
-.cx-tab::after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--gold-600);
-  transform:scaleX(0);transition:transform 260ms var(--hd-ease)}
-.cx-tab.active::after{transform:scaleX(1)}
+.cx-tabs{display:inline-flex;align-items:center;gap:2px;background:var(--cream);border-radius:var(--radius);padding:4px;margin-bottom:18px;max-width:100%;overflow-x:auto}
+.cx-tab{position:relative;flex:none;border:none;background:transparent;padding:7px 14px;cursor:pointer;border-radius:9px;
+  display:inline-flex;align-items:center;gap:7px;font:500 13px Inter,sans-serif;color:var(--text-3);
+  transition:transform 120ms var(--ease-out),background 120ms,color 120ms}
+.cx-tab:active{transform:scale(.97)}
+.cx-tab.active{background:#fff;color:var(--green-700);font-weight:600;box-shadow:var(--shadow-sm)}
 .cx-tab-n{font:500 12px Inter,sans-serif;color:var(--text-3);font-variant-numeric:tabular-nums;transition:color 170ms}
 .cx-tab.active .cx-tab-n{color:var(--gold-600);font-weight:600}
 
@@ -1046,7 +1094,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .cx-railcount{margin-left:auto;font-size:12.5px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
 
 /* ── data table ────────────────────────────────────────────────── */
-.cx-card{background:#fff;border:1px solid var(--cx-line);border-radius:16px;box-shadow:var(--cx-e2);overflow:hidden}
+.cx-card{background:#fff;border:1px solid var(--cx-line);border-radius:20px;box-shadow:var(--cx-e2);overflow:hidden}
 .cx-scroll{overflow-x:auto}
 .cx-tbl{width:100%;border-collapse:collapse;min-width:820px}
 .cx-tbl th{text-align:left;white-space:nowrap;background:var(--cx-tint);color:var(--text-2);
@@ -1222,30 +1270,18 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
       </button>
       <img src="assets/gnk-logo.png" alt="HW" onerror="this.style.display='none'">
       <div class="topbar-brand-text">
-        <span class="name">HUMSAFAR</span>
-        <span class="sub">WEDDINGS BY GNK EVENTS</span>
+        <span class="name">HUMSAFAR WEDDING</span>
+        <span class="sub">BY GNK EVENTS</span>
       </div>
     </div>
-    <label class="topbar-search">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-      <input type="text" placeholder="Search venues, clients, messages…" id="global-search">
-      <span class="kbd">⌘K</span>
-    </label>
     <div class="topbar-spacer"></div>
-    <button class="topbar-icon-btn" title="Report an issue" id="feedback-report-btn" onclick="openFeedbackModal()">
-      <span class="pico" style="--pico:url('/icons/message.png');width:17px;height:17px"></span>
-    </button>
     <div class="topbar-usermenu" id="notif-menu">
       <button class="topbar-icon-btn" title="Notifications" id="notif-btn" style="position:relative" onclick="toggleNotifMenu(event)">
-        <span class="pico" style="--pico:url('/icons/bell.png');width:17px;height:17px"></span>
+        <span class="pico" style="--pico:url('/icons/message.png');width:17px;height:17px"></span>
         <span id="notif-dot" style="display:none;position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:99px;background:var(--red);color:#fff;font:700 9.5px Inter,sans-serif;align-items:center;justify-content:center;border:2px solid var(--nb-charcoal)"></span>
       </button>
-      <div class="usermenu-pop" id="notif-pop" role="menu" style="min-width:310px;max-width:340px;right:-10px">
-        <div class="usermenu-head" style="padding:9px 10px">
-          <div style="font-weight:600;font-size:13.5px;color:var(--text)">Feedback</div>
-        </div>
-        <div class="usermenu-sep"></div>
-        <div id="notif-list" style="max-height:320px;overflow-y:auto"></div>
+      <div class="usermenu-pop" id="notif-pop" role="menu" style="min-width:320px;max-width:360px;right:-10px">
+        <div id="notif-list" style="max-height:420px;overflow-y:auto"></div>
       </div>
     </div>
     <div class="topbar-divider"></div>
@@ -1303,20 +1339,14 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg>
           <span class="nav-label">Clients</span>
         </button>
+        <button class="nav-btn" data-screen="reminders" onclick="navigate('reminders')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span class="nav-label">Reminders</span>
+          <span class="nav-badge" id="reminders-badge" style="display:none">0</span>
+        </button>
         <button class="nav-btn" data-screen="team" onclick="navigate('team')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h4M15 12h4M5.5 16.5c.6-1.5 1.9-2.5 3.5-2.5s2.9 1 3.5 2.5"/></svg>
           <span class="nav-label">Attendance</span>
-        </button>
-        <button class="nav-btn" data-screen="feedback" onclick="navigate('feedback')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <span class="nav-label">Feedback</span>
-          <span class="nav-badge" id="feedback-badge" style="display:none">0</span>
-        </button>
-        <div class="nav-divider"></div>
-        <span class="nav-section-label">AI</span>
-        <button class="nav-btn" data-screen="hwoli" onclick="navigate('hwoli')">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/><circle cx="19" cy="5" r="3" fill="var(--gold-400)" stroke="var(--gold-600)"/></svg>
-          <span class="nav-label">Hwoli AI</span>
         </button>
         <div class="nav-divider"></div>
         <button class="nav-btn" data-screen="settings" onclick="navigate('settings')">
@@ -1512,7 +1542,7 @@ function cleanSnippet(body) {
 }
 
 const STATUS_META = {
-  'confirmed':{c:'#2E5D3B',l:'Confirmed'},
+  'confirmed':{c:'#22C55E',l:'Confirmed'},
   'active':{c:'#B8902E',l:'Active'},
   'no-response':{c:'#838b7b',l:'No Response'},
   'lost':{c:'#C0392B',l:'Lost'},
@@ -1722,7 +1752,7 @@ function showApp() {
   // just normalised away.
   const initial = screenForPath(location.pathname) || S.screen || (isEmployee ? 'attendance' : 'dashboard');
   navigate(initial, { replace: true });
-  startFeedbackPolling();
+  startNotifPolling();
 }
 
 // Cosmetic role gating only — the real enforcement is requireAdmin on the
@@ -2051,6 +2081,7 @@ const SCREEN_PATHS = {
   clients: '/clients',
   team: '/attendance',
   attendance: '/attendance',
+  reminders: '/reminders',
   feedback: '/feedback',
   hwoli: '/hwoli',
   settings: '/settings',
@@ -2085,7 +2116,7 @@ function navigate(screen, { push = true, replace = false } = {}) {
       b.insertBefore(bar, b.firstChild);
     } else if (!isActive && bar) bar.remove();
   });
-  const renders = { dashboard: renderDashboard, hotels: renderHotels, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance, feedback: renderFeedback };
+  const renders = { dashboard: renderDashboard, hotels: renderHotels, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance, reminders: renderReminders, feedback: renderFeedback };
   (renders[screen] || (S.admin?.role === 'employee' ? renderAttendance : renderDashboard))();
 }
 
@@ -2113,12 +2144,13 @@ async function renderDashboard() {
   const dateRest = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const isEmployee = S.admin?.role === 'employee';
   const stats = [
-    {key:'venues', label:'Venues',  accent:'var(--green-700)', bg:'var(--green-50)',  icon:'<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/>'},
-    {key:'clients',label:'Clients', accent:'var(--gold-600)',  bg:'#fff',  icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/>'},
-    {key:'emails', label:'Emails',  accent:'#2E5D3B', bg:'var(--green-50)', icon:'<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/>'},
-    {key:'cities', label:'Cities',  accent:'var(--gold-600)', bg:'#fff', icon:'<path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'},
+    {key:'venues',   label:'Venues',         accent:'var(--green-700)', bg:'var(--green-50)',
+      icon:'<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/>'},
+    {key:'clients',  label:'Clients',        accent:'var(--gold-600)',  bg:'#fff',
+      icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/>'},
   ];
   setContent(`
+    <div class="dash-screen">
     <div class="dash-hero">
       <div class="dash-hero-inner">
         <div>
@@ -2132,9 +2164,9 @@ async function renderDashboard() {
         </div>
       </div>
     </div>
-    <div class="stat-grid">
+    <div class="dash-bento">
       ${stats.map((s,i)=>`
-        <div class="stat-card" style="--accent:${s.accent};--accent-bg:${s.bg};--stagger:${i*50}ms">
+        <div class="stat-card" style="--accent:${s.accent};--accent-bg:${s.bg};--stagger:${i*50}ms;grid-area:s${i+1}">
           <div class="stat-top">
             <div class="stat-icon"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg></div>
           </div>
@@ -2144,71 +2176,35 @@ async function renderDashboard() {
           </div>
           <div class="stat-sub" id="stat-${s.key}-sub">Loading…</div>
         </div>`).join('')}
+      <div class="dash-panel dash-tile-tall" style="grid-area:cl">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:var(--green-50);--ph-accent:var(--green-700)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>Recent Clients</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('clients')">View all</button>
+        </div>
+        <div class="dash-panel-body" id="dash-clients"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+      </div>
+      <div class="dash-panel dash-tile-fill" style="grid-area:rm">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span>Follow-up Reminders</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('reminders')">View all</button>
+        </div>
+        <div class="dash-panel-body" id="dash-reminders"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+      </div>
+      <div class="dash-panel dash-tile-short" style="grid-area:att">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#EAF2FB;--ph-accent:#2C5A8C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('${isEmployee ? 'attendance' : 'team'}')">View all</button>
+        </div>
+        <div class="dash-panel-body" id="dash-att"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+      </div>
+      <div class="dash-panel dash-tile-short" style="grid-area:abs">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#FDECEA;--ph-accent:#B0311F"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>${isEmployee ? 'My Absences' : 'Absences'} · this month</span>
+          <button class="btn btn-ghost btn-sm" onclick="navigate('${isEmployee ? 'attendance' : 'team'}')">View all</button>
+        </div>
+        <div class="dash-panel-body" id="dash-absences"><div class="spinner" style="margin:24px auto;display:block"></div></div>
+      </div>
     </div>
-    <div class="dash-cols">
-      ${isEmployee ? `
-      <div class="dash-col-stack">
-        <div class="dash-panel">
-          <div class="dash-panel-head">
-            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>Recent Clients</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('clients')">View all</button>
-          </div>
-          <div class="dash-panel-body" id="dash-clients"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-panel-head">
-            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('attendance')">View all</button>
-          </div>
-          <div class="dash-panel-body" id="dash-att"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-panel-head">
-            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>My Absences · this month</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('attendance')">View all</button>
-          </div>
-          <div class="dash-panel-body" id="dash-absences"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-        </div>
-      </div>
-      <div class="dash-panel">
-        <div class="dash-panel-head">
-          <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/></svg></span>Recent Emails</span>
-          <button class="btn btn-ghost btn-sm" onclick="navigate('inbox')">View all</button>
-        </div>
-        <div class="dash-panel-body" id="dash-emails"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-      </div>
-      ` : `
-      <div class="dash-col-stack">
-        <div class="dash-panel">
-          <div class="dash-panel-head">
-            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></span>Recent Clients</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('clients')">View all</button>
-          </div>
-          <div class="dash-panel-body" id="dash-clients"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-panel-head">
-            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('team')">View all</button>
-          </div>
-          <div class="dash-panel-body" id="dash-att"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-        </div>
-        <div class="dash-panel">
-          <div class="dash-panel-head">
-            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>Absences · this month</span>
-            <button class="btn btn-ghost btn-sm" onclick="navigate('team')">View all</button>
-          </div>
-          <div class="dash-panel-body" id="dash-absences"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-        </div>
-      </div>
-      <div class="dash-panel">
-        <div class="dash-panel-head">
-          <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/></svg></span>Recent Emails</span>
-          <button class="btn btn-ghost btn-sm" onclick="navigate('inbox')">View all</button>
-        </div>
-        <div class="dash-panel-body" id="dash-emails"><div class="spinner" style="margin:24px auto;display:block"></div></div>
-      </div>
-      `}
     </div>
   `);
   // Each panel fetches and paints independently (its own swr call) instead of
@@ -2219,8 +2215,9 @@ async function renderDashboard() {
   const scope = isEmployee ? 'emp' : 'admin';
   swr('dash:cities', 300000, () => apiCached('/api/cities', 300000), paintDashCities, () => paintDashCities(null));
   swr('dash:clients', 60000, () => api('/api/clients?limit=5'), paintDashClients, () => paintDashClients(null));
-  swr('dash:emails:' + scope, 60000, () => api('/api/mail/recent?perAccount=10'), paintDashEmails,
-    (e) => paintDashEmails(null, e?.message));
+  swr('dash:clients:confirmed', 60000, () => api('/api/clients?status=confirmed&limit=1'), paintDashConfirmedClients, () => paintDashConfirmedClients(null));
+  swr('dash:reminders:' + scope, 30000, () => api('/api/clients/followups'), paintDashReminders,
+    () => paintDashReminders(null));
   swr('dash:att:' + scope, 60000, () => api('/api/attendance'), paintDashAttendance, () => paintDashAttendance(null));
   swr('dash:absences:' + scope, 60000, () => api('/api/attendance/absences'), paintDashAbsences, () => paintDashAbsences(null));
 }
@@ -2229,13 +2226,17 @@ async function renderDashboard() {
 // panel's own header icon so an empty list doesn't read as a blank void.
 const EMPTY_PANEL_ICONS = {
   client: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>',
-  email: '<path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="m22 7-10 6L2 7"/>',
+  reminder: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   attendance: '<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/>',
   absence: '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/>',
 };
-function emptyPanel(kind, text) {
+function emptyPanel(kind, text, { fill = false, sub = '' } = {}) {
   const icon = EMPTY_PANEL_ICONS[kind] || '';
-  return `<div class="empty" style="padding:34px 20px">${icon ? `<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>` : ''}<p>${esc(text)}</p></div>`;
+  const svg = icon ? `<svg width="${fill ? 24 : 30}" height="${fill ? 24 : 30}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">${icon}</svg>` : '';
+  if (fill) {
+    return `<div class="empty empty-fill">${svg ? `<div class="empty-icon">${svg}</div>` : ''}<p>${esc(text)}</p>${sub ? `<div class="empty-sub">${esc(sub)}</div>` : ''}</div>`;
+  }
+  return `<div class="empty" style="padding:34px 20px">${svg}<p>${esc(text)}</p></div>`;
 }
 
 // User may have navigated away while a panel's data was loading — the stat
@@ -2249,13 +2250,9 @@ function paintDashCities(citiesRes) {
     const total = c.reduce((s,x) => s+(x.hotelCount||0), 0);
     $('stat-venues').textContent = total;
     $('stat-venues-sub').textContent = `${c.length} cities`;
-    $('stat-cities').textContent = c.length;
-    $('stat-cities-sub').textContent = c.map(x=>x.name).join(', ');
   } else {
     $('stat-venues').textContent = '—';
     $('stat-venues-sub').textContent = 'Error';
-    $('stat-cities').textContent = '—';
-    $('stat-cities-sub').textContent = 'Error';
   }
 }
 
@@ -2264,7 +2261,6 @@ function paintDashClients(clientsRes) {
   try {
     if (clientsRes) {
       $('stat-clients').textContent = clientsRes.meta?.total || 0;
-      $('stat-clients-sub').textContent = 'total enquiries';
       const list = clientsRes.data || [];
       const cb = $('dash-clients'); cb.classList.add('rich');
       const pinSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
@@ -2284,11 +2280,16 @@ function paintDashClients(clientsRes) {
         if (date) pills.push(`<span class="cl-pill">${calSvg}${fmtDate(date)}</span>`);
         return `
         <div class="cl-card" style="--accent:${accent}" onclick="navigate('clients')">
-          <div class="cl-avatar" style="background:${accent}">${pico('person', 26)}<span class="cl-dot" style="background:${sm.c}"></span></div>
+          <div class="cl-avatar-ring">
+            <div class="cl-avatar"><img src="/icons/businessman.png" alt=""></div>
+            <span class="cl-dot" style="background:${sm.c}"></span>
+          </div>
           <div class="cl-body">
             <div class="cl-name-row">
-              <span class="cl-name">${esc(nm)}</span>
-              ${c.category?categoryBadge(c.category):''}
+              <div class="cl-name-cluster">
+                <span class="cl-name">${esc(nm)}</span>
+                ${c.category?categoryBadge(c.category):''}
+              </div>
               ${statusBadgeHtml(c)}
             </div>
             <div class="cl-meta">${pills.join('')}</div>
@@ -2297,50 +2298,59 @@ function paintDashClients(clientsRes) {
         </div>`;}).join('') : emptyPanel('client', 'No clients yet');
     } else {
       $('stat-clients').textContent = '—';
-      $('stat-clients-sub').textContent = 'Error';
       $('dash-clients').innerHTML = emptyPanel('client', 'Could not load clients');
     }
   } catch(e) { console.error(e); }
 }
 
-function paintDashEmails(emailsRes, errMsg) {
-  if (!dashAlive() || !$('dash-emails')) return;
+// The stat-clients tile's sub-line shows how many of those clients are
+// confirmed rather than a static caption — a second, independent swr call
+// (not derived from the 5-row `clientsRes` above) since confirmed count
+// needs the full table, not just the most recent 5.
+function paintDashConfirmedClients(res) {
+  if (!dashAlive() || !$('stat-clients-sub')) return;
+  $('stat-clients-sub').innerHTML = res
+    ? `<span style="color:${STATUS_META.confirmed.c};font-weight:600">${res.meta?.total ?? 0} confirmed</span>`
+    : 'Error';
+}
+
+// Reminders panel — clients owed a follow-up today or earlier. Nothing here
+// is a stored notification: the list is the live result of /api/clients/followups,
+// so a row only drops off once someone pushes that client's follow-up date
+// forward (or moves it off active/confirmed) — see the route's comment.
+function paintDashReminders(res) {
+  if (!dashAlive() || !$('dash-reminders')) return;
   try {
-    if (emailsRes) {
-      const allEmails = emailsRes.data || [];
-      const list = allEmails.slice(0,5);
-      $('stat-emails').textContent = allEmails.length || 0;
-      $('stat-emails-sub').textContent = 'recent emails';
-      const eb = $('dash-emails'); eb.classList.add('rich');
-      eb.innerHTML = list.length ? list.map((e,i)=>{
-        const nm = extractName(e.from) || (e.from||'?');
-        const ini = nm.trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase().slice(0,2) || '?';
-        const dom = rootDomain(senderDomain(e.from));
-        const src = emailSource(dom);
-        const useLetter = !dom || FREE_EMAIL.has(dom);
-        const snippet = cleanSnippet(e.body) || esc(nm);
-        const fallbackDiv = `<div class="em-fallback" style="background:${avatarColor(nm)};display:${useLetter?'flex':'none'}">${esc(ini)}</div>`;
-        const img = useLetter ? '' : `<img src="/api/mail/favicon?domain=${encodeURIComponent(dom)}" alt="" referrerpolicy="no-referrer" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`;
-        const logo = `${img}${fallbackDiv}`;
+    const isAdminUser = S.admin?.role !== 'employee';
+    if (res) {
+      const list = res.data || [];
+      const rb = $('dash-reminders'); rb.classList.add('rich');
+      const rmSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>';
+      const phoneSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+      const calSvg = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+      rb.innerHTML = list.length ? list.map(c=>{
+        const nm = c.name||'?';
+        const accent = avatarColor(nm);
+        const pills = [`<span class="cl-pill ${c.overdue?'red':'gold'}">${calSvg}${c.overdue?'Overdue · ':''}${fmtDate(c.nextFollowUpAt)}</span>`];
+        if (isAdminUser && c.relationshipManager) pills.push(`<span class="cl-pill">${rmSvg}${esc(c.relationshipManager)}</span>`);
+        if (c.phone) pills.push(`<span class="cl-pill">${phoneSvg}${esc(c.phone)}</span>`);
         return `
-        <div class="em-row${i===0?' unread':''}" onclick="navigate('inbox')">
-          ${i===0?'<span class="em-unread-dot"></span>':''}
-          <div class="em-logo">${logo}<span class="em-badge" style="background:${src.color}"></span></div>
-          <div class="em-main">
-            <div class="em-top">
-              <span class="em-subject">${esc(e.subject||'(no subject)')}</span>
-              <span class="em-time">${relTime(e.date)}</span>
-            </div>
-            <div class="em-sub">
-              <span class="em-source" style="color:${src.color};background:${src.color}15">${esc(src.label)}</span>
-              <span class="em-snippet">${esc(snippet)}</span>
-            </div>
+        <div class="cl-card" style="--accent:${accent}" onclick="navigate('reminders')">
+          <div class="cl-avatar-ring">
+            <div class="cl-avatar"><img src="/icons/businessman.png" alt=""></div>
+            <span class="cl-dot" style="background:${c.overdue?'#B0311F':'#B8902E'}"></span>
           </div>
-        </div>`;}).join('') : emptyPanel('email', 'No emails');
+          <div class="cl-body">
+            <div class="cl-name-row">
+              <span class="cl-name">${esc(nm)}</span>
+              ${statusBadgeHtml(c)}
+            </div>
+            <div class="cl-meta">${pills.join('')}</div>
+            ${c.notes?`<div class="cl-note">${esc(c.notes)}</div>`:''}
+          </div>
+        </div>`;}).join('') : emptyPanel('reminder', "You're all caught up", { fill: true, sub: 'Nothing due — new follow-ups will show up here.' });
     } else {
-      $('stat-emails').textContent = '—';
-      $('stat-emails-sub').textContent = errMsg?.includes('No email') ? 'Not connected' : 'Error';
-      $('dash-emails').innerHTML = emptyPanel('email', 'No email account connected');
+      $('dash-reminders').innerHTML = emptyPanel('reminder', 'Could not load reminders', { fill: true });
     }
   } catch(e) { console.error(e); }
 }
@@ -2394,11 +2404,11 @@ async function renderHotels() {
         <div class="page-title">Hotels & Venues</div>
         <div class="page-sub">Browse and filter wedding venues across all cities</div>
       </div>
-      <div class="flex gap-2">
-        <button class="btn btn-ghost btn-sm" onclick="setHotelView('card')" id="view-card">
+      <div class="tabs">
+        <button class="tab ${S.hotelView!=='table'?'active':''}" onclick="setHotelView('card')" id="view-card" style="display:inline-flex;align-items:center;gap:6px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg> Cards
         </button>
-        <button class="btn btn-ghost btn-sm" onclick="setHotelView('table')" id="view-table">
+        <button class="tab ${S.hotelView==='table'?'active':''}" onclick="setHotelView('table')" id="view-table" style="display:inline-flex;align-items:center;gap:6px">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg> Table
         </button>
       </div>
@@ -2407,6 +2417,9 @@ async function renderHotels() {
       <!-- Filter panel -->
       <div style="width:268px;flex:none">
         <div class="filter-panel">
+          <div class="dash-panel-head" style="padding:16px 20px">
+            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>Filters</span>
+          </div>
           <div class="filter-section">
             <div class="filter-label">City</div>
             <div id="city-filters"><div class="spinner" style="margin:8px auto;display:block"></div></div>
@@ -2477,8 +2490,8 @@ async function renderHotels() {
 
 function setHotelView(v) {
   S.hotelView = v;
-  $('view-card')?.classList.toggle('btn-primary', v==='card');
-  $('view-table')?.classList.toggle('btn-primary', v==='table');
+  $('view-card')?.classList.toggle('active', v==='card');
+  $('view-table')?.classList.toggle('active', v==='table');
   renderHotelResults(S.hotelData);
 }
 
@@ -2611,7 +2624,7 @@ function renderHotelResults(data) {
   }
   if (S.hotelView === 'table') {
     el.innerHTML = `
-      <div style="background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);overflow:auto">
+      <div class="dash-panel" style="overflow:auto">
         <table class="tbl">
           <thead><tr>
             <th>Name</th><th>Rooms</th><th>Guest Capacity</th><th>Buyout</th><th>AP Rate (season)</th><th>Contact</th><th>RM</th>
@@ -2674,12 +2687,15 @@ async function openHotelDrawer(id) {
     const h = await api('/api/hotels/'+id);
 
     const stats = [
-      h.roomCount!=null ? ['Rooms', h.roomCount, ''] : null,
-      hasVal(h.guestCapacity) ? ['Guest Capacity', esc(h.guestCapacity), ''] : null,
-      hasVal(h.buyoutPrice) ? ['Buyout Price', esc(h.buyoutPrice), 'color:var(--gold-600)'] : null,
-      hasVal(h.extraPersonRate) ? ['Extra Person', esc(h.extraPersonRate), ''] : null,
-    ].filter(Boolean).map(([label,val,style])=>
-      `<div class="card-sm"><div class="stat-label">${label}</div><div style="font-size:20px;font-weight:600;${style}">${val}</div></div>`
+      h.roomCount!=null ? ['Rooms', h.roomCount, 'var(--green-700)'] : null,
+      hasVal(h.guestCapacity) ? ['Guest Capacity', esc(h.guestCapacity), '#2C5A8C'] : null,
+      hasVal(h.buyoutPrice) ? ['Buyout Price', esc(h.buyoutPrice), 'var(--gold-600)'] : null,
+      hasVal(h.extraPersonRate) ? ['Extra Person', esc(h.extraPersonRate), 'var(--text)'] : null,
+    ].filter(Boolean).map(([label,val,accent])=>
+      `<div style="background:#fff;border:1px solid rgba(35,41,31,.05);border-radius:14px;box-shadow:var(--soft);padding:14px 16px">
+        <div class="stat-label">${label}</div>
+        <div style="font-family:Fraunces,serif;font-size:20px;font-weight:600;margin-top:4px;color:${accent}">${val}</div>
+      </div>`
     ).join('');
 
     const apRateLines = [
@@ -3174,15 +3190,12 @@ function socialAvatarHtml(name, size=38, avatarUrl=null, useGradient=false) {
   return `<div style="width:${size}px;height:${size}px;flex:none;border-radius:50%;background:${bg};color:#fff;font:600 ${fontSize}px Inter,sans-serif;display:flex;align-items:center;justify-content:center">${initial}</div>`;
 }
 
-// Client rows and cards show a person mark rather than the name's initials.
-// Unlike the inbox avatars above there's never a photo to fall back from — a
-// client profile has no picture — so the letter was standing in permanently.
-// The per-client colour stays, which is what actually distinguishes one row
-// from the next when scanning.
+// Client rows and cards show the same plain person mark used on the
+// dashboard's client cards — there's never a photo to fall back to, so a
+// consistent icon (no color circle, no ring) is used everywhere a client
+// is represented instead of one screen using initials and another a mark.
 function clientAvatarHtml(name, size = 34) {
-  const bg = avatarColor(name || '?');
-  const inner = Math.round(size * 0.56);
-  return `<div style="width:${size}px;height:${size}px;flex:none;border-radius:50%;background:${bg};color:#fff;display:flex;align-items:center;justify-content:center">${pico('person', inner)}</div>`;
+  return `<div style="width:${size}px;height:${size}px;flex:none;display:flex;align-items:center;justify-content:center"><img src="/icons/businessman.png" alt="" style="width:100%;height:100%;object-fit:contain"></div>`;
 }
 
 // Gmail-style manual refresh — spins the toolbar icon and bypasses the 60s cache.
@@ -3912,14 +3925,12 @@ async function renderClients() {
     <div class="cx-head">
       <div>
         <div class="cx-title">Clients</div>
-        <div class="cx-sub">Every client enquiry, from Gmail and your team, in one place</div>
       </div>
       <button class="cx-btn cx-btn-primary" onclick="openNewClientModal()">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
         New Client
       </button>
     </div>
-    <div class="cx-tabs" id="client-source-tabs"></div>
     <div class="cx-rail">
       <label class="cx-search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -4074,7 +4085,11 @@ function paintClients(data, meta) {
   }
 
   el.innerHTML = `
-    <div class="cx-card"><div class="cx-scroll">
+    <div class="cx-card">
+      <div class="dash-panel-head">
+        <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"/></svg></span>Client Directory</span>
+      </div>
+      <div class="cx-scroll">
       <table class="cx-tbl">
         <thead><tr>
           <th>Client</th><th>Type</th><th>Hotel</th><th>Guests</th><th>Rooms</th><th>Budget</th><th>Event date</th><th>Status</th><th>Source</th><th style="width:34px"></th>
@@ -4106,7 +4121,8 @@ function paintClients(data, meta) {
           </tr>`;}).join('')}
         </tbody>
       </table>
-    </div></div>`;
+      </div>
+    </div>`;
 }
 
 // Backfill: classify stored IG/FB DMs whose senders have no client profile yet.
@@ -5215,23 +5231,41 @@ function paintAttendance(entries, status) {
     </div>
     ${banner}
     ${reopenedHTML}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:20px 0;max-width:640px">
-      <div class="card-sm"><div class="stat-label">Present this month</div><div class="att-stat" style="color:var(--green)">${summary.present || 0}</div></div>
-      <div class="card-sm"><div class="stat-label">Absent this month</div><div class="att-stat" style="color:var(--red)">${summary.absent || 0}</div></div>
-      <div class="card-sm"><div class="stat-label">Reopened</div><div class="att-stat">${summary.unlocked || 0}</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:20px 0 24px;max-width:640px">
+      <div class="stat-card" style="--accent:var(--green-700);--accent-bg:var(--green-50);padding:18px 20px">
+        <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></div></div>
+        <div><div class="stat-value" style="font-size:30px">${summary.present || 0}</div><div class="stat-label" style="margin-top:5px">Present this month</div></div>
+      </div>
+      <div class="stat-card" style="--accent:#B0311F;--accent-bg:#FDECEA;padding:18px 20px">
+        <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></div></div>
+        <div><div class="stat-value" style="font-size:30px">${summary.absent || 0}</div><div class="stat-label" style="margin-top:5px">Absent this month</div></div>
+      </div>
+      <div class="stat-card" style="--accent:#2C5A8C;--accent-bg:#EAF2FB;padding:18px 20px">
+        <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div>
+        <div><div class="stat-value" style="font-size:30px">${summary.unlocked || 0}</div><div class="stat-label" style="margin-top:5px">Reopened</div></div>
+      </div>
     </div>
     ${(() => {
       const absentDates = (status?.days || []).filter(d => d.status === 'absent').map(d => d.date);
-      return `<div class="card" style="padding:16px 18px;margin:0 0 20px;max-width:640px">
-        <div class="stat-label" style="margin-bottom:10px">Your absent days this month</div>
-        ${absentDates.length ? attAbsChipsHTML(absentDates, today) : '<div class="abs-empty">${ICO_SPARK} No absences this month.</div>'}
+      return `<div class="dash-panel" style="margin:0 0 24px;max-width:640px">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#FDECEA;--ph-accent:#B0311F"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>Your absent days this month</span>
+        </div>
+        <div style="padding:16px 20px">
+          ${absentDates.length ? attAbsChipsHTML(absentDates, today) : `<div class="abs-empty">${ICO_SPARK} No absences this month.</div>`}
+        </div>
       </div>`;
     })()}
-    <div class="card" style="padding:0;overflow:auto">
-      <table class="tbl">
-        <thead><tr><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th>Comment</th><th></th></tr></thead>
-        <tbody>${attRowsHTML(entries, { lockedDates })}</tbody>
-      </table>
+    <div class="dash-panel">
+      <div class="dash-panel-head">
+        <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance Log</span>
+      </div>
+      <div style="overflow:auto">
+        <table class="tbl">
+          <thead><tr><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th>Comment</th><th></th></tr></thead>
+          <tbody>${attRowsHTML(entries, { lockedDates })}</tbody>
+        </table>
+      </div>
     </div>`);
 }
 
@@ -5438,65 +5472,76 @@ function paintTeam(employees, att, status, absences, absMonth) {
   S.teamEmployees = employees;
   S.teamAtt = att;
   S.teamStatus = status;
+  S.teamAbsences = absences;
+  S.teamAbsMonth = absMonth;
 
   const absencesCard = absences ? `
-    <div class="card" style="padding:0;overflow:hidden;margin-bottom:24px">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)">
-        <div class="font-serif font-600" style="font-size:16px;margin-right:auto">Absences · ${esc(attMonthLabel(absMonth))}</div>
-        <input class="input" style="width:auto" type="month" id="team-abs-month" value="${absMonth}" max="${attToday().slice(0,7)}" onchange="teamSetAbsMonth(this.value)" title="Filter absences by month">
-        ${absMonth === attToday().slice(0,7) ? `<span class="badge badge-red">${absences.absentTodayCount || 0} absent today</span>` : ''}
-        <span class="badge badge-gray">${absences.totalAbsences || 0} total</span>
+    <div class="dash-panel" style="margin-bottom:24px">
+      <div class="dash-panel-head" style="flex-wrap:wrap;gap:10px">
+        <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#FDECEA;--ph-accent:#B0311F"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>Absences · ${esc(attMonthLabel(absMonth))}</span>
+        <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
+          <input class="input" style="width:auto" type="month" id="team-abs-month" value="${absMonth}" max="${attToday().slice(0,7)}" onchange="teamSetAbsMonth(this.value)" title="Filter absences by month">
+          ${absMonth === attToday().slice(0,7) ? `<span class="badge badge-red">${absences.absentTodayCount || 0} absent today</span>` : ''}
+          <span class="badge badge-gray">${absences.totalAbsences || 0} total</span>
+        </div>
       </div>
-      <div style="padding:14px 18px">${absencesBodyHTML(absences, { compact: false, monthPhrase: attMonthPhrase(absMonth) })}</div>
+      <div style="padding:16px 20px">${absencesBodyHTML(absences, { compact: false, monthPhrase: attMonthPhrase(absMonth) })}</div>
     </div>` : '';
 
   const attendanceEmployees = employees.filter(e => e.role === 'employee');
   const selectedEmp = status && attendanceEmployees.find(e => String(e.id) === String(S.teamEmpFilter));
+
   setContent(`
     <div class="page-header mb-6">
       <div>
         <div class="page-title">Attendance</div>
         <div class="page-sub">Accounts and attendance</div>
       </div>
-      <button class="btn btn-primary" onclick="teamOpenAddEmployee()">+ Add account</button>
     </div>
 
-    <div class="card" style="padding:0;overflow:auto;margin-bottom:24px">
-      <table class="tbl">
-        <thead><tr><th>Name</th><th>Role</th><th>Gmail</th><th>Status</th><th>Added</th><th style="text-align:right">Actions</th></tr></thead>
-        <tbody>
-          ${employees.length ? employees.map(e => `
-          <tr>
-            <td style="font-weight:600;color:var(--text)">${esc(e.name || '—')}${e.self ? ' <span class="text-muted text-sm">(you)</span>' : ''}</td>
-            <td>${e.role === 'admin' ? '<span class="badge badge-gold">Admin</span>' : '<span class="badge badge-gray">Employee</span>'}</td>
-            <td>${e.bound ? esc(e.email) : '<span class="badge badge-gray">Not linked</span>'}</td>
-            <td>${e.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Disabled</span>'}</td>
-            <td style="white-space:nowrap">${new Date(e.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
-            <td style="white-space:nowrap;text-align:right">
-              <button class="btn btn-ghost btn-sm" onclick="teamResetCode(${e.id})">Reset code</button>
-              ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="${e.active ? 'color:var(--red)' : ''}" onclick="teamToggleActive(${e.id}, ${e.active ? 'false' : 'true'})">${e.active ? 'Deactivate' : 'Activate'}</button>`}
-              ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="teamOpenDeleteModal(${e.id}, '${esc(e.name || e.email || 'this account').replace(/'/g,"&#39;")}')">Delete</button>`}
-            </td>
-          </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-3)">No accounts yet — add the first one to hand out a login code.</td></tr>'}
-        </tbody>
-      </table>
+    <div class="dash-panel" style="margin-bottom:24px">
+      <div class="dash-panel-head">
+        <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h4M15 12h4M5.5 16.5c.6-1.5 1.9-2.5 3.5-2.5s2.9 1 3.5 2.5"/></svg></span>Team accounts</span>
+      </div>
+      <div style="overflow:auto">
+        <table class="tbl">
+          <thead><tr><th>Name</th><th>Role</th><th>Gmail</th><th>Status</th><th>Added</th><th style="text-align:right">Actions</th></tr></thead>
+          <tbody>
+            ${employees.length ? employees.map(e => `
+            <tr>
+              <td style="font-weight:600;color:var(--text)">${esc(e.name || '—')}${e.self ? ' <span class="text-muted text-sm">(you)</span>' : ''}</td>
+              <td style="color:${e.role === 'admin' ? 'var(--gold-600)' : 'var(--text-3)'};font-weight:${e.role === 'admin' ? '600' : '400'}">${e.role === 'admin' ? 'Admin' : 'Employee'}</td>
+              <td>${e.bound ? esc(e.email) : '<span class="badge badge-gray">Not linked</span>'}</td>
+              <td>${e.active ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Disabled</span>'}</td>
+              <td style="white-space:nowrap">${new Date(e.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+              <td style="white-space:nowrap;text-align:right">
+                <button class="btn btn-ghost btn-sm" onclick="teamResetCode(${e.id})">Reset code</button>
+                ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="${e.active ? 'color:var(--red)' : ''}" onclick="teamToggleActive(${e.id}, ${e.active ? 'false' : 'true'})">${e.active ? 'Deactivate' : 'Activate'}</button>`}
+                ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="teamOpenDeleteModal(${e.id}, '${esc(e.name || e.email || 'this account').replace(/'/g,"&#39;")}')">Delete</button>`}
+              </td>
+            </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-3)">No accounts yet — add the first one to hand out a login code.</td></tr>'}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     ${absencesCard}
 
     ${selectedEmp ? teamAttSheetHTML(selectedEmp, status) : ''}
 
-    <div class="card" style="padding:0;overflow:hidden">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)">
-        <div class="font-serif font-600" style="font-size:16px;margin-right:auto">Attendance log</div>
-        <select class="input" style="width:auto;min-width:160px" id="team-emp-filter" onchange="teamApplyFilters()">
-          <option value="">All employees</option>
-          ${attendanceEmployees.map(e => `<option value="${e.id}" ${String(S.teamEmpFilter) === String(e.id) ? 'selected' : ''}>${esc(e.name || e.email)}</option>`).join('')}
-        </select>
-        <input class="input" style="width:auto" type="date" id="team-from" value="${S.teamFrom || ''}" onchange="teamApplyFilters()" title="From">
-        <input class="input" style="width:auto" type="date" id="team-to" value="${S.teamTo || ''}" onchange="teamApplyFilters()" title="To">
-        <button class="btn btn-ghost btn-sm" onclick="S.teamEmpFilter='';S.teamFrom='';S.teamTo='';renderTeam()">Clear</button>
-        <button class="btn btn-primary btn-sm" onclick="attOpenEntryModal()" ${attendanceEmployees.some(e => e.active) ? '' : 'disabled'}>+ Add entry</button>
+    <div class="dash-panel">
+      <div class="dash-panel-head" style="flex-wrap:wrap;gap:10px">
+        <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance log</span>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-left:auto">
+          <select class="input" style="width:auto;min-width:160px" id="team-emp-filter" onchange="teamApplyFilters()">
+            <option value="">All employees</option>
+            ${attendanceEmployees.map(e => `<option value="${e.id}" ${String(S.teamEmpFilter) === String(e.id) ? 'selected' : ''}>${esc(e.name || e.email)}</option>`).join('')}
+          </select>
+          <input class="input" style="width:auto" type="date" id="team-from" value="${S.teamFrom || ''}" onchange="teamApplyFilters()" title="From">
+          <input class="input" style="width:auto" type="date" id="team-to" value="${S.teamTo || ''}" onchange="teamApplyFilters()" title="To">
+          <button class="btn btn-ghost btn-sm" onclick="S.teamEmpFilter='';S.teamFrom='';S.teamTo='';renderTeam()">Clear</button>
+          <button class="btn btn-primary btn-sm" onclick="attOpenEntryModal()" ${attendanceEmployees.some(e => e.active) ? '' : 'disabled'}>+ Add entry</button>
+        </div>
       </div>
       <div style="overflow:auto">
         <table class="tbl">
@@ -5526,14 +5571,16 @@ function teamAttSheetHTML(emp, status) {
   }).join('');
 
   return `
-    <div class="card" style="padding:0;overflow:hidden;margin-bottom:24px">
-      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--border)">
-        <div class="font-serif font-600" style="font-size:16px;margin-right:auto">${esc(emp.name || emp.email)} — attendance sheet</div>
-        <span class="badge badge-green">${s.present || 0} present</span>
-        <span class="badge badge-red">${s.absent || 0} absent</span>
-        ${s.unlocked ? `<span class="badge badge-blue">${s.unlocked} reopened</span>` : ''}
+    <div class="dash-panel" style="margin-bottom:24px">
+      <div class="dash-panel-head" style="flex-wrap:wrap;gap:10px">
+        <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#EAF2FB;--ph-accent:#2C5A8C"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>${esc(emp.name || emp.email)} — attendance sheet</span>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto">
+          <span class="badge badge-green">${s.present || 0} present</span>
+          <span class="badge badge-red">${s.absent || 0} absent</span>
+          ${s.unlocked ? `<span class="badge badge-blue">${s.unlocked} reopened</span>` : ''}
+        </div>
       </div>
-      <div style="padding:14px 16px">
+      <div style="padding:16px 20px">
         <div class="text-sm text-muted" style="margin-bottom:10px">This month · days lock at 7:30 PM. Reopen an absent or closed day to let ${esc((emp.name || 'the employee').split(' ')[0])} fill it.</div>
         <div class="att-daygrid">${cells}</div>
       </div>
@@ -5698,6 +5745,125 @@ async function teamConfirmDelete(id) {
     err.style.display = 'block';
     codeInput.focus();
   }
+}
+
+// ============================================================
+// REMINDERS — full-page view of /api/clients/followups. Employees see only
+// their own clients (matched by relationshipManager); admins see everyone
+// and can filter by manager or jump to a specific date. A row disappears
+// the moment someone saves that client with a later follow-up date (or a
+// status that no longer owes one) — there is nothing to "mark read" here.
+// ============================================================
+function remindersPillIcons() {
+  return {
+    rm: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>',
+    phone: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>',
+    cal: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  };
+}
+
+async function renderReminders() {
+  const isAdminUser = S.admin?.role !== 'employee';
+  S.reminderDate = S.reminderDate || '';
+  S.reminderManagerFilter = S.reminderManagerFilter || 'all';
+  setContent(`
+    <div class="page-header mb-4">
+      <div>
+        <div class="page-title">Follow-up Reminders</div>
+        <div class="page-sub">${isAdminUser
+          ? "Which relationship manager owes a follow-up today, or on a date you pick"
+          : "Clients you owe a follow-up — a card stays here until you push its date forward"}</div>
+      </div>
+    </div>
+    <div class="cx-rail">
+      <input type="date" class="cx-sel" id="rem-date-input" value="${esc(S.reminderDate)}" max="${maxEventDate()}" onchange="setReminderDate(this.value)">
+      ${S.reminderDate ? `<button class="btn btn-ghost btn-sm" onclick="setReminderDate('')">Due today</button>` : ''}
+      <span class="cx-railcount" id="rem-rail-count"></span>
+    </div>
+    ${isAdminUser ? `<div id="rem-manager-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0"></div>` : ''}
+    <div id="reminders-list"><div style="display:flex;justify-content:center;padding:60px"><div class="spinner"></div></div></div>
+  `);
+  loadReminders();
+}
+
+function setReminderDate(v) { S.reminderDate = v || ''; loadReminders(); }
+
+function setReminderManager(v) { S.reminderManagerFilter = v || 'all'; renderReminderList(); }
+
+async function loadReminders() {
+  const q = S.reminderDate ? `?date=${encodeURIComponent(S.reminderDate)}` : '';
+  try {
+    const res = await api('/api/clients/followups' + q);
+    if (S.screen !== 'reminders') return;
+    S.reminderData = res.data || [];
+    renderManagerChips();
+    renderReminderList();
+  } catch (e) {
+    if ($('reminders-list')) $('reminders-list').innerHTML = `<div class="empty"><p>Error: ${esc(e.message)}</p></div>`;
+  }
+}
+
+function renderManagerChips() {
+  const wrap = $('rem-manager-chips');
+  if (!wrap) return;
+  const counts = {};
+  for (const c of (S.reminderData || [])) {
+    const key = c.relationshipManager || 'Unassigned';
+    counts[key] = (counts[key] || 0) + 1;
+  }
+  const managers = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  if (S.reminderManagerFilter !== 'all' && !managers.includes(S.reminderManagerFilter)) S.reminderManagerFilter = 'all';
+  const chip = (label, value, count, active) =>
+    `<button type="button" class="cl-pill${active ? ' gold' : ''}" style="cursor:pointer" data-mgr="${esc(value)}">${esc(label)} · ${count}</button>`;
+  wrap.innerHTML = [
+    chip('All managers', 'all', (S.reminderData || []).length, S.reminderManagerFilter === 'all'),
+    ...managers.map(m => chip(m, m, counts[m], S.reminderManagerFilter === m)),
+  ].join('');
+  wrap.querySelectorAll('[data-mgr]').forEach(btn => {
+    btn.onclick = () => setReminderManager(btn.dataset.mgr);
+  });
+}
+
+function renderReminderList() {
+  const el = $('reminders-list');
+  if (!el) return;
+  const isAdminUser = S.admin?.role !== 'employee';
+  let list = S.reminderData || [];
+  if (isAdminUser && S.reminderManagerFilter !== 'all') {
+    list = list.filter(c => (c.relationshipManager || 'Unassigned') === S.reminderManagerFilter);
+  }
+  const countEl = $('rem-rail-count');
+  if (countEl) countEl.textContent = `${list.length} ${list.length === 1 ? 'client' : 'clients'}`;
+  if (!list.length) {
+    el.innerHTML = `<div class="empty" style="padding:60px 20px">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <p>${S.reminderDate ? 'No follow-ups on this date' : "Nothing due — you're all caught up"}</p>
+    </div>`;
+    return;
+  }
+  const ic = remindersPillIcons();
+  el.innerHTML = `<div class="dash-panel-body rich" style="padding:0">${list.map(c => {
+    const nm = c.name || '?';
+    const accent = avatarColor(nm);
+    const pills = [`<span class="cl-pill ${c.overdue ? 'red' : 'gold'}">${ic.cal}${c.overdue ? 'Overdue · ' : ''}${fmtDate(c.nextFollowUpAt)}</span>`];
+    if (isAdminUser && c.relationshipManager) pills.push(`<span class="cl-pill">${ic.rm}${esc(c.relationshipManager)}</span>`);
+    if (c.phone) pills.push(`<span class="cl-pill">${ic.phone}${esc(c.phone)}</span>`);
+    return `
+    <div class="cl-card" style="--accent:${accent}" onclick="openClientDrawer(${c.id})">
+      <div class="cl-avatar-ring">
+        <div class="cl-avatar"><img src="/icons/businessman.png" alt=""></div>
+        <span class="cl-dot" style="background:${c.overdue ? '#B0311F' : '#B8902E'}"></span>
+      </div>
+      <div class="cl-body">
+        <div class="cl-name-row">
+          <span class="cl-name">${esc(nm)}</span>
+          ${statusBadgeHtml(c)}
+        </div>
+        <div class="cl-meta">${pills.join('')}</div>
+        ${c.notes ? `<div class="cl-note">${esc(c.notes)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('')}</div>`;
 }
 
 // ============================================================
@@ -5889,7 +6055,7 @@ async function toggleFeedbackStatus(id, status) {
     await apiPatch(`/api/feedback/${id}`, { status });
     showToast(status === 'resolved' ? 'Marked resolved' : 'Reopened', 'success');
     loadFeedback();
-    pollFeedbackSummary();
+    pollNotifSummary();
   } catch (e) { showToast(attErrMsg(e), 'error'); }
 }
 
@@ -5919,54 +6085,104 @@ async function viewFeedbackImage(id) {
 }
 
 // ---- notification bell dropdown ----
+// Two independent feeds share the one bell: follow-up reminders (derived
+// live from Client rows — see /api/clients/followups) and open feedback.
+// Reminders come first — they're the more time-sensitive of the two.
+function notifSectionHtml(title, viewAllScreen, itemsHtml) {
+  return `
+    <div class="usermenu-head" style="padding:9px 10px;display:flex;align-items:center;justify-content:space-between">
+      <div style="font-weight:600;font-size:12.5px;color:var(--text)">${esc(title)}</div>
+      <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11.5px" onclick="closeNotifMenu();navigate('${viewAllScreen}')">View all</button>
+    </div>
+    <div class="usermenu-sep"></div>
+    ${itemsHtml}`;
+}
+
 async function loadNotifFeed() {
   const list = $('notif-list');
   if (!list) return;
   list.innerHTML = `<div style="display:flex;justify-content:center;padding:24px"><div class="spinner" style="width:18px;height:18px;border-width:2px"></div></div>`;
-  try {
-    const res = await api('/api/feedback?status=open');
-    const isAdminUser = S.admin?.role !== 'employee';
-    const items = (res.data || []).slice(0, 8);
-    if (!items.length) {
-      list.innerHTML = `<div class="text-sm text-muted" style="padding:14px 10px">No open feedback${isAdminUser ? '' : " you've reported"}.</div>`;
-      return;
-    }
-    list.innerHTML = items.map(f => `
-      <button class="usermenu-item" role="menuitem" style="align-items:flex-start;text-align:left" onclick="closeNotifMenu();navigate('feedback')">
-        <div style="min-width:0">
-          ${isAdminUser ? `<div style="font-weight:600;font-size:12.5px;color:var(--text)">${esc(f.employee?.name || f.employee?.email || 'Someone')}</div>` : ''}
-          <div class="text-xs" style="color:var(--text-2);white-space:normal;line-height:1.4;margin-top:2px">${esc(f.message.length > 90 ? f.message.slice(0,90)+'…' : f.message)}</div>
-          <div class="text-xs text-muted" style="margin-top:3px">${f.screen ? esc(f.screen)+' · ' : ''}${shortDate(f.createdAt)}</div>
-        </div>
-      </button>`).join('');
-  } catch (e) {
-    list.innerHTML = `<div class="text-sm text-muted" style="padding:14px 10px">Could not load feedback.</div>`;
-  }
+  const isAdminUser = S.admin?.role !== 'employee';
+  const [remindersRes, feedbackRes] = await Promise.allSettled([
+    api('/api/clients/followups'),
+    api('/api/feedback?status=open'),
+  ]);
+
+  const reminders = remindersRes.status === 'fulfilled' ? (remindersRes.value.data || []) : null;
+  const remindersHtml = reminders === null
+    ? `<div class="text-sm text-muted" style="padding:12px 10px">Could not load reminders.</div>`
+    : !reminders.length
+      ? `<div class="text-sm text-muted" style="padding:12px 10px">Nothing due — you're all caught up.</div>`
+      : `<button class="usermenu-item" role="menuitem" onclick="closeNotifMenu();navigate('reminders')">
+          <div style="font-weight:600;font-size:12.5px;color:var(--text)">${reminders.length} new follow-up${reminders.length === 1 ? '' : 's'}</div>
+        </button>`;
+
+  const feedback = feedbackRes.status === 'fulfilled' ? (feedbackRes.value.data || []).slice(0, 6) : null;
+  const feedbackHtml = feedback === null
+    ? `<div class="text-sm text-muted" style="padding:12px 10px">Could not load feedback.</div>`
+    : !feedback.length
+      ? `<div class="text-sm text-muted" style="padding:12px 10px">No open feedback${isAdminUser ? '' : " you've reported"}.</div>`
+      : feedback.map(f => `
+        <button class="usermenu-item" role="menuitem" style="align-items:flex-start;text-align:left" onclick="closeNotifMenu();navigate('feedback')">
+          <div style="min-width:0">
+            ${isAdminUser ? `<div style="font-weight:600;font-size:12.5px;color:var(--text)">${esc(f.employee?.name || f.employee?.email || 'Someone')}</div>` : ''}
+            <div class="text-xs" style="color:var(--text-2);white-space:normal;line-height:1.4;margin-top:2px">${esc(f.message.length > 90 ? f.message.slice(0,90)+'…' : f.message)}</div>
+            <div class="text-xs text-muted" style="margin-top:3px">${f.screen ? esc(f.screen)+' · ' : ''}${shortDate(f.createdAt)}</div>
+          </div>
+        </button>`).join('');
+
+  list.innerHTML =
+    notifSectionHtml('Follow-up Reminders', 'reminders', remindersHtml) +
+    notifSectionHtml('Feedback', 'feedback', feedbackHtml);
 }
 
-// ---- global polling: badge count + a toast when new feedback lands ----
+// ---- global polling: badge counts + a toast when new feedback lands ----
+// Combines two independent sources into the one bell badge — open feedback
+// and due/overdue follow-ups. Only feedback gets a "new" toast (it's a
+// one-off event); reminders are a standing list, so a rising count there
+// isn't "new" in the same sense — it's just visible via its own badge.
 let feedbackKnownOpenCount = null;
-function startFeedbackPolling() {
-  pollFeedbackSummary();
-  if (S.feedbackPollTimer) clearInterval(S.feedbackPollTimer);
-  S.feedbackPollTimer = setInterval(pollFeedbackSummary, 45000);
+function startNotifPolling() {
+  pollNotifSummary();
+  if (S.notifPollTimer) clearInterval(S.notifPollTimer);
+  S.notifPollTimer = setInterval(pollNotifSummary, 45000);
 }
 
-async function pollFeedbackSummary() {
-  try {
-    const res = await api('/api/feedback/summary');
-    const count = res.data?.openCount || 0;
-    updateFeedbackBadges(count);
+async function pollNotifSummary() {
+  const [feedbackRes, followupsRes] = await Promise.allSettled([
+    api('/api/feedback/summary'),
+    api('/api/clients/followups/summary'),
+  ]);
+
+  if (feedbackRes.status === 'fulfilled') {
+    const count = feedbackRes.value.data?.openCount || 0;
     if (feedbackKnownOpenCount !== null && count > feedbackKnownOpenCount) {
       showToast('New feedback from the team', 'info');
     }
     feedbackKnownOpenCount = count;
-  } catch (_) { /* silent — badge just stays stale until the next tick */ }
+    updateFeedbackBadge(count);
+  }
+  if (followupsRes.status === 'fulfilled') {
+    updateReminderBadge(followupsRes.value.data?.dueCount || 0);
+  }
+  updateNotifDot();
 }
 
-function updateFeedbackBadges(count) {
+function updateFeedbackBadge(count) {
   const navBadge = $('feedback-badge');
   if (navBadge) { navBadge.textContent = count > 99 ? '99+' : count; navBadge.style.display = count ? 'inline-block' : 'none'; }
+}
+
+function updateReminderBadge(count) {
+  const navBadge = $('reminders-badge');
+  if (navBadge) { navBadge.textContent = count > 99 ? '99+' : count; navBadge.style.display = count ? 'inline-block' : 'none'; }
+}
+
+// The bell's red dot is the sum of both — the team shouldn't have to open
+// the dropdown just to learn there's anything waiting at all.
+function updateNotifDot() {
+  const count = ($('feedback-badge')?.style.display !== 'none' ? Number($('feedback-badge')?.textContent) || 0 : 0)
+    + ($('reminders-badge')?.style.display !== 'none' ? Number($('reminders-badge')?.textContent) || 0 : 0);
   const dot = $('notif-dot');
   if (dot) { dot.textContent = count > 9 ? '9+' : count; dot.style.display = count ? 'flex' : 'none'; }
 }
