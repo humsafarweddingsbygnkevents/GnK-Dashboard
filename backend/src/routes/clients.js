@@ -12,20 +12,23 @@ const PATCHABLE = ['name', 'phone', 'email', 'weddingDate', 'preferredCity',
                    'guestCount', 'roomCount', 'budgetLakhs', 'notes', 'status', 'statusOther', 'category',
                    'preferredHotel', 'budgetHotelLakhs', 'budgetDecorLakhs', 'budgetEventsLakhs',
                    'checkInDate', 'checkOutDate', 'eventType', 'eventTypeOther', 'relationshipManager',
-                   'enquirySource', 'enquirySourceOther'];
+                   'enquirySource', 'enquirySourceOther', 'nextFollowUpAt'];
 
 const SOURCES = ['gmail', 'instagram', 'facebook', 'manual', 'whatsapp', 'test'];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Staff-facing pipeline stage. 'other' plus free text replaces the nuance the
-// longer list used to carry, so these are the only values the UI offers.
-const STATUSES = ['new', 'active', 'closed', 'lost', 'other'];
-// Values from before the list was simplified. The client drawer keeps an old
-// record's status selected rather than silently re-bucketing it, and sends the
-// whole form back on save — so writes must still accept these, or editing any
-// other field on a legacy record would fail validation.
-const LEGACY_STATUSES = ['contacted', 'site-visit-scheduled', 'booked'];
+// Staff-facing pipeline stage: has this lead confirmed, is it still being
+// worked, has it gone quiet, or is it dead. These are the only values the UI
+// offers.
+const STATUSES = ['confirmed', 'active', 'no-response', 'lost'];
+// A follow-up date is owed on any lead that's still live.
+const STATUSES_REQUIRING_FOLLOWUP = ['confirmed', 'active'];
+// Values from before the list was simplified (twice). The client drawer keeps
+// an old record's status selected rather than silently re-bucketing it, and
+// sends the whole form back on save — so writes must still accept these, or
+// editing any other field on a legacy record would fail validation.
+const LEGACY_STATUSES = ['new', 'closed', 'other', 'contacted', 'site-visit-scheduled', 'booked'];
 const WRITABLE_STATUSES = [...STATUSES, ...LEGACY_STATUSES];
 const EVENT_TYPES = ['wedding', 'birthday', 'anniversary', 'other'];
 // How a manually-entered enquiry reached us.
@@ -116,7 +119,7 @@ function parseClientBody(body, requireCore = false) {
   if (body.notes !== undefined) result.notes = body.notes ? String(body.notes).trim() : null;
 
   if (body.status !== undefined) {
-    const status = body.status ? String(body.status).trim() : 'new';
+    const status = body.status ? String(body.status).trim() : 'no-response';
     if (!WRITABLE_STATUSES.includes(status)) {
       // Only the current values are named — suggesting a legacy one would be
       // telling the caller to pick something the UI no longer offers.
@@ -131,6 +134,18 @@ function parseClientBody(body, requireCore = false) {
     } else {
       result.statusOther = null;
     }
+
+    if (STATUSES_REQUIRING_FOLLOWUP.includes(status)) {
+      result.nextFollowUpAt = parseDateField(body.nextFollowUpAt, 'Next follow-up date');
+      if (!result.nextFollowUpAt) {
+        throw Object.assign(new Error('Next follow-up date is required when status is Active or Confirmed'), { status: 400 });
+      }
+    } else {
+      // Not owed a follow-up at this stage — don't leave a stale date behind.
+      result.nextFollowUpAt = null;
+    }
+  } else if ('nextFollowUpAt' in body) {
+    result.nextFollowUpAt = parseDateField(body.nextFollowUpAt, 'Next follow-up date');
   }
 
   if (body.category !== undefined) {

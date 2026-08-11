@@ -209,6 +209,10 @@ model Client {
   // same person instead of creating a duplicate on every message.
   channelUserId String?
   lastContactAt DateTime?
+  // When to reach back out. Mandatory in the UI whenever status is 'active'
+  // or 'confirmed' — those are the only stages where a follow-up is still
+  // owed; cleared automatically once the lead moves to 'no-response' or 'lost'.
+  nextFollowUpAt DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   functions     ClientFunction[]
