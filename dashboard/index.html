@@ -857,6 +857,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .dash-row-arrow{flex:none;color:var(--text-4);opacity:0;transform:translateX(-4px);transition:opacity .14s,transform .14s}
 .dash-list-row:hover .dash-row-arrow{opacity:1;transform:none}
 .dash-panel-body.rich{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+/* The .rich body is often the scroll container itself (paintDashClients /
+   paintDashReminders add the class straight to the fixed-height panel body).
+   Flex items shrink by default, so without this the cards squeeze down to fit
+   the panel instead of overflowing it — .cl-card's overflow:hidden then clips
+   the pills mid-row, and since nothing overflows, no scrollbar ever appears.
+   flex:none keeps each card at its natural height so the panel scrolls. */
+.dash-panel-body.rich>*{flex:none}
 
 /* rich client cards — flat, borderless tiles (a background tint carries the
    separation instead of an outline) so a list of these doesn't read as
@@ -957,8 +964,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
    single tiled composition. Follow-up Reminders (rm) spans both the stat
    row and the Recent Clients row, so it reads as the biggest, most
    important panel on the screen. Never set align-items:start here —
-   default stretch is what keeps every tile in a row the same height. */
-.dash-bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px;
+   default stretch is what keeps every tile in a row the same height.
+   Row 2 is pinned to 400px (matching .dash-tile-tall) rather than left
+   'auto' — rm has no height of its own and spans into this row, so an
+   auto track let rm's content height (however long the reminders list
+   got) inflate the row, which then stretched Recent Clients past its own
+   400px cap and defeated its internal scroll entirely. */
+.dash-bento{display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:auto 400px auto;gap:14px;margin-bottom:18px;
   grid-template-areas:"s1 s2 rm rm" "cl cl rm rm" "att att abs abs"}
 .dash-bento>*{min-width:0}
 .dash-tile-tall{height:400px;display:flex;flex-direction:column}
@@ -969,6 +981,24 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
    grid rows on its own, which is what makes it bigger than a single tile. */
 .dash-tile-fill{display:flex;flex-direction:column}
 .dash-tile-fill .dash-panel-body{flex:1;min-height:0;overflow-y:auto}
+/* macOS hides overlay scrollbars until you're mid-scroll, so an overflowing
+   panel looks like it just clips its last row. Force a thin, always-visible
+   track/thumb instead so it's obvious there's more to scroll to.
+   Do NOT add scrollbar-width/scrollbar-color to this rule: in Chrome the
+   standard properties take precedence and silently switch the ::-webkit-
+   scrollbar pseudo-elements off, putting the auto-hiding overlay bar back.
+   They're scoped below to engines with no ::-webkit-scrollbar (Firefox). */
+.dash-tile-tall .dash-panel-body::-webkit-scrollbar,.dash-tile-short .dash-panel-body::-webkit-scrollbar,.dash-tile-fill .dash-panel-body::-webkit-scrollbar{
+  width:8px}
+.dash-tile-tall .dash-panel-body::-webkit-scrollbar-track,.dash-tile-short .dash-panel-body::-webkit-scrollbar-track,.dash-tile-fill .dash-panel-body::-webkit-scrollbar-track{
+  background:transparent;margin:4px 0}
+.dash-tile-tall .dash-panel-body::-webkit-scrollbar-thumb,.dash-tile-short .dash-panel-body::-webkit-scrollbar-thumb,.dash-tile-fill .dash-panel-body::-webkit-scrollbar-thumb{
+  background:rgba(35,41,31,.22);border-radius:10px;border:2px solid transparent;background-clip:padding-box}
+.dash-tile-tall .dash-panel-body::-webkit-scrollbar-thumb:hover,.dash-tile-short .dash-panel-body::-webkit-scrollbar-thumb:hover,.dash-tile-fill .dash-panel-body::-webkit-scrollbar-thumb:hover{
+  background:rgba(35,41,31,.4);background-clip:padding-box}
+@supports not selector(::-webkit-scrollbar){
+  .dash-tile-tall .dash-panel-body,.dash-tile-short .dash-panel-body,.dash-tile-fill .dash-panel-body{
+    scrollbar-width:thin;scrollbar-color:rgba(35,41,31,.22) transparent}}
 @media(max-width:1080px){.dash-bento{grid-template-columns:repeat(2,1fr);
   grid-template-areas:"s1 s2" "cl cl" "rm rm" "att abs"}
   .dash-tile-fill{height:460px}}
@@ -1092,6 +1122,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   cursor:pointer;transition:color 150ms}
 .cx-clear:hover{color:var(--red)}
 .cx-railcount{margin-left:auto;font-size:12.5px;color:var(--text-3);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* Due today / Upcoming segmented toggle. Sized to 38px to sit on the same
+   baseline as .cx-sel and .cx-search in the rail. The selected segment is a
+   white raised chip on the cream track, matching .cx-sel.on's green tint. */
+.rem-segs{display:inline-flex;height:38px;padding:3px;gap:3px;border:1px solid var(--cx-field);border-radius:10px;
+  background:var(--cream-2);box-shadow:var(--cx-e1)}
+.rem-seg{border:none;background:none;padding:0 15px;border-radius:8px;cursor:pointer;white-space:nowrap;
+  font:500 13px Inter,sans-serif;color:var(--text-3);
+  transition:background 170ms,color 170ms,box-shadow 170ms}
+.rem-seg:hover{color:var(--text)}
+.rem-seg.on{background:#fff;color:var(--green-900);font-weight:600;box-shadow:var(--cx-e1)}
 
 /* ── data table ────────────────────────────────────────────────── */
 .cx-card{background:#fff;border:1px solid var(--cx-line);border-radius:20px;box-shadow:var(--cx-e2);overflow:hidden}
@@ -1109,10 +1149,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .cx-nm{font:600 13.5px Inter,sans-serif;color:var(--text);line-height:1.3}
 .cx-sm{font-size:11.5px;color:var(--text-3);margin-top:2px;max-width:190px;overflow:hidden;text-overflow:ellipsis}
 .cx-none{color:#A39C88}
-.cx-tag{display:inline-flex;align-items:center;gap:5px;height:23px;padding:0 9px;border-radius:7px;
-  font:600 11px Inter,sans-serif;letter-spacing:.01em;background:rgba(23,30,20,.045);color:var(--text-2)}
-.cx-tag.g{background:var(--green-50);color:var(--green-700)}
-.cx-tag.b{background:#EAF1FA;color:#2B5AA7}
+/* Event type and other non-state labels — plain text, no pill. */
+.cx-plain{font:500 12.5px Inter,sans-serif;color:var(--text-2)}
+/* color comes from STATUS_META via an inline style — the hue is the signal. */
 .cx-status{display:inline-flex;align-items:center;gap:7px;font:600 12.5px Inter,sans-serif;color:var(--text-2)}
 .cx-dot{width:7px;height:7px;border-radius:50%;flex:none}
 .cx-chev{color:#CFC9B7;opacity:0;transform:translateX(-3px);transition:opacity 150ms var(--hd-ease),transform 150ms var(--hd-ease)}
@@ -1438,8 +1477,8 @@ const S = {
   clientsLoading: false,
   clientStatusFilter: 'all',
   clientSourceFilter: 'all',
-  clientCategoryFilter: 'all',
-  clientCounts: null,     // { total, bySource, byCategory } from /api/clients/summary
+  clientEventTypeFilter: 'all',
+  clientCounts: null,     // { total, bySource, byEventType } from /api/clients/summary
   clientSearch: '',
   // hwoli
   hwolMessages: [],
@@ -1493,6 +1532,23 @@ function fmtDate(d) {
   try { return new Date(d).toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}); } catch(_){ return d; }
 }
 
+// Check-in → check-out as a single label, or one-sided when only one date is
+// set. The year is dropped from the first date when both fall in the same year
+// so the common case stays short enough to sit inline with the other pills.
+function stayRangeLabel(c) {
+  const ci = c.checkInDate ? new Date(c.checkInDate) : null;
+  const co = c.checkOutDate ? new Date(c.checkOutDate) : null;
+  const short = d => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+  if (ci && co) {
+    return ci.getFullYear() === co.getFullYear()
+      ? `${short(ci)} → ${fmtDate(co)}`
+      : `${fmtDate(ci)} → ${fmtDate(co)}`;
+  }
+  if (ci) return `From ${fmtDate(ci)}`;
+  if (co) return `Until ${fmtDate(co)}`;
+  return null;
+}
+
 function fmtPrice(n) {
   if (n == null) return '—';
   return '₹' + Number(n).toLocaleString('en-IN');
@@ -1541,11 +1597,15 @@ function cleanSnippet(body) {
     .replace(/\s+/g,' ').trim().slice(0,90);
 }
 
+// `c` is used three ways — the table's status text and dot, the tinted pill on
+// client cards (background is the same hex at 10% alpha), and the dashboard's
+// confirmed-count line. Values are the brightest form of each hue that still
+// reads as text on white/cream; a literal yellow would be illegible at 12.5px.
 const STATUS_META = {
-  'confirmed':{c:'#22C55E',l:'Confirmed'},
-  'active':{c:'#B8902E',l:'Active'},
-  'no-response':{c:'#838b7b',l:'No Response'},
-  'lost':{c:'#C0392B',l:'Lost'},
+  'active':{c:'#F2760C',l:'Active'},
+  'no-response':{c:'#D9A800',l:'No Response'},
+  'confirmed':{c:'#15B65B',l:'Confirmed'},
+  'lost':{c:'#E02B20',l:'Lost'},
   // Legacy values from before the status list was simplified (twice) — kept
   // only so older records still render with a sensible color/label.
   'new':{c:'#4A8055',l:'New'},
@@ -1555,10 +1615,10 @@ const STATUS_META = {
   'site-visit-scheduled':{c:'#B8902E',l:'Site visit'},
   'booked':{c:'#2E5D3B',l:'Booked'},
 };
-// The only stages a lead can be moved into by hand. 'active' and 'confirmed'
+// The only stages a lead can be moved into by hand. 'active' and 'no-response'
 // are the ones still owed a follow-up — see STATUSES_REQUIRING_FOLLOWUP.
-const STATUS_OPTIONS = [['confirmed','Confirmed'],['active','Active'],['no-response','No Response'],['lost','Lost']];
-const STATUSES_REQUIRING_FOLLOWUP = ['confirmed','active'];
+const STATUS_OPTIONS = [['active','Active'],['no-response','No Response'],['confirmed','Confirmed'],['lost','Lost']];
+const STATUSES_REQUIRING_FOLLOWUP = ['active','no-response'];
 const EVENT_TYPE_OPTIONS = [['wedding','Wedding'],['birthday','Birthday'],['anniversary','Anniversary'],['other','Other']];
 // Source is a free-text box now. These stay because older records still hold
 // one of the fixed keys, and because typing a name that matches one keeps
@@ -1599,9 +1659,11 @@ function eventTypeLabel(c) {
   if (c.eventType === 'other') return c.eventTypeOther || 'Other';
   return EVENT_TYPE_OPTIONS.find(([k]) => k === c.eventType)?.[1] || c.eventType;
 }
+// Plain text, not a badge — see clTagHtml. Used on the client cards, where the
+// status pill next to it is the one thing that should carry colour.
 function eventTypeBadgeHtml(c) {
   const label = eventTypeLabel(c);
-  return label ? `<span class="badge badge-green">${esc(label)}</span>` : '';
+  return label ? `<span class="cx-plain">${esc(label)}</span>` : '';
 }
 // Budget is entered as two figures — hotel (budgetHotelLakhs) and event &
 // decor (budgetDecorLakhs). budgetEventsLakhs is a third figure from the older
@@ -1663,6 +1725,23 @@ function cacheGet(key) { return _cache.get(key) || null; }
 function cachePut(key, data) { _cache.set(key, { data, ts: Date.now() }); }
 function cacheClear(prefix) { for (const k of [..._cache.keys()]) if (k.startsWith(prefix)) _cache.delete(k); }
 
+// One call for every client create/update/delete: drop the caches the change
+// invalidates, then repaint whichever screen is actually open.
+// Clearing the cache alone is not enough — it only makes the *next* navigation
+// fetch fresh. The handlers used to follow it with a hardcoded loadClients(),
+// which is a no-op unless the Clients screen is mounted, so saving a remark
+// from the drawer on Reminders (where client cards also open a drawer) left
+// the stale card on screen until a manual page refresh.
+function afterClientChange() {
+  cacheClear('clients:'); cacheClear('GET:/api/clients'); cacheClear('dash:');
+  if (S.screen === 'clients') { loadClientSummary(); loadClients(); }
+  else if (S.screen === 'reminders') loadReminders();
+  else if (S.screen === 'dashboard') renderDashboard();
+  // The sidebar's due-count badge is derived from the same client rows, so it
+  // goes stale on exactly the same edits.
+  refreshReminderBadge();
+}
+
 // Cached GET for slow-changing data (city list, summary counts).
 async function apiCached(path, ttl = 60000) {
   const hit = cacheGet('GET:' + path);
@@ -1704,7 +1783,12 @@ function showToast(msg, type='info') {
     stack.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:200;display:flex;flex-direction:column-reverse;align-items:flex-end;gap:8px';
     document.body.appendChild(stack);
   }
+  // Repeated identical errors (e.g. mashing a submit button) shouldn't pile
+  // up a wall of duplicate toasts — just skip adding another one.
+  if ([...stack.children].some(el => el.dataset.msg === msg && el.dataset.type === type)) return;
   const t = document.createElement('div');
+  t.dataset.msg = msg;
+  t.dataset.type = type;
   t.textContent = msg;
   t.style.cssText = `padding:12px 20px;border-radius:12px;font-size:13.5px;font-weight:500;box-shadow:0 4px 20px rgba(0,0,0,.15);animation:toastin .35s ease both;background:${type==='error'?'#C0392B':type==='success'?'#2E5D3B':'#23291F'};color:#fff`;
   stack.appendChild(t);
@@ -2214,7 +2298,10 @@ async function renderDashboard() {
   // endpoint like attendance or cities was stuck waiting on it for no reason.
   const scope = isEmployee ? 'emp' : 'admin';
   swr('dash:cities', 300000, () => apiCached('/api/cities', 300000), paintDashCities, () => paintDashCities(null));
-  swr('dash:clients', 60000, () => api('/api/clients?limit=5'), paintDashClients, () => paintDashClients(null));
+  // limit=20, not 5: the panel is a fixed 400px that scrolls internally, so
+  // the cap is what you can scroll to, not what fits. At 5 the list stopped
+  // dead well before the panel had anything more to reveal.
+  swr('dash:clients', 60000, () => api('/api/clients?limit=20'), paintDashClients, () => paintDashClients(null));
   swr('dash:clients:confirmed', 60000, () => api('/api/clients?status=confirmed&limit=1'), paintDashConfirmedClients, () => paintDashConfirmedClients(null));
   swr('dash:reminders:' + scope, 30000, () => api('/api/clients/followups'), paintDashReminders,
     () => paintDashReminders(null));
@@ -2263,21 +2350,21 @@ function paintDashClients(clientsRes) {
       $('stat-clients').textContent = clientsRes.meta?.total || 0;
       const list = clientsRes.data || [];
       const cb = $('dash-clients'); cb.classList.add('rich');
-      const pinSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 6-9 12-9 12s-9-6-9-12a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>';
       const guestSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></svg>';
       const calSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+      const rmSvg='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>';
+      // Card contents: name + event type + status in the header row, then
+      // guests, the stay dates, and the relationship manager as pills. The
+      // last two are omitted entirely when the client has no value for them.
       cb.innerHTML = list.length ? list.map(c=>{
         const nm = c.name||'?';
         const accent = avatarColor(nm);
         const sm = STATUS_META[c.status] || {c:accent};
-        const place = preferredPlace(c);
-        const budget = budgetTotalLakhs(c);
-        const date = eventDate(c);
+        const stay = stayRangeLabel(c);
         const pills = [];
-        if (place) pills.push(`<span class="cl-pill">${pinSvg}${esc(place)}</span>`);
         if (c.guestCount) pills.push(`<span class="cl-pill">${guestSvg}${c.guestCount} guests</span>`);
-        if (budget != null) pills.push(`<span class="cl-pill gold">₹${budget}L budget</span>`);
-        if (date) pills.push(`<span class="cl-pill">${calSvg}${fmtDate(date)}</span>`);
+        if (stay) pills.push(`<span class="cl-pill">${calSvg}${esc(stay)}</span>`);
+        if (c.relationshipManager) pills.push(`<span class="cl-pill">${rmSvg}${esc(c.relationshipManager)}</span>`);
         return `
         <div class="cl-card" style="--accent:${accent}" onclick="navigate('clients')">
           <div class="cl-avatar-ring">
@@ -2288,7 +2375,7 @@ function paintDashClients(clientsRes) {
             <div class="cl-name-row">
               <div class="cl-name-cluster">
                 <span class="cl-name">${esc(nm)}</span>
-                ${c.category?categoryBadge(c.category):''}
+                ${eventTypeBadgeHtml(c)}
               </div>
               ${statusBadgeHtml(c)}
             </div>
@@ -3901,12 +3988,6 @@ const CLIENT_SOURCES = [
   { key: 'manual',    label: 'Added by team' },
 ];
 
-function categoryBadge(cat) {
-  if (!cat) return '<span class="badge badge-gray" style="opacity:.55">Uncategorized</span>';
-  const m = CATEGORY_META[cat] || { label: cat, cls: 'badge-gray' };
-  return `<span class="badge ${m.cls}">${esc(m.label)}</span>`;
-}
-
 // A literal "Manual" badge on every hand-added row is just noise — show how
 // the enquiry actually reached us (phone/walk-in/referral) instead. Only
 // real automated sources (Gmail, DMs) fall through to the source badge.
@@ -3936,9 +4017,9 @@ async function renderClients() {
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
         <input type="text" placeholder="Search name, phone, email…" id="client-search-input" oninput="onClientSearch(this.value)" value="${esc(S.clientSearch)}">
       </label>
-      <select class="cx-sel" id="client-category-select" onchange="setClientCategory(this.value)"></select>
+      <select class="cx-sel" id="client-eventtype-select" onchange="setClientEventType(this.value)"></select>
       <select class="cx-sel ${S.clientStatusFilter!=='all'?'on':''}" id="client-status-select" onchange="setClientStatus(this.value)">
-        ${['all',...STATUS_OPTIONS.map(([k])=>k)].map(s=>`<option value="${s}" ${S.clientStatusFilter===s?'selected':''}>${s==='all'?'All statuses':(STATUS_META[s]?.l||s)}</option>`).join('')}
+        ${['all',...STATUS_OPTIONS.map(([k])=>k)].map(s=>`<option value="${s}" ${S.clientStatusFilter===s?'selected':''}>${s==='all'?'All status':(STATUS_META[s]?.l||s)}</option>`).join('')}
       </select>
       <span id="client-clear-slot"></span>
       <span class="cx-railcount" id="client-rail-count"></span>
@@ -3953,12 +4034,12 @@ async function renderClients() {
 // True when anything narrows the list — drives the "Clear" affordance and
 // the wording of the empty state.
 function clientFiltersActive() {
-  return S.clientSourceFilter !== 'all' || S.clientCategoryFilter !== 'all'
+  return S.clientSourceFilter !== 'all' || S.clientEventTypeFilter !== 'all'
       || S.clientStatusFilter !== 'all' || !!S.clientSearch;
 }
 
 function clearClientFilters() {
-  S.clientSourceFilter = 'all'; S.clientCategoryFilter = 'all'; S.clientStatusFilter = 'all'; S.clientSearch = '';
+  S.clientSourceFilter = 'all'; S.clientEventTypeFilter = 'all'; S.clientStatusFilter = 'all'; S.clientSearch = '';
   renderClients();
 }
 
@@ -3974,16 +4055,17 @@ function renderClientFilterBars() {
     </button>`;
   }).join('');
 
-  // Categories moved from a row of bordered pills into the rail — same
-  // one-click filtering, with the counts folded into the option labels.
-  const cat = $('client-category-select');
-  if (cat) {
-    cat.innerHTML = [['all','All categories'], ...Object.entries(CATEGORY_META).map(([k,v])=>[k,v.label])]
+  // Event type sits in the rail as a select, with counts folded into the
+  // option labels. 'none' is a real option rather than a gap, so rows staff
+  // never tagged stay reachable instead of only showing under "All".
+  const ev = $('client-eventtype-select');
+  if (ev) {
+    ev.innerHTML = [['all','All event types'], ...EVENT_TYPE_OPTIONS, ['none','Not set']]
       .map(([k,label]) => {
-        const n = counts && k!=='all' ? (counts.byCategory?.[k] || 0) : null;
-        return `<option value="${k}" ${S.clientCategoryFilter===k?'selected':''}>${esc(label)}${n?` (${n})`:''}</option>`;
+        const n = counts && k!=='all' ? (counts.byEventType?.[k] || 0) : null;
+        return `<option value="${k}" ${S.clientEventTypeFilter===k?'selected':''}>${esc(label)}${n?` (${n})`:''}</option>`;
       }).join('');
-    cat.classList.toggle('on', S.clientCategoryFilter !== 'all');
+    ev.classList.toggle('on', S.clientEventTypeFilter !== 'all');
   }
   const st = $('client-status-select');
   if (st) { st.value = S.clientStatusFilter; st.classList.toggle('on', S.clientStatusFilter !== 'all'); }
@@ -4001,7 +4083,7 @@ async function loadClientSummary() {
 }
 
 function setClientSource(s) { S.clientSourceFilter = s; renderClientFilterBars(); loadClients(); }
-function setClientCategory(c) { S.clientCategoryFilter = c; renderClientFilterBars(); loadClients(); }
+function setClientEventType(v) { S.clientEventTypeFilter = v; renderClientFilterBars(); loadClients(); }
 function setClientStatus(s) { S.clientStatusFilter = s; renderClientFilterBars(); loadClients(); }
 
 let clientSearchTimer;
@@ -4018,7 +4100,7 @@ async function loadClients() {
   const params = new URLSearchParams({ limit: 100 });
   if (S.clientStatusFilter !== 'all') params.set('status', S.clientStatusFilter);
   if (S.clientSourceFilter !== 'all') params.set('source', S.clientSourceFilter);
-  if (S.clientCategoryFilter !== 'all') params.set('category', S.clientCategoryFilter);
+  if (S.clientEventTypeFilter !== 'all') params.set('eventType', S.clientEventTypeFilter);
   if (S.clientSearch) params.set('search', S.clientSearch);
   const el = $('client-results');
   if (!el) return;
@@ -4032,29 +4114,29 @@ async function loadClients() {
   });
 }
 
-// Softer, borderless versions of the row markers — a colour dot for status
-// and a flat tint for the event/category tag — so the table reads as data
-// rather than as a wall of outlined pills.
+// Status is the only coloured thing in a row — the hue carries the meaning, so
+// it goes on the text itself rather than sitting in a tinted pill. Event type
+// is plain text: it's a label, not a state, and pilling it competed with the
+// status for attention.
 function clStatusHtml(c) {
   const meta = STATUS_META[c.status] || { c: '#838b7b' };
-  return `<span class="cx-status"><i class="cx-dot" style="background:${meta.c}"></i>${esc(statusLabel(c))}</span>`;
+  return `<span class="cx-status" style="color:${meta.c}"><i class="cx-dot" style="background:${meta.c}"></i>${esc(statusLabel(c))}</span>`;
 }
 function clTagHtml(c) {
   const ev = eventTypeLabel(c);
-  if (ev) return `<span class="cx-tag g">${esc(ev)}</span>`;
+  if (ev) return `<span class="cx-plain">${esc(ev)}</span>`;
   if (!c.category) return `<span class="cx-none">—</span>`;
   const m = CATEGORY_META[c.category] || { label: c.category };
-  const tone = c.category === 'event_enquiry' ? ' g' : c.category === 'collaboration' ? ' b' : '';
-  return `<span class="cx-tag${tone}">${esc(m.label)}</span>`;
+  return `<span class="cx-plain">${esc(m.label)}</span>`;
 }
 function clSourceHtml(c) {
   if (!c.source || c.source === 'manual') {
     const label = enquirySourceLabel(c);
-    return label ? `<span class="cx-tag">${esc(label)}</span>` : `<span class="cx-none">—</span>`;
+    return label ? esc(label) : `<span class="cx-none">—</span>`;
   }
   const s = CLIENT_SOURCES.find(x => x.key === c.source);
-  if (!s || !s.icon) return `<span class="cx-tag">${esc(c.source)}</span>`;
-  return `<span class="cx-tag"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg>${esc(s.label)}</span>`;
+  if (!s || !s.icon) return esc(c.source);
+  return `<span style="display:inline-flex;align-items:center;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg>${esc(s.label)}</span>`;
 }
 const clDash = '<span class="cx-none">—</span>';
 
@@ -4132,9 +4214,7 @@ async function syncInboxClients() {
   try {
     const res = await apiPost('/api/clients/sync-inbox', {});
     showToast(res.synced ? `${res.synced} client${res.synced===1?'':'s'} added from inbox` : 'Inbox already in sync — nothing new', 'success');
-    cacheClear('clients:'); cacheClear('GET:/api/clients'); cacheClear('dash:');
-    loadClientSummary();
-    loadClients();
+    afterClientChange();
   } catch(e) { showToast('Sync failed: '+e.message, 'error'); }
   finally { if ($('sync-inbox-btn')) { $('sync-inbox-btn').disabled = false; $('sync-inbox-btn').innerHTML = 'Sync from inbox'; } }
 }
@@ -4263,7 +4343,7 @@ function clientDrawerHtml(c, editing) {
         <div class="cx-dsec">
           <div class="cx-dsec-t">Ownership</div>
           ${infoRow('Source', esc(enquirySourceLabel(c)||''), true)}
-          ${infoRow('Relationship manager', esc(c.relationshipManager||''), true)}
+          ${infoRow('Relationship Manager', esc(c.relationshipManager||''), true)}
           ${infoRow('Added by', c.createdByName ? esc(c.createdByName) : '<span class="cx-none">Not recorded</span>', true)}
           ${infoRow('Added on', fmtDate(c.createdAt), true)}
         </div>
@@ -4303,10 +4383,10 @@ function clientDrawerHtml(c, editing) {
             <div><label class="cx-lab" for="cd-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-hotel" value="${esc(preferredPlace(c)||'')}"></div>
             <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}"></div>
             <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}"></div>
-            <div><label class="cx-lab" for="cd-rm">Relationship manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rm" value="${esc(c.relationshipManager||'')}"></div>
+            <div><label class="cx-lab" for="cd-rm">Relationship Manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rm" value="${esc(c.relationshipManager||'')}"></div>
             <div>
               <label class="cx-lab" for="cd-enquirysource">Source</label>
-              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}">
+              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}" placeholder="Source name & ref">
             </div>
             <div><label class="cx-lab">Added by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(c.createdByName||'—')}" disabled></div>
           </div>
@@ -4316,7 +4396,7 @@ function clientDrawerHtml(c, editing) {
           <div class="cx-dsec-t">Budget · ₹ Lakhs</div>
           <div class="cx-grid">
             <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-hotel" type="number" min="0" step="0.5" value="${c.budgetHotelLakhs??''}"></div></div>
-            <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-eventdecor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}"></div></div>
+            <div><div class="cx-cap">Event &amp; Decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-eventdecor" type="number" min="0" step="0.5" value="${c.budgetDecorLakhs??''}"></div></div>
             ${c.budgetEventsLakhs!=null ? `<div><div class="cx-cap">Events <span style="text-transform:none;letter-spacing:0;font-weight:400">· legacy</span></div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-budget-events" type="number" min="0" step="0.5" value="${c.budgetEventsLakhs}"></div></div>` : ''}
           </div>
         </div>
@@ -4340,19 +4420,12 @@ function clientDrawerHtml(c, editing) {
             <div>
               <label class="cx-lab" for="cd-eventtype">Event type</label>
               <select class="input cx-in" id="cd-eventtype" onchange="onOtherSelectChange(this,'cd-eventtype-other-wrap')">
-                <option value="" ${!c.eventType?'selected':''}>Not set</option>
+                <option value="" ${!c.eventType?'selected':''}></option>
                 ${eventTypeOptionsHtml(c.eventType)}
               </select>
               <div id="cd-eventtype-other-wrap" style="display:${c.eventType==='other'?'block':'none'};margin-top:8px">
                 <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-eventtype-other" value="${esc(c.eventTypeOther||'')}">
               </div>
-            </div>
-            <div class="cx-full">
-              <label class="cx-lab" for="cd-category">Category</label>
-              <select class="input cx-in" id="cd-category">
-                <option value="" ${!c.category?'selected':''}>Uncategorized</option>
-                ${Object.entries(CATEGORY_META).map(([k,v])=>`<option value="${k}" ${c.category===k?'selected':''}>${v.label}</option>`).join('')}
-              </select>
             </div>
           </div>
         </div>
@@ -4371,7 +4444,7 @@ function clientDrawerHtml(c, editing) {
         </button>
         <div class="flex gap-2">
           <button class="cx-btn cx-btn-ghost" onclick="setClientDrawerMode(false)">Cancel</button>
-          <button class="cx-btn cx-btn-primary" onclick="saveClientDrawer(${c.id})">Save changes</button>
+          <button class="cx-btn cx-btn-primary" onclick="saveClientDrawer(${c.id}, this)">Save changes</button>
         </div>
       </div>
     </div>`;
@@ -4383,9 +4456,7 @@ async function deleteClient(id, name) {
     await apiDelete('/api/clients/' + id);
     showToast('Client deleted', 'success');
     closeDrawer();
-    cacheClear('clients:'); cacheClear('GET:/api/clients'); cacheClear('dash:');
-    loadClientSummary();
-    loadClients();
+    afterClientChange();
   } catch(e) { showToast('Error: '+e.message, 'error'); }
 }
 
@@ -4408,9 +4479,9 @@ function validateClientForm(prefix) {
   const name = f('-name')?.value.trim();
   if (!name) errors.push([f('-name'), 'Name is required']);
 
-  // Nothing in the event block is compulsory — on a first call the team often
-  // only has a name and a number. Whatever they do fill in still has to be
-  // sane, which the format checks below handle.
+  // Beyond check-in (below), nothing else in the event block is compulsory —
+  // on a first call the team often only has a name and a number. Whatever
+  // they do fill in still has to be sane, which the format checks below handle.
 
   // Source is required on hand-added enquiries: whoever takes the call knows
   // where it came from, and it's the one thing nobody can reconstruct later.
@@ -4418,6 +4489,11 @@ function validateClientForm(prefix) {
   // and requiring one here would make those profiles unsaveable.
   if (prefix === 'nc' && !f('-enquirysource')?.value.trim())
     errors.push([f('-enquirysource'), 'Source is required']);
+
+  // Same reasoning for check-in date: required going forward, but editing
+  // stays permissive since older records may not have one.
+  if (prefix === 'nc' && !f('-checkin')?.value)
+    errors.push([f('-checkin'), 'Check-in date is required']);
 
   const phone = f('-phone')?.value.trim();
   if (!phone) errors.push([f('-phone'), 'Phone number is required']);
@@ -4451,7 +4527,7 @@ function validateClientForm(prefix) {
   if (f('-eventtype')?.value === 'other' && !f('-eventtype-other')?.value.trim())
     errors.push([f('-eventtype-other'), 'Please describe the event type']);
   if (STATUSES_REQUIRING_FOLLOWUP.includes(f('-status')?.value) && !f('-followup')?.value)
-    errors.push([f('-followup'), 'Next follow-up date is required for Active/Confirmed status']);
+    errors.push([f('-followup'), 'Next follow-up date is required for Active/No Response status']);
 
   if (errors.length) {
     errors.forEach(([el]) => el?.classList.add('input-invalid'));
@@ -4465,13 +4541,26 @@ function validateClientForm(prefix) {
   return true;
 }
 
+// The backend rejects a save whose phone number matches an existing client
+// (see assertNoDuplicatePhone in clients.js) with a 409 carrying this exact
+// wording — highlight the field the same way client-side validation does.
+function flagDuplicatePhone(fieldId, message) {
+  if (!/phone number already exists/i.test(message || '')) return;
+  const el = $(fieldId);
+  el?.classList.add('input-invalid');
+  el?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el?.focus({ preventScroll: true });
+}
+
 // Clear the red state as soon as the user starts correcting a field.
 document.addEventListener('input', e => {
   if (e.target.classList?.contains('input-invalid')) e.target.classList.remove('input-invalid');
 });
 
-async function saveClientDrawer(id) {
+async function saveClientDrawer(id, btn) {
   if (!validateClientForm('cd')) return;
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
   const name = $('cd-name').value.trim();
   const status = $('cd-status').value;
   const eventType = $('cd-eventtype')?.value || null;
@@ -4496,7 +4585,6 @@ async function saveClientDrawer(id) {
     status,
     statusOther: status === 'other' ? $('cd-status-other')?.value.trim() : null,
     nextFollowUpAt: STATUSES_REQUIRING_FOLLOWUP.includes(status) ? $('cd-followup')?.value : null,
-    category: $('cd-category').value || null,
     eventType: eventType || null,
     eventTypeOther: eventType === 'other' ? $('cd-eventtype-other')?.value.trim() : null,
     notes: collectRemarks('cd-remarks-list') || null,
@@ -4506,10 +4594,9 @@ async function saveClientDrawer(id) {
     S.drawerClient = updated;
     showToast('Client updated', 'success');
     setClientDrawerMode(false);
-    cacheClear('clients:'); cacheClear('GET:/api/clients'); cacheClear('dash:');
-    loadClientSummary();
-    loadClients();
-  } catch(e) { showToast('Error: '+e.message, 'error'); }
+    afterClientChange();
+  } catch(e) { flagDuplicatePhone('cd-phone', e.message); showToast('Error: '+e.message, 'error'); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 // Jump from a client profile straight to their DM thread in the inbox.
@@ -4530,7 +4617,7 @@ function onOtherSelectChange(selectEl, wrapId) {
 
 // Status drives two conditional fields: the "please specify" box for the
 // legacy 'other' value, and the mandatory follow-up date for 'active' /
-// 'confirmed' — the only stages where a follow-up is still owed.
+// 'no-response' — the only stages where a follow-up is still owed.
 function onStatusSelectChange(selectEl, prefix) {
   onOtherSelectChange(selectEl, prefix + '-status-other-wrap');
   const wrap = $(prefix + '-followup-wrap');
@@ -4570,7 +4657,7 @@ function openNewClientModal() {
               <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-email" type="email"></div>
               <div>
                 <label class="cx-lab" for="nc-enquirysource">Source <span class="req">*</span></label>
-                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-enquirysource">
+                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-enquirysource" placeholder="Source name & ref">
               </div>
             </div>
           </div>
@@ -4581,7 +4668,7 @@ function openNewClientModal() {
               <div>
                 <label class="cx-lab" for="nc-eventtype">Event type</label>
                 <select class="input cx-in" id="nc-eventtype" onchange="onOtherSelectChange(this,'nc-eventtype-other-wrap')">
-                  <option value="" selected>Not set</option>
+                  <option value="" selected></option>
                   ${eventTypeOptionsHtml('')}
                 </select>
                 <div id="nc-eventtype-other-wrap" style="display:none;margin-top:8px">
@@ -4589,7 +4676,7 @@ function openNewClientModal() {
                 </div>
               </div>
               <div><label class="cx-lab" for="nc-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-hotel"></div>
-              <div><label class="cx-lab" for="nc-checkin">Check-in date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
+              <div><label class="cx-lab" for="nc-checkin">Check-in date <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
               <div><label class="cx-lab" for="nc-checkout">Check-out date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
               <div><label class="cx-lab" for="nc-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-guests" type="number" min="1" max="1000000" step="1"></div>
               <div><label class="cx-lab" for="nc-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rooms" type="number" min="1" max="100000" step="1"></div>
@@ -4615,14 +4702,14 @@ function openNewClientModal() {
             <div class="cx-sec-t">Budget <span style="text-transform:none;letter-spacing:0;font-weight:500">· in ₹ lakhs</span></div>
             <div class="cx-grid">
               <div><div class="cx-cap">Hotel</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-budget-hotel" type="number" min="0" step="0.5"></div></div>
-              <div><div class="cx-cap">Event &amp; decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-budget-eventdecor" type="number" min="0" step="0.5"></div></div>
+              <div><div class="cx-cap">Event &amp; Decor</div><div class="cx-money"><span class="cur">₹</span><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-budget-eventdecor" type="number" min="0" step="0.5"></div></div>
             </div>
           </div>
 
           <div class="cx-sec">
             <div class="cx-sec-t">Ownership</div>
             <div class="cx-grid">
-              <div><label class="cx-lab" for="nc-rm">Relationship manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rm"></div>
+              <div><label class="cx-lab" for="nc-rm">Relationship Manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rm"></div>
               <div><label class="cx-lab">Filled by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(S.admin?.name||S.admin?.email||'—')}" disabled></div>
             </div>
           </div>
@@ -4635,7 +4722,7 @@ function openNewClientModal() {
 
         <div class="cx-sheet-foot">
           <button class="cx-btn cx-btn-ghost" onclick="closeModal()">Cancel</button>
-          <button class="cx-btn cx-btn-primary" onclick="createClient()">Create client</button>
+          <button class="cx-btn cx-btn-primary" onclick="createClient(this)">Create client</button>
         </div>
       </div>
     </div>`;
@@ -4708,8 +4795,13 @@ function withEventOther(notes, other) {
   return parts.map((v, i) => `${i + 1}. ${v}`).join('\n');
 }
 
-async function createClient() {
+async function createClient(btn) {
   if (!validateClientForm('nc')) return;
+  // Mashing "Create client" while a request is already in flight (or while
+  // the resulting error toast is still up) used to fire one request per
+  // click; guard against that instead of piling up duplicate submissions.
+  if (btn?.disabled) return;
+  if (btn) btn.disabled = true;
   const name = $('nc-name').value.trim();
   const status = $('nc-status')?.value || 'no-response';
   const eventType = $('nc-eventtype')?.value || undefined;
@@ -4746,10 +4838,9 @@ async function createClient() {
     closeModal();
     showToast('Client created!', 'success');
     S.clients = null;
-    cacheClear('clients:'); cacheClear('GET:/api/clients'); cacheClear('dash:');
-    loadClientSummary();
-    loadClients();
-  } catch(e) { showToast('Error: '+e.message,'error'); }
+    afterClientChange();
+  } catch(e) { flagDuplicatePhone('nc-phone', e.message); showToast('Error: '+e.message,'error'); }
+  finally { if (btn) btn.disabled = false; }
 }
 
 // "Save as client" from a Gmail email — classifies the email server-side.
@@ -5765,79 +5856,73 @@ function remindersPillIcons() {
 async function renderReminders() {
   const isAdminUser = S.admin?.role !== 'employee';
   S.reminderDate = S.reminderDate || '';
-  S.reminderManagerFilter = S.reminderManagerFilter || 'all';
+  // 'due' = today + overdue, 'upcoming' = tomorrow onward, 'date' = one picked
+  // day. The picked day is its own view rather than a modifier on the other
+  // two, so the toggle always reflects exactly what the list is showing.
+  S.reminderView = S.reminderView || 'due';
+  const seg = (label, view) =>
+    `<button type="button" class="rem-seg${S.reminderView === view ? ' on' : ''}" onclick="setReminderView('${view}')">${label}</button>`;
   setContent(`
     <div class="page-header mb-4">
       <div>
         <div class="page-title">Follow-up Reminders</div>
         <div class="page-sub">${isAdminUser
-          ? "Which relationship manager owes a follow-up today, or on a date you pick"
+          ? "Which relationship manager owes a follow-up today, what's coming up, or a date you pick"
           : "Clients you owe a follow-up — a card stays here until you push its date forward"}</div>
       </div>
     </div>
     <div class="cx-rail">
+      <div class="rem-segs">${seg('Due today', 'due')}${seg('Upcoming', 'upcoming')}</div>
       <input type="date" class="cx-sel" id="rem-date-input" value="${esc(S.reminderDate)}" max="${maxEventDate()}" onchange="setReminderDate(this.value)">
-      ${S.reminderDate ? `<button class="btn btn-ghost btn-sm" onclick="setReminderDate('')">Due today</button>` : ''}
+      ${S.reminderView === 'date' ? `<button class="btn btn-ghost btn-sm" onclick="setReminderView('due')">Clear date</button>` : ''}
       <span class="cx-railcount" id="rem-rail-count"></span>
     </div>
-    ${isAdminUser ? `<div id="rem-manager-chips" style="display:flex;flex-wrap:wrap;gap:8px;margin:14px 0"></div>` : ''}
     <div id="reminders-list"><div style="display:flex;justify-content:center;padding:60px"><div class="spinner"></div></div></div>
   `);
   loadReminders();
 }
 
-function setReminderDate(v) { S.reminderDate = v || ''; loadReminders(); }
+// Switching to a segment drops any picked date — otherwise the toggle would
+// say "Upcoming" while the list showed a single day.
+function setReminderView(v) {
+  S.reminderView = v;
+  S.reminderDate = '';
+  renderReminders();
+}
 
-function setReminderManager(v) { S.reminderManagerFilter = v || 'all'; renderReminderList(); }
+function setReminderDate(v) {
+  S.reminderDate = v || '';
+  S.reminderView = v ? 'date' : 'due';
+  renderReminders();
+}
 
 async function loadReminders() {
-  const q = S.reminderDate ? `?date=${encodeURIComponent(S.reminderDate)}` : '';
+  const q = S.reminderDate
+    ? `?date=${encodeURIComponent(S.reminderDate)}`
+    : S.reminderView === 'upcoming' ? '?range=upcoming' : '';
   try {
     const res = await api('/api/clients/followups' + q);
     if (S.screen !== 'reminders') return;
     S.reminderData = res.data || [];
-    renderManagerChips();
     renderReminderList();
   } catch (e) {
     if ($('reminders-list')) $('reminders-list').innerHTML = `<div class="empty"><p>Error: ${esc(e.message)}</p></div>`;
   }
 }
 
-function renderManagerChips() {
-  const wrap = $('rem-manager-chips');
-  if (!wrap) return;
-  const counts = {};
-  for (const c of (S.reminderData || [])) {
-    const key = c.relationshipManager || 'Unassigned';
-    counts[key] = (counts[key] || 0) + 1;
-  }
-  const managers = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
-  if (S.reminderManagerFilter !== 'all' && !managers.includes(S.reminderManagerFilter)) S.reminderManagerFilter = 'all';
-  const chip = (label, value, count, active) =>
-    `<button type="button" class="cl-pill${active ? ' gold' : ''}" style="cursor:pointer" data-mgr="${esc(value)}">${esc(label)} · ${count}</button>`;
-  wrap.innerHTML = [
-    chip('All managers', 'all', (S.reminderData || []).length, S.reminderManagerFilter === 'all'),
-    ...managers.map(m => chip(m, m, counts[m], S.reminderManagerFilter === m)),
-  ].join('');
-  wrap.querySelectorAll('[data-mgr]').forEach(btn => {
-    btn.onclick = () => setReminderManager(btn.dataset.mgr);
-  });
-}
-
 function renderReminderList() {
   const el = $('reminders-list');
   if (!el) return;
   const isAdminUser = S.admin?.role !== 'employee';
-  let list = S.reminderData || [];
-  if (isAdminUser && S.reminderManagerFilter !== 'all') {
-    list = list.filter(c => (c.relationshipManager || 'Unassigned') === S.reminderManagerFilter);
-  }
+  const list = S.reminderData || [];
   const countEl = $('rem-rail-count');
   if (countEl) countEl.textContent = `${list.length} ${list.length === 1 ? 'client' : 'clients'}`;
   if (!list.length) {
     el.innerHTML = `<div class="empty" style="padding:60px 20px">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-      <p>${S.reminderDate ? 'No follow-ups on this date' : "Nothing due — you're all caught up"}</p>
+      <p>${S.reminderView === 'date' ? 'No follow-ups on this date'
+        : S.reminderView === 'upcoming' ? 'Nothing scheduled ahead yet'
+        : "Nothing due — you're all caught up"}</p>
     </div>`;
     return;
   }
@@ -6176,6 +6261,17 @@ function updateFeedbackBadge(count) {
 function updateReminderBadge(count) {
   const navBadge = $('reminders-badge');
   if (navBadge) { navBadge.textContent = count > 99 ? '99+' : count; navBadge.style.display = count ? 'inline-block' : 'none'; }
+}
+
+// Re-pull just the due count. Split out of the notification poller so a client
+// edit can correct the badge immediately instead of leaving it wrong until the
+// next poll — changing a follow-up date is precisely what moves this number.
+async function refreshReminderBadge() {
+  try {
+    const res = await api('/api/clients/followups/summary');
+    updateReminderBadge(res.data?.dueCount || 0);
+    updateNotifDot();
+  } catch (_) { /* leave the badge at its last known value */ }
 }
 
 // The bell's red dot is the sum of both — the team shouldn't have to open

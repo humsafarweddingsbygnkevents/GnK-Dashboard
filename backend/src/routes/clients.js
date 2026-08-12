@@ -23,7 +23,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // offers.
 const STATUSES = ['confirmed', 'active', 'no-response', 'lost'];
 // A follow-up date is owed on any lead that's still live.
-const STATUSES_REQUIRING_FOLLOWUP = ['confirmed', 'active'];
+const STATUSES_REQUIRING_FOLLOWUP = ['active', 'no-response'];
 // Values from before the list was simplified (twice). The client drawer keeps
 // an old record's status selected rather than silently re-bucketing it, and
 // sends the whole form back on save — so writes must still accept these, or
@@ -89,6 +89,34 @@ function parsePhoneField(value, name) {
   return raw;
 }
 
+// Digits-only, with the Indian country code / trunk prefix stripped, so
+// "+91 98765 43210", "098765 43210" and "9876543210" all compare equal —
+// callers otherwise create the same person three times under one number.
+function normalizePhoneDigits(raw) {
+  let digits = String(raw).replace(/\D/g, '');
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  else if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
+  return digits;
+}
+
+// Throws a 409 if another client (excluding excludeId, on edits) already
+// has a phone number that normalizes to the same digits.
+async function assertNoDuplicatePhone(phone, excludeId) {
+  const digits = normalizePhoneDigits(phone);
+  if (!digits) return;
+  const existing = await prisma.client.findMany({
+    where: { phone: { not: null }, ...(excludeId ? { id: { not: excludeId } } : {}) },
+    select: { id: true, name: true, phone: true },
+  });
+  const dup = existing.find(c => normalizePhoneDigits(c.phone) === digits);
+  if (dup) {
+    throw Object.assign(
+      new Error(`A client with this phone number already exists: ${dup.name}`),
+      { status: 409 }
+    );
+  }
+}
+
 // Validate and coerce body fields shared by POST and PATCH
 function parseClientBody(body, requireCore = false) {
   const result = {};
@@ -138,7 +166,7 @@ function parseClientBody(body, requireCore = false) {
     if (STATUSES_REQUIRING_FOLLOWUP.includes(status)) {
       result.nextFollowUpAt = parseDateField(body.nextFollowUpAt, 'Next follow-up date');
       if (!result.nextFollowUpAt) {
-        throw Object.assign(new Error('Next follow-up date is required when status is Active or Confirmed'), { status: 400 });
+        throw Object.assign(new Error('Next follow-up date is required when status is Active or No Response'), { status: 400 });
       }
     } else {
       // Not owed a follow-up at this stage — don't leave a stale date behind.
@@ -223,6 +251,8 @@ router.post('/', async (req, res) => {
     const data = parseClientBody(req.body, true);
     data.source = 'manual'; // always override — never trust the caller
 
+    await assertNoDuplicatePhone(data.phone);
+
     // Record which logged-in employee created this profile.
     if (req.admin?.sub) {
       const employee = await prisma.admin.findUnique({ where: { id: req.admin.sub }, select: { name: true, email: true } });
@@ -233,6 +263,7 @@ router.post('/', async (req, res) => {
     return res.status(201).json(client);
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: err.message });
+    if (err.status === 409) return res.status(409).json({ error: err.message });
     console.error(err);
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -241,7 +272,7 @@ router.post('/', async (req, res) => {
 // GET /api/clients
 router.get('/', async (req, res) => {
   try {
-    const { status, source, category, channelUserId, search, page = '1', limit = '20' } = req.query;
+    const { status, source, category, eventType, channelUserId, search, page = '1', limit = '20' } = req.query;
 
     let parsedPage, parsedLimit;
     try {
@@ -255,7 +286,12 @@ router.get('/', async (req, res) => {
     const where = {};
     if (status) where.status = status;
     if (source) where.source = source;
+    // `category` is the retired LLM-triage field — still accepted so older
+    // links keep working, but the UI filters on eventType now.
     if (category) where.category = category;
+    // 'none' picks out rows staff never set an event type on; a bare null
+    // can't be expressed as a query-string value.
+    if (eventType) where.eventType = eventType === 'none' ? null : eventType;
     if (channelUserId) where.channelUserId = channelUserId;
     if (search) {
       where.OR = [
@@ -296,16 +332,23 @@ router.get('/', async (req, res) => {
 // dashboard's Clients tabs. Must be declared before the /:id route.
 router.get('/summary', async (_req, res) => {
   try {
-    const [bySourceRaw, byCategoryRaw, total] = await Promise.all([
+    const [bySourceRaw, byCategoryRaw, byEventTypeRaw, total] = await Promise.all([
       prisma.client.groupBy({ by: ['source'], _count: { _all: true } }),
       prisma.client.groupBy({ by: ['category'], _count: { _all: true } }),
+      prisma.client.groupBy({ by: ['eventType'], _count: { _all: true } }),
       prisma.client.count(),
     ]);
     const bySource = {};
     for (const row of bySourceRaw) bySource[row.source] = row._count._all;
+    // byCategory is retained for any older client still reading it; the UI
+    // uses byEventType.
     const byCategory = {};
     for (const row of byCategoryRaw) byCategory[row.category ?? 'uncategorized'] = row._count._all;
-    return res.json({ total, bySource, byCategory });
+    // Unset event types land under 'none', matching the filter value the list
+    // route accepts for the same rows.
+    const byEventType = {};
+    for (const row of byEventTypeRaw) byEventType[row.eventType ?? 'none'] = row._count._all;
+    return res.json({ total, bySource, byCategory, byEventType });
   } catch (err) {
     console.error(err);
     return res.status(500).json({ error: 'Internal server error' });
@@ -314,9 +357,9 @@ router.get('/summary', async (_req, res) => {
 
 // Both follow-up routes below are read-only derivations of Client rows —
 // there is no separate Notification/Reminder table. A reminder is simply
-// "status is active/confirmed and nextFollowUpAt is due", so it disappears
+// "status is active/no-response and nextFollowUpAt is due", so it disappears
 // exactly when an RM saves the client with a later follow-up date (or moves
-// it off active/confirmed) — never on a timer, and never just because
+// it off active/no-response) — never on a timer, and never just because
 // someone viewed it. Editing the remark alone, without pushing the date
 // forward, deliberately leaves it in place.
 async function requesterName(req) {
@@ -333,6 +376,8 @@ function startOfDayUTC(d) {
 // returns everything due today or overdue (the persistent reminder set).
 // With `date=YYYY-MM-DD`, returns only that calendar day's follow-ups — lets
 // an admin check a particular future/past date rather than just "today".
+// With `range=upcoming`, returns everything scheduled tomorrow or later — the
+// forward-looking list. `date` wins if both are sent.
 // Employees always see their own (matched on relationshipManager by name);
 // admins see everyone unless scope=mine.
 router.get('/followups', async (req, res) => {
@@ -340,15 +385,21 @@ router.get('/followups', async (req, res) => {
     const isAdmin = req.admin?.role !== 'employee';
     const where = { status: { in: STATUSES_REQUIRING_FOLLOWUP } };
 
+    const endOfToday = new Date(startOfDayUTC(new Date()).getTime() + 24 * 60 * 60 * 1000);
+
     if (req.query.date) {
       const day = parseDateField(req.query.date, 'date');
       if (!day) return res.status(400).json({ error: 'date must be a valid date' });
       const start = startOfDayUTC(day);
       const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
       where.nextFollowUpAt = { gte: start, lt: end };
+    } else if (req.query.range === 'upcoming') {
+      // Everything scheduled from tomorrow on. Deliberately disjoint from the
+      // default due/overdue set (which is `< endOfToday`) so a client shows up
+      // in exactly one of the two views and the counts never double-count.
+      where.nextFollowUpAt = { gte: endOfToday };
     } else {
-      const end = new Date(startOfDayUTC(new Date()).getTime() + 24 * 60 * 60 * 1000);
-      where.nextFollowUpAt = { lt: end };
+      where.nextFollowUpAt = { lt: endOfToday };
     }
 
     if (!isAdmin || req.query.scope === 'mine') {
@@ -561,6 +612,8 @@ router.patch('/:id', async (req, res) => {
       return res.status(400).json({ error: 'No updatable fields provided' });
     }
 
+    if (data.phone) await assertNoDuplicatePhone(data.phone, id);
+
     const client = await prisma.client.update({
       where: { id },
       data,
@@ -568,6 +621,7 @@ router.patch('/:id', async (req, res) => {
     return res.json(client);
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: err.message });
+    if (err.status === 409) return res.status(409).json({ error: err.message });
     if (err.code === 'P2025') return res.status(404).json({ error: `Client with id ${id} not found` });
     console.error(err);
     return res.status(500).json({ error: 'Internal server error' });
