@@ -802,25 +802,16 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .hd-thread-actions .btn{margin-left:6px}
 .hd-act-sep{flex:none;width:1px;height:18px;background:var(--hd-border);margin:0 5px}
 .hd-thread-body{flex:1;min-height:0;overflow-y:auto;padding:22px 24px 64px;animation:hd-settle .22s var(--hd-ease) both}
-/* "Details" used to be a fixed side panel; it's now an on-demand popover off
-   the header button, next to Reply — same click-outside-to-close pattern as
-   the topbar user menu. */
-.hd-details-menu{position:relative;flex:none}
-.hd-details-pop{position:absolute;top:calc(100% + 8px);right:0;width:270px;max-height:min(70vh,480px);overflow-y:auto;background:#fff;border:1px solid var(--hd-border);border-radius:var(--radius-lg);box-shadow:var(--hd-shadow-md);padding:18px 16px;z-index:30;opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;transition:opacity .16s var(--hd-ease),transform .16s var(--hd-ease)}
-.hd-details-menu.open .hd-details-pop{opacity:1;transform:none;pointer-events:auto}
 /* Buttons inside the inbox reading/reply surfaces get a calmer, soft-elevation
    treatment instead of the site-wide neubrutalist offset-shadow button — a
    deliberate exception scoped to these containers only. */
-.hd-thread-head .btn,.hd-details-pop .btn,.compose-foot .btn{border-width:1.5px;border-color:transparent;box-shadow:none;transition:transform .16s var(--hd-ease),box-shadow .16s var(--hd-ease),background .16s var(--hd-ease),border-color .16s var(--hd-ease)}
-.hd-thread-head .btn:active,.hd-details-pop .btn:active,.compose-foot .btn:active{transform:scale(.97)}
-.hd-thread-head .btn-primary,.hd-details-pop .btn-primary,.compose-foot .btn-primary{background:var(--green-700);box-shadow:var(--hd-shadow-xs)}
-.hd-thread-head .btn-primary:hover,.hd-details-pop .btn-primary:hover,.compose-foot .btn-primary:hover{background:var(--green-900);box-shadow:var(--hd-shadow-sm);transform:translateY(-1px)}
-.hd-thread-head .btn-primary:active,.hd-details-pop .btn-primary:active,.compose-foot .btn-primary:active{transform:translateY(0) scale(.97);box-shadow:var(--hd-shadow-xs)}
-.hd-thread-head .btn-ghost,.hd-details-pop .btn-ghost{border-color:var(--hd-border);color:var(--text-2)}
-.hd-thread-head .btn-ghost:hover,.hd-details-pop .btn-ghost:hover{background:var(--green-50);border-color:var(--green-200);color:var(--green-700)}
-.hd-d-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--cream-3)}
-.hd-d-row .k{font:500 12px Inter,sans-serif;color:var(--text-3);flex:none}
-.hd-d-row .v{font:500 12.5px Inter,sans-serif;color:var(--text);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hd-thread-head .btn,.compose-foot .btn{border-width:1.5px;border-color:transparent;box-shadow:none;transition:transform .16s var(--hd-ease),box-shadow .16s var(--hd-ease),background .16s var(--hd-ease),border-color .16s var(--hd-ease)}
+.hd-thread-head .btn:active,.compose-foot .btn:active{transform:scale(.97)}
+.hd-thread-head .btn-primary,.compose-foot .btn-primary{background:var(--green-700);box-shadow:var(--hd-shadow-xs)}
+.hd-thread-head .btn-primary:hover,.compose-foot .btn-primary:hover{background:var(--green-900);box-shadow:var(--hd-shadow-sm);transform:translateY(-1px)}
+.hd-thread-head .btn-primary:active,.compose-foot .btn-primary:active{transform:translateY(0) scale(.97);box-shadow:var(--hd-shadow-xs)}
+.hd-thread-head .btn-ghost{border-color:var(--hd-border);color:var(--text-2)}
+.hd-thread-head .btn-ghost:hover{background:var(--green-50);border-color:var(--green-200);color:var(--green-700)}
 @media(max-width:980px){
   .hd-shell{height:auto}
   .hd-rail{flex-wrap:wrap}
@@ -2242,18 +2233,16 @@ function closeNotifMenu() {
   if (menu) menu.classList.remove('open');
 }
 
-// Close the user menu / notif popover / thread-details popover on any outside click or Escape.
+// Close the user menu / notif popover / folder menu on any outside click or Escape.
 document.addEventListener('click', e => {
   const menu = $('topbar-usermenu');
   if (menu && menu.classList.contains('open') && !menu.contains(e.target)) closeUserMenu();
   const nmenu = $('notif-menu');
   if (nmenu && nmenu.classList.contains('open') && !nmenu.contains(e.target)) closeNotifMenu();
-  const dmenu = $('hd-details-menu');
-  if (dmenu && dmenu.classList.contains('open') && !dmenu.contains(e.target)) closeThreadDetails();
   const rmenu = $('hd-rail-more-menu');
   if (rmenu && rmenu.classList.contains('open') && !rmenu.contains(e.target)) closeRailMore();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeThreadDetails(); closeRailMore(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeRailMore(); } });
 
 async function logout() {
   closeUserMenu();
@@ -3007,9 +2996,7 @@ async function renderInbox() {
 // Rebuilds the whole rail+list+thread shell from current state. Cheap
 // enough to call on every channel/view switch; selecting a conversation only
 // re-renders the thread pane (see selectInboxItem) so list scroll position
-// survives. Sender/account details live behind the "Details" button in the
-// thread header (see hdThreadHtml/toggleThreadDetails) instead of a fixed
-// side panel.
+// survives.
 function renderInboxShell() {
   const shell = $('hd-shell');
   if (!shell) return;
@@ -4070,13 +4057,11 @@ function hdThreadHtml() {
         ${act('Move to Trash', 'deleteSelectedEmail()',
           `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
           'danger')}
-        <div class="hd-details-menu" id="hd-details-menu">
-          <button class="btn btn-ghost btn-sm" onclick="toggleThreadDetails(event)">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            Details
-          </button>
-          <div class="hd-details-pop" id="hd-details-pop">${hdDetailsPopHtml(e)}</div>
-        </div>
+        ${S.admin?.role === 'employee' ? '' : `
+        <button class="btn btn-ghost btn-sm" id="save-client-btn" onclick="saveEmailAsClient()"
+                title="Classify this email and add the sender to your Clients list">
+          ${savedClientBtnLabel(false)}
+        </button>`}
         <button class="btn btn-ghost btn-sm" onclick="openReplyModal()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
           Reply
@@ -4135,37 +4120,6 @@ function renderThreadPane() {
       } catch(_) { setTimeout(resize, 300); setTimeout(resize, 800); }
     }
   }
-}
-
-// ---- Details popover (off the thread header's "Details" button) ----
-
-function toggleThreadDetails(ev) {
-  if (ev) ev.stopPropagation();
-  $('hd-details-menu')?.classList.toggle('open');
-}
-
-function closeThreadDetails() {
-  $('hd-details-menu')?.classList.remove('open');
-}
-
-function hdDetailsPopHtml(e) {
-  if (!e) return '';
-  const name = extractName(e.from) || '?';
-  return `
-    <div style="text-align:center;margin-bottom:16px">
-      <div style="display:inline-block">${avatarHtml(name, e.from, 56)}</div>
-      <div style="font:600 14.5px Fraunces,serif;color:var(--text);margin-top:9px">${esc(name)}</div>
-      <div class="text-xs text-muted truncate" style="margin-top:2px">${esc(e.from||'')}</div>
-    </div>
-    <div class="label" style="letter-spacing:.08em;text-transform:uppercase;font-size:10px;color:var(--text-3)">Conversation</div>
-    <div class="hd-d-row"><span class="k">Channel</span><span class="v">Email</span></div>
-    ${e.account ? `<div class="hd-d-row"><span class="k">Mailbox</span><span class="v">${esc(e.account)}</span></div>` : ''}
-    <div class="hd-d-row"><span class="k">Received</span><span class="v">${esc(shortDate(e.date))}</span></div>
-    ${e.attachments?.length ? `<div class="hd-d-row"><span class="k">Attachments</span><span class="v">${e.attachments.length}</span></div>` : ''}
-    ${S.admin?.role === 'employee' ? '' : `
-    <button class="btn btn-ghost w-full" id="save-client-btn" style="justify-content:center;margin-top:16px" title="Classify this email and add the sender to your Clients list" onclick="saveEmailAsClient()">
-      ${savedClientBtnLabel(false)}
-    </button>`}`;
 }
 
 function extractName(from) {
@@ -4619,16 +4573,14 @@ function renderClientFilterBars() {
     </button>`;
   }).join('');
 
-  // Event type sits in the rail as a select, with counts folded into the
-  // option labels. 'none' is a real option rather than a gap, so rows staff
-  // never tagged stay reachable instead of only showing under "All".
+  // Event type sits in the rail as a select. Labels are the plain event names —
+  // no counts. 'none' is a real option rather than a gap, so rows staff never
+  // tagged stay reachable instead of only showing under "All".
   const ev = $('client-eventtype-select');
   if (ev) {
     ev.innerHTML = [['all','All event types'], ...EVENT_TYPE_OPTIONS, ['none','Not set']]
-      .map(([k,label]) => {
-        const n = counts && k!=='all' ? (counts.byEventType?.[k] || 0) : null;
-        return `<option value="${k}" ${S.clientEventTypeFilter===k?'selected':''}>${esc(label)}${n?` (${n})`:''}</option>`;
-      }).join('');
+      .map(([k,label]) => `<option value="${k}" ${S.clientEventTypeFilter===k?'selected':''}>${esc(label)}</option>`)
+      .join('');
     ev.classList.toggle('on', S.clientEventTypeFilter !== 'all');
   }
   const st = $('client-status-select');
