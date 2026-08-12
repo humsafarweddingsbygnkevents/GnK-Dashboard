@@ -4,6 +4,13 @@
 // merged /api/mail routes so there is one implementation of message parsing
 // and MIME building.
 const { google } = require('googleapis');
+// Same MIME builder nodemailer uses for SMTP, so a message sent through Gmail
+// and the same message sent through an IMAP account are built identically —
+// multipart/alternative for text+html, multipart/related for inline cid
+// images, base64 for non-ASCII bodies. The previous hand-rolled builder could
+// only emit text/plain, which is what turned a forwarded photo mail into a
+// wall of links.
+const MailComposer = require('nodemailer/lib/mail-composer');
 
 function makeAuthClient(account) {
   const auth = new google.auth.OAuth2(
@@ -89,64 +96,41 @@ function extractHtml(payload) {
   return null;
 }
 
-function encodeHeader(str) {
-  // eslint-disable-next-line no-control-regex
-  if (/^[\x00-\x7F]*$/.test(str)) return str;
-  return `=?utf-8?B?${Buffer.from(str, 'utf8').toString('base64')}?=`;
-}
-
-function buildRawMessage({ to, subject, body, attachments }) {
-  const list = Array.isArray(attachments) ? attachments : [];
-  const headerSubject = encodeHeader(subject);
-
-  if (list.length === 0) {
-    return Buffer.from(
-      `To: ${to}\r\n` +
-      `Subject: ${headerSubject}\r\n` +
-      `MIME-Version: 1.0\r\n` +
-      `Content-Type: text/plain; charset=utf-8\r\n\r\n` +
-      body
-    ).toString('base64url');
-  }
-
-  const boundary = 'humsafargnk_' + Math.random().toString(36).slice(2);
-  let msg =
-    `To: ${to}\r\n` +
-    `Subject: ${headerSubject}\r\n` +
-    `MIME-Version: 1.0\r\n` +
-    `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
-    `--${boundary}\r\n` +
-    `Content-Type: text/plain; charset=utf-8\r\n` +
-    `Content-Transfer-Encoding: 7bit\r\n\r\n` +
-    `${body}\r\n`;
-
-  for (const att of list) {
-    const filename = encodeHeader(att.filename || 'attachment');
-    const mimeType = att.mimeType || 'application/octet-stream';
-    const wrapped = (att.data || '').replace(/[\r\n]/g, '').replace(/(.{76})/g, '$1\r\n');
-    msg +=
-      `--${boundary}\r\n` +
-      `Content-Type: ${mimeType}; name="${filename}"\r\n` +
-      `Content-Transfer-Encoding: base64\r\n` +
-      `Content-Disposition: attachment; filename="${filename}"\r\n\r\n` +
-      `${wrapped}\r\n`;
-  }
-  msg += `--${boundary}--`;
-  return Buffer.from(msg, 'utf8').toString('base64url');
+// Builds an RFC 822 message and returns it base64url-encoded, the form the
+// Gmail send API wants. `attachments` are already in nodemailer's shape
+// ({ filename, content: Buffer, contentType, cid, contentDisposition }) —
+// see normalizeAttachments in lib/forward.js.
+async function buildRawMessage({ to, subject, body, html, attachments, inReplyTo, references }) {
+  const mail = new MailComposer({
+    to,
+    subject: subject || '',
+    text: body || '',
+    ...(html ? { html } : {}),
+    // Set on a reply so it threads under the message it answers.
+    ...(inReplyTo ? { inReplyTo } : {}),
+    ...(references ? { references } : {}),
+    attachments: Array.isArray(attachments) ? attachments : [],
+    textEncoding: 'base64',
+  });
+  const buf = await mail.compile().build();
+  return buf.toString('base64url');
 }
 
 // Fetch recent messages, returning the same email shape the dashboard expects.
-async function fetchRecent(account, { maxResults = 15, pageToken } = {}) {
+// `labelIds` scopes the list to a view (INBOX, STARRED, SENT, SPAM, TRASH) —
+// Gmail messages carry every label they have regardless of which view found
+// them, so `unread`/`starred` are read straight off the label set.
+async function fetchRecent(account, { maxResults = 15, pageToken, labelIds } = {}) {
   const auth = makeAuthClient(account);
   const gmail = google.gmail({ version: 'v1', auth });
 
-  const listRes = await gmail.users.messages.list({ userId: 'me', maxResults, pageToken });
+  const listRes = await gmail.users.messages.list({ userId: 'me', maxResults, pageToken, labelIds });
   const messages = listRes.data.messages ?? [];
   const emails = await Promise.all(
     messages.map(async ({ id }) => {
       const msg = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
       const headers = msg.data.payload.headers;
-      const labelIds = msg.data.labelIds || [];
+      const msgLabelIds = msg.data.labelIds || [];
       return {
         id,
         subject: headerValue(headers, 'Subject'),
@@ -155,7 +139,8 @@ async function fetchRecent(account, { maxResults = 15, pageToken } = {}) {
         date: headerValue(headers, 'Date'),
         body: extractBody(msg.data.payload),
         bodyHtml: extractHtml(msg.data.payload),
-        unread: labelIds.includes('UNREAD'),
+        unread: msgLabelIds.includes('UNREAD'),
+        starred: msgLabelIds.includes('STARRED'),
         attachments: extractAttachments(msg.data.payload),
       };
     }),
@@ -171,27 +156,56 @@ async function getAttachment(account, messageId, attachmentId) {
   return Buffer.from(res.data.data, 'base64url');
 }
 
-// Drops the UNREAD label from one message, so an email opened in the dashboard
-// is read in Gmail too. Needs the gmail.modify scope: accounts connected before
-// that scope was requested throw a 403 here until they're reconnected in
-// Settings, which /api/mail/read reports as a soft failure.
-async function markRead(account, messageId) {
+// Adds/drops the UNREAD label, so opening (or re-marking unread) an email in
+// the dashboard matches Gmail too. Needs the gmail.modify scope: accounts
+// connected before that scope was requested throw a 403 here until they're
+// reconnected in Settings, which /api/mail/read reports as a soft failure.
+async function setRead(account, messageId, read) {
   const auth = makeAuthClient(account);
   const gmail = google.gmail({ version: 'v1', auth });
   await gmail.users.messages.modify({
-    userId: 'me', id: messageId, requestBody: { removeLabelIds: ['UNREAD'] },
+    userId: 'me', id: messageId,
+    requestBody: read ? { removeLabelIds: ['UNREAD'] } : { addLabelIds: ['UNREAD'] },
   });
 }
 
-async function sendMessage(account, { to, subject, body, attachments }) {
+// Adds/removes the STARRED label.
+async function setStarred(account, messageId, starred) {
   const auth = makeAuthClient(account);
   const gmail = google.gmail({ version: 'v1', auth });
-  const raw = buildRawMessage({ to, subject, body, attachments });
+  await gmail.users.messages.modify({
+    userId: 'me', id: messageId,
+    requestBody: starred ? { addLabelIds: ['STARRED'] } : { removeLabelIds: ['STARRED'] },
+  });
+}
+
+// Moves a message to Gmail's Trash — same as clicking the trash icon in Gmail
+// itself (recoverable from Trash for 30 days, not a permanent delete).
+async function trashMessage(account, messageId) {
+  const auth = makeAuthClient(account);
+  const gmail = google.gmail({ version: 'v1', auth });
+  await gmail.users.messages.trash({ userId: 'me', id: messageId });
+}
+
+// The whole original message as raw RFC 822 bytes. Forwarding parses this
+// with mailparser so it can carry the original's HTML body and every part —
+// including the inline cid: images the message list deliberately hides.
+async function getRawMessage(account, messageId) {
+  const auth = makeAuthClient(account);
+  const gmail = google.gmail({ version: 'v1', auth });
+  const res = await gmail.users.messages.get({ userId: 'me', id: messageId, format: 'raw' });
+  return Buffer.from(res.data.raw, 'base64url');
+}
+
+async function sendMessage(account, { to, subject, body, html, attachments, inReplyTo, references }) {
+  const auth = makeAuthClient(account);
+  const gmail = google.gmail({ version: 'v1', auth });
+  const raw = await buildRawMessage({ to, subject, body, html, attachments, inReplyTo, references });
   const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
   return result.data.id;
 }
 
 module.exports = {
   makeAuthClient, headerValue, extractBody, extractHtml, extractAttachments, buildRawMessage,
-  fetchRecent, sendMessage, getAttachment, markRead,
+  fetchRecent, sendMessage, getAttachment, getRawMessage, setRead, setStarred, trashMessage,
 };

@@ -4,10 +4,12 @@
 // IMAP/SMTP mailboxes (via MailAccount, e.g. GoDaddy Workspace). Serves a merged
 // recent list, account management, and provider-aware sending.
 const { Router } = require('express');
+const { simpleParser } = require('mailparser');
 
 const prisma = require('../lib/prisma');
 const gmailClient = require('../lib/gmailClient');
 const mailbox = require('../lib/mailbox');
+const { buildForward, buildReply, normalizeAttachments } = require('../lib/forward');
 const { encrypt, decrypt, DecryptError, keySource } = require('../lib/crypto');
 const requireAdmin = require('../middleware/requireAdmin');
 
@@ -27,6 +29,27 @@ function isAdmin(req) {
 
 function imapAccountLabel(m) {
   return m.label || mailbox.PROVIDERS[m.provider]?.label || 'Email';
+}
+
+// Unified inbox "views" beyond the default merged INBOX. 'unread' isn't here —
+// it's a client-side filter over the inbox view, not a separate mailbox.
+const MAIL_VIEWS = new Set(['inbox', 'starred', 'sent', 'spam', 'trash']);
+const GMAIL_VIEW_LABELS = { inbox: ['INBOX'], starred: ['STARRED'], sent: ['SENT'], spam: ['SPAM'], trash: ['TRASH'] };
+
+// Parses a unified message id into its parts. Gmail ids are stable regardless
+// of label/view: "gmail:<acctId>:<messageId>". IMAP ids carry the view they
+// were fetched under, since Sent/Spam/Trash are separate mailboxes and a UID
+// is only unique within one: "imap:<acctId>:<view>:<uid>" (older cached ids
+// without a view, from before views existed, are treated as 'inbox').
+function parseMailId(id) {
+  const m = /^(gmail|imap):([^:]+):(.+)$/.exec(String(id || ''));
+  if (!m) return null;
+  const [, type, acctIdStr, rest] = m;
+  const acctId = Number(acctIdStr);
+  if (!acctId) return null;
+  if (type === 'gmail') return { type, acctId, view: null, msgPart: rest };
+  const vm = /^(inbox|starred|sent|spam|trash):(.+)$/.exec(rest);
+  return vm ? { type, acctId, view: vm[1], msgPart: vm[2] } : { type, acctId, view: 'inbox', msgPart: rest };
 }
 
 // Decrypt a stored mailbox password, turning the one failure mode users
@@ -162,13 +185,15 @@ router.delete('/accounts/:id', requireAdmin, async (req, res) => {
 });
 
 // GET /api/mail/recent — merged recent emails from all accounts, newest first.
-// Each account is fetched independently; one failing (e.g. bad IMAP password)
-// doesn't blank out the others — it's reported in `errors`. Employees only
-// get mail from EMPLOYEE_VISIBLE_EMAILS (Gmail + hr@ excluded).
+// `view` picks which mailbox to read (inbox/starred/sent/spam/trash, default
+// inbox). Each account is fetched independently; one failing (e.g. bad IMAP
+// password) doesn't blank out the others — it's reported in `errors`.
+// Employees only get mail from EMPLOYEE_VISIBLE_EMAILS (Gmail + hr@ excluded).
 router.get('/recent', async (req, res) => {
   try {
   const admin = isAdmin(req);
   const perAccount = Math.min(Number(req.query.perAccount) || 20, 40);
+  const view = MAIL_VIEWS.has(req.query.view) ? req.query.view : 'inbox';
   const [gacctsAll, macctsAll] = await Promise.all([
     admin ? prisma.googleAccount.findMany() : Promise.resolve([]),
     prisma.mailAccount.findMany({ orderBy: { createdAt: 'asc' } }),
@@ -181,7 +206,7 @@ router.get('/recent', async (req, res) => {
 
   const tasks = [
     ...gaccts.map((g) => async () => {
-      const { emails } = await gmailClient.fetchRecent(g, { maxResults: perAccount });
+      const { emails } = await gmailClient.fetchRecent(g, { maxResults: perAccount, labelIds: GMAIL_VIEW_LABELS[view] });
       return emails.map((e) => ({
         ...e, id: 'gmail:' + g.id + ':' + e.id,
         account: g.email, accountType: 'gmail', accountId: 'gmail:' + g.id,
@@ -189,13 +214,14 @@ router.get('/recent', async (req, res) => {
     }),
     ...maccts.map((m) => async () => {
       const password = unlock(m);
-      const emails = await mailbox.fetchRecent(
-        { imapHost: m.imapHost, imapPort: m.imapPort, email: m.email, password }, perAccount,
-      );
+      const creds = { imapHost: m.imapHost, imapPort: m.imapPort, email: m.email, password };
+      const emails = view === 'inbox' ? await mailbox.fetchRecent(creds, perAccount)
+        : view === 'starred' ? await mailbox.fetchStarred(creds, perAccount)
+        : await mailbox.fetchFolder(creds, view, perAccount);
       return emails.map((e) => ({
-        id: 'imap:' + m.id + ':' + e.uid,
+        id: `imap:${m.id}:${view}:${e.uid}`,
         subject: e.subject, from: e.from, to: e.to, date: e.date,
-        body: e.body, bodyHtml: e.bodyHtml, unread: e.unread,
+        body: e.body, bodyHtml: e.bodyHtml, unread: e.unread, starred: e.starred,
         attachments: e.attachments || [],
         account: m.email, accountType: 'imap', accountId: 'imap:' + m.id,
       }));
@@ -217,12 +243,54 @@ router.get('/recent', async (req, res) => {
   }
 });
 
+// By default mailparser rewrites every `cid:` image reference in the HTML into
+// an inline data: URI — right for showing a message in the dashboard, wrong for
+// forwarding one: Gmail and Outlook strip data: images out of received mail, so
+// the photo would break all over again. Keeping the cid links means the images
+// go back out as real inline MIME parts, which every client renders.
+const PARSE_FOR_FORWARD = { keepCidLinks: true };
+
+// Access check + raw fetch + parse for one message the caller already has
+// permission to read. Returns mailparser's full parse, inline parts included —
+// unlike the list view, which hides cid: images so they don't show up as
+// attachment chips on an email that visibly has none.
+async function loadOriginalMessage(req, id) {
+  const parsed = parseMailId(id);
+  if (!parsed) return null;
+  const { type, acctId, view, msgPart } = parsed;
+  const admin = isAdmin(req);
+
+  if (type === 'gmail') {
+    if (!admin) throw Object.assign(new Error('Not allowed'), { status: 403 });
+    const gacct = await prisma.googleAccount.findUnique({ where: { id: acctId } });
+    if (!gacct) return null;
+    return simpleParser(await gmailClient.getRawMessage(gacct, msgPart), PARSE_FOR_FORWARD);
+  }
+
+  const acct = await prisma.mailAccount.findUnique({ where: { id: acctId } });
+  if (!acct) return null;
+  if (!admin && !EMPLOYEE_VISIBLE_EMAILS.has(acct.email)) {
+    throw Object.assign(new Error('Not allowed'), { status: 403 });
+  }
+  const password = unlock(acct);
+  const raw = await mailbox.fetchRawMessage(
+    { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password }, msgPart, view,
+  );
+  return simpleParser(raw, PARSE_FOR_FORWARD);
+}
+
 // POST /api/mail/send — send from a chosen account. accountId like "gmail:1" or
 // "imap:2"; if omitted/unknown, falls back to the first Gmail account (admins
 // only — employees must name an EMPLOYEE_VISIBLE_EMAILS mailbox explicitly).
+// `forwardOf` is a message id: the original is re-read here and sent as the
+// body, so its HTML, embedded photos and attachments all survive the forward.
 router.post('/send', async (req, res) => {
-  const { accountId, to, subject, body, attachments } = req.body || {};
-  if (!to || !subject || !body) return res.status(400).json({ error: 'to, subject, and body are required' });
+  const { accountId, to, subject, body, attachments, forwardOf, replyOf } = req.body || {};
+  // A forward carries the original message as its content, so the typed note
+  // is allowed to be empty — everything else still needs a body.
+  if (!to || !subject || (!body && !forwardOf)) {
+    return res.status(400).json({ error: 'to, subject, and body are required' });
+  }
 
   const admin = isAdmin(req);
   const parsed = /^(gmail|imap):(\d+)$/.exec(accountId || '');
@@ -234,6 +302,24 @@ router.post('/send', async (req, res) => {
   }
 
   try {
+    let text = body || '';
+    let html = null;
+    let parts = normalizeAttachments(attachments);
+    let threading = {};
+
+    // Both re-read the original server-side and quote its real HTML. Quoting the
+    // plain-text rendering client-side is what turned images and links into bare
+    // URLs; see buildQuotedMessage.
+    if (forwardOf || replyOf) {
+      const original = await loadOriginalMessage(req, forwardOf || replyOf);
+      if (!original) return res.status(404).json({ error: 'Original message not found' });
+      const built = forwardOf ? buildForward(original, body || '') : buildReply(original, body || '');
+      text = built.text;
+      html = built.html;
+      parts = parts.concat(built.attachments);
+      if (built.inReplyTo) threading = { inReplyTo: built.inReplyTo, references: built.references };
+    }
+
     if (type === 'imap') {
       const acct = await prisma.mailAccount.findUnique({ where: { id: numId } });
       if (!acct) return res.status(404).json({ error: 'Sending mailbox not found' });
@@ -243,7 +329,7 @@ router.post('/send', async (req, res) => {
       const password = unlock(acct);
       const messageId = await mailbox.sendSmtp(
         { smtpHost: acct.smtpHost, smtpPort: acct.smtpPort, email: acct.email, password },
-        { to, subject, body, attachments },
+        { to, subject, body: text, html, attachments: parts, ...threading },
       );
       return res.json({ message: 'Email sent', messageId, from: acct.email });
     }
@@ -252,30 +338,28 @@ router.post('/send', async (req, res) => {
     let gacct = type === 'gmail' ? await prisma.googleAccount.findUnique({ where: { id: numId } }) : null;
     if (!gacct) gacct = await prisma.googleAccount.findFirst();
     if (!gacct) return res.status(400).json({ error: 'No sending account available' });
-    const messageId = await gmailClient.sendMessage(gacct, { to, subject, body, attachments });
+    const messageId = await gmailClient.sendMessage(gacct, { to, subject, body: text, html, attachments: parts, ...threading });
     return res.json({ message: 'Email sent', messageId, from: gacct.email });
   } catch (err) {
     console.error('Mail send error:', err);
-    return res.status(500).json({ error: err.message });
+    return res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// POST /api/mail/read — mark one message read at the provider (Gmail's UNREAD
-// label / IMAP's \Seen flag), so an opened email stays read across the inbox's
-// 60s refetch and in the mailbox itself. `id` is the unified message id from
-// /recent: "gmail:<acctId>:<msgId>" or "imap:<acctId>:<uid>".
-//
-// A provider that refuses the flag answers 200 { ok: false }, not an error: the
-// dashboard has already greyed the row and remembers the message as read
-// locally. The one refusal a user *can* act on is a Gmail token that predates
-// the gmail.modify scope — that one comes back as needsReconnect so the
-// dashboard can say "reconnect Gmail in Settings" instead of leaving the
-// dashboard showing read while Gmail still shows unread.
-router.post('/read', async (req, res) => {
-  const m = /^(gmail|imap):(\d+):(.+)$/.exec(String(req.body?.id || ''));
-  if (!m) return res.status(400).json({ error: 'A message id is required' });
-  const [, type, acctIdStr, msgPart] = m;
-  const acctId = Number(acctIdStr);
+// A Gmail token missing gmail.modify answers 403 ACCESS_TOKEN_SCOPE_INSUFFICIENT.
+// Nothing server-side can fix that — the account holder has to re-grant the
+// scope — so it's the one failure the dashboard surfaces as actionable.
+function isInsufficientScope(type, err) {
+  return type === 'gmail' && (err.status === 403 || err.code === 403) && /scope|insufficient/i.test(err.message || '');
+}
+
+// Runs a provider-flag-setting action and normalizes provider refusals into
+// { ok:false }, not an HTTP error — the dashboard has already updated the row
+// optimistically and only needs to know whether to warn about reconnecting.
+async function runFlagAction(req, res, { gmail: gmailFn, imap: imapFn }) {
+  const parsed = parseMailId(req.body?.id);
+  if (!parsed) return res.status(400).json({ error: 'A message id is required' });
+  const { type, acctId, view, msgPart } = parsed;
   const admin = isAdmin(req);
   if (!admin && type === 'gmail') return res.status(403).json({ error: 'Not allowed' });
 
@@ -283,7 +367,7 @@ router.post('/read', async (req, res) => {
     if (type === 'gmail') {
       const gacct = await prisma.googleAccount.findUnique({ where: { id: acctId } });
       if (!gacct) return res.status(404).json({ error: 'Account not found' });
-      await gmailClient.markRead(gacct, msgPart);
+      await gmailFn(gacct, msgPart);
       return res.json({ ok: true });
     }
 
@@ -293,27 +377,52 @@ router.post('/read', async (req, res) => {
       return res.status(403).json({ error: 'Not allowed' });
     }
     const password = unlock(acct);
-    await mailbox.markSeen(
-      { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password }, msgPart,
-    );
+    const creds = { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password };
+    await imapFn(creds, msgPart, view);
     return res.json({ ok: true });
   } catch (err) {
-    // Google answers a token missing gmail.modify with 403 ACCESS_TOKEN_SCOPE_
-    // INSUFFICIENT. Nothing server-side can fix that — the account holder has to
-    // re-grant the scope — so it's the one failure the dashboard surfaces.
-    const insufficientScope = type === 'gmail'
-      && (err.status === 403 || err.code === 403)
-      && /scope|insufficient/i.test(err.message || '');
-    if (insufficientScope) {
+    if (isInsufficientScope(type, err)) {
       console.error(
-        '[mail] Gmail refused to mark a message read — this account was connected before the '
+        '[mail] Gmail refused to update a message — this account was connected before the '
         + 'gmail.modify scope was requested. Reconnect Gmail in Settings to re-grant it.',
       );
       return res.json({ ok: false, needsReconnect: true });
     }
-    console.error('Mail mark-read error:', err.message);
+    console.error('Mail flag-action error:', err.message);
     return res.json({ ok: false, error: err.message });
   }
+}
+
+// POST /api/mail/read — set the read/unread state at the provider (Gmail's
+// UNREAD label / IMAP's \Seen flag), so an opened (or re-marked-unread) email
+// stays in sync across the inbox's 60s refetch and in the mailbox itself.
+// `id` is the unified message id from /recent. `read` defaults to true so
+// existing "mark as read on open" callers don't need to change.
+router.post('/read', (req, res) => {
+  const read = req.body?.read !== false;
+  return runFlagAction(req, res, {
+    gmail: (gacct, msgPart) => gmailClient.setRead(gacct, msgPart, read),
+    imap: (creds, msgPart, view) => (read ? mailbox.markSeen(creds, msgPart, view) : mailbox.markUnseen(creds, msgPart, view)),
+  });
+});
+
+// POST /api/mail/star — set/clear the starred state (Gmail's STARRED label /
+// IMAP's \Flagged flag). Body: { id, starred }.
+router.post('/star', (req, res) => {
+  const starred = !!req.body?.starred;
+  return runFlagAction(req, res, {
+    gmail: (gacct, msgPart) => gmailClient.setStarred(gacct, msgPart, starred),
+    imap: (creds, msgPart, view) => mailbox.setStarred(creds, msgPart, starred, view),
+  });
+});
+
+// POST /api/mail/trash — move one message to Trash (Gmail's trash endpoint /
+// IMAP move-to-Trash-folder). Recoverable, not a permanent delete. Body: { id }.
+router.post('/trash', (req, res) => {
+  return runFlagAction(req, res, {
+    gmail: (gacct, msgPart) => gmailClient.trashMessage(gacct, msgPart),
+    imap: (creds, msgPart, view) => mailbox.moveToTrash(creds, msgPart, view),
+  });
 });
 
 // GET /api/mail/favicon — proxies a sender domain's favicon from DuckDuckGo's
@@ -366,10 +475,9 @@ router.get('/favicon', async (req, res) => {
 // or "imap:<acctId>:<uid>". Gmail also needs attId (the Gmail attachmentId).
 router.get('/attachment', async (req, res) => {
   const { emailId, filename, attId, mime, download } = req.query;
-  const m = /^(gmail|imap):(\d+):(.+)$/.exec(String(emailId || ''));
-  if (!m || !filename) return res.status(400).json({ error: 'emailId and filename are required' });
-  const [, type, acctIdStr, msgPart] = m;
-  const acctId = Number(acctIdStr);
+  const parsed = parseMailId(emailId);
+  if (!parsed || !filename) return res.status(400).json({ error: 'emailId and filename are required' });
+  const { type, acctId, view, msgPart } = parsed;
   const admin = isAdmin(req);
   if (!admin && type === 'gmail') return res.status(403).json({ error: 'Not allowed' });
   if (!admin && type === 'imap') {
@@ -403,7 +511,7 @@ router.get('/attachment', async (req, res) => {
     if (!acct) return res.status(404).json({ error: 'Account not found' });
     const password = unlock(acct);
     const att = await mailbox.fetchAttachment(
-      { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password }, msgPart, filename,
+      { imapHost: acct.imapHost, imapPort: acct.imapPort, email: acct.email, password }, msgPart, filename, view,
     );
     return sendFile(att.content, att.filename, att.contentType);
   } catch (err) {

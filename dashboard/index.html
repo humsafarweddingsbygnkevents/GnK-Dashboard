@@ -41,6 +41,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   --border:#171e19;--border-2:#000000;
   --green-900:#1A3621;--green-700:#2E5D3B;--green-500:#4A8055;--green-200:#C6DCC9;--green-50:#E4EFE5;
   --gold-600:#B8902E;--gold-400:#D9B45B;--gold-100:#F4E8C8;
+  /* Starred mail. The palette gold (#B8902E) is dark enough to read as black at
+     12px, which made a starred email look unstarred — this stays visibly yellow. */
+  --star:#F0B429;
   --text:#1A1F16;--text-2:#3A4035;--text-3:#5E6557;--text-4:#838b7b;
   --red:#C0392B;--red-bg:#FDECEA;
   --shadow-sm:2px 2px 0px 0px #000;
@@ -433,25 +436,65 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @keyframes composeup{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
 @keyframes composedown{from{transform:none;opacity:1}to{transform:translateY(24px);opacity:0}}
 .compose-win.minimized{height:46px!important}
-.compose-win.maximized{width:840px;height:calc(100vh - 60px);right:50%;transform:translateX(50%)}
+/* Centred with auto margins, not translateX: composeup's `both` fill mode leaves
+   `transform:none` on the element, and an animation beats a normal declaration —
+   so a transform-based centring silently dropped the window off the left edge. */
+.compose-win.maximized{width:840px;height:calc(100vh - 60px);left:0;right:0;margin-left:auto;margin-right:auto}
 .compose-head{height:46px;flex:none;background:var(--green-900);color:var(--cream);display:flex;align-items:center;padding:0 8px 0 16px;cursor:pointer;user-select:none}
 .compose-head .ctitle{font:600 13.5px Inter,sans-serif;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .compose-head-btn{width:30px;height:30px;border:none;background:transparent;color:var(--cream);border-radius:6px;display:flex;align-items:center;justify-content:center;opacity:.85;transition:transform 120ms var(--ease-out),background 120ms,opacity 120ms}
 .compose-head-btn:hover{background:rgba(255,255,255,.15);opacity:1}
 .compose-head-btn:active{transform:scale(.9)}
-.compose-body{flex:1;display:flex;flex-direction:column;min-height:0}
-.compose-field{display:flex;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--cream-3)}
+/* Scrolls as a whole: the forward preview is tall enough to overflow a 560px
+   window, and without this the footer (and Send with it) got pushed out of view. */
+.compose-body{flex:1;display:flex;flex-direction:column;min-height:0;overflow-y:auto}
+.compose-field{display:flex;align-items:center;gap:8px;padding:9px 16px;border-bottom:1px solid var(--cream-3);
+  transition:border-color .14s var(--ease-out),box-shadow .14s var(--ease-out)}
 .compose-field label{font-size:12.5px;color:var(--text-3);min-width:30px}
 .compose-field input{flex:1;border:none;font-size:13.5px;color:var(--text);background:transparent}
+
+/* Compose's fields run the full width of the window, so the global focus ring
+   (2px outline, 2px offset) draws a hard bar right across it — and because the
+   window is overflow:hidden the ring's left and right edges are clipped, leaving
+   only those two horizontal lines with nothing joining them. The rule's comment
+   claims it's keyboard-only, but a text field matches :focus-visible on a plain
+   mouse click too, so clicking into the reply box was enough to trigger it.
+   These surfaces opt out and show focus their own way instead. */
+.compose-textarea:focus,.compose-textarea:focus-visible,
+.compose-field input:focus,.compose-field input:focus-visible,
+.compose-from:focus,.compose-from:focus-visible{outline:none}
+/* The single-line rows keep a visible cue: their divider darkens to green and a
+   short accent marks the active row. The textarea needs none — its caret sits in
+   an otherwise empty box, which is indication enough. */
+.compose-field:focus-within{border-bottom-color:var(--green-500);box-shadow:inset 3px 0 0 -1px var(--green-500)}
 .compose-from{flex:1;border:none;font-size:13.5px;color:var(--text);background:transparent;cursor:pointer;font-family:Inter,sans-serif;outline:none}
-.compose-textarea{flex:1;border:none;resize:none;padding:14px 16px;font-size:13.5px;line-height:1.6;color:var(--text);background:transparent;min-height:0}
+/* min-height keeps the note box usable when a forward preview sits under it —
+   as a flex:1 child with min-height:0 it was free to collapse to nothing. */
+.compose-textarea{flex:1;border:none;resize:none;padding:14px 16px;font-size:13.5px;line-height:1.6;color:var(--text);background:transparent;min-height:88px}
+/* Read-only summary of the message being forwarded (see renderForwardCard). */
+.compose-fwd{flex:none;margin:0 16px 2px;padding:10px 12px;border:1px solid var(--border);border-left:3px solid var(--green-200);border-radius:8px;background:var(--cream);font-size:12px;color:var(--text-2)}
+.compose-fwd-head{display:flex;align-items:center;gap:6px;font-weight:600;font-size:11.5px;letter-spacing:.02em;text-transform:uppercase;color:var(--green-700);margin-bottom:6px}
+.compose-fwd .fwd-row{display:flex;gap:6px;line-height:1.55;min-width:0}
+.compose-fwd .fwd-row span{flex:none;width:52px;color:var(--text-4)}
+.compose-fwd .fwd-row b{font-weight:500;color:var(--text-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.compose-fwd-note{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);color:var(--text-4);font-size:11.5px;
+  display:flex;align-items:center;gap:10px;justify-content:space-between}
+.compose-fwd-toggle{flex:none;border:none;background:transparent;padding:0;color:var(--green-700);font:600 11.5px Inter,sans-serif;cursor:pointer;text-decoration:underline}
+/* Bounded so a long newsletter can't dominate the window; taller once maximized,
+   which is where you go to actually read what you're forwarding. */
+.compose-fwd-preview{margin-top:8px;max-height:200px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:8px}
+.compose-win.maximized .compose-fwd-preview{max-height:380px}
+.compose-fwd-preview iframe{display:block;width:100%;border:0}
+.compose-fwd-plain{margin:0;padding:10px;white-space:pre-wrap;word-break:break-word;font:12.5px/1.6 Inter,system-ui,sans-serif;color:var(--text-2)}
 .compose-attach-list{padding:0 16px;display:flex;flex-wrap:wrap;gap:7px}
 .compose-attach-list:not(:empty){padding-top:10px;padding-bottom:4px}
 .attach-chip{display:inline-flex;align-items:center;gap:7px;background:var(--cream);border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:11.5px;color:var(--text-2);max-width:200px}
 .attach-chip .aname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .attach-chip button{border:none;background:transparent;color:var(--text-3);font-size:14px;line-height:1;padding:0 0 0 2px}
 .attach-chip button:hover{color:var(--red)}
-.compose-foot{flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--cream-3)}
+/* Sticky so Send stays reachable however far the body scrolls. */
+.compose-foot{flex:none;display:flex;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--cream-3);
+  position:sticky;bottom:0;background:#fff;z-index:2}
 .compose-icon-btn{width:36px;height:36px;border:none;background:transparent;color:var(--text-3);border-radius:8px;display:flex;align-items:center;justify-content:center;transition:transform 120ms var(--ease-out),background 120ms,color 120ms}
 .compose-icon-btn:hover{background:var(--cream);color:var(--green-700)}
 .compose-icon-btn:active{transform:scale(.9)}
@@ -516,7 +559,38 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .toggle input:checked~.toggle-thumb{transform:translateX(18px)}
 
 /* spinner */
-.spinner{width:20px;height:20px;border:2.5px solid var(--border);border-top-color:var(--green-700);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+/* Twin-orbit loader: a still centre dot with two more orbiting it, half a cycle
+   apart. Painted entirely from `currentColor`, so it takes the colour of
+   whatever it sits in — a filled button, a card, the page — instead of the fixed
+   near-black ring the old border spinner used, which was invisible on the dark
+   Send button.
+
+   Geometry is the source component's: the orbit radius is 155% of a dot, so the
+   whole figure spans 2×1.55 + 1 = 4.1 dots. Sizing the dot at 24.4% (1/4.1) of
+   the box keeps the drawn footprint equal to the element's own width/height,
+   which is what lets all 28 existing `style="width:14px;height:14px"` call sites
+   stand unchanged. Percentage margins resolve against the container's width, so
+   the centring holds because every one of those boxes is square. */
+.spinner{
+  --spinner-dot:24.4%;
+  --spinner-duration:1s;
+  position:relative;display:inline-block;width:20px;height:20px;border:0;
+  background:radial-gradient(circle closest-side,currentColor 100%,transparent 100%)
+    no-repeat center/var(--spinner-dot) var(--spinner-dot);
+}
+.spinner::before,.spinner::after{
+  content:"";position:absolute;top:50%;left:50%;
+  width:var(--spinner-dot);height:var(--spinner-dot);
+  margin:calc(var(--spinner-dot) / -2) 0 0 calc(var(--spinner-dot) / -2);
+  border-radius:50%;background:currentColor;
+  transform:rotate(0deg) translate(155%);
+  animation:twin-orbit var(--spinner-duration) ease infinite;
+}
+.spinner::after{animation-delay:calc(var(--spinner-duration) / 2)}
+@keyframes twin-orbit{100%{transform:rotate(360deg) translate(155%)}}
+@media (prefers-reduced-motion:reduce){
+  .spinner::before,.spinner::after{animation-duration:2.4s;animation-timing-function:linear}
+}
 
 /* stars */
 .stars{color:var(--gold-400);font-size:13px;letter-spacing:1px}
@@ -588,6 +662,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .gmail-toolbar-btn:hover{background:var(--cream-3);color:var(--green-700)}
 .gmail-toolbar-btn:active{transform:scale(.88)}
 .gmail-toolbar-btn.spinning svg{animation:spin .8s linear infinite}
+.gmail-toolbar-btn:disabled{opacity:.45;pointer-events:none}
+.gmail-toolbar-btn.danger:hover{background:#fdeceb;color:var(--red)}
+/* Hover labels for the icon-only actions. The native `title` tooltip takes ~1s
+   to appear and renders as an OS box, which made a row of bare icons read as
+   unfinished — these name the action immediately, in the app's own styling. */
+.tip{position:relative}
+.tip::after{content:attr(data-tip);position:absolute;top:calc(100% + 7px);left:50%;transform:translateX(-50%) translateY(-3px);background:var(--text);color:#fff;font:500 11px Inter,sans-serif;letter-spacing:.01em;white-space:nowrap;padding:4px 8px;border-radius:6px;box-shadow:var(--hd-shadow-sm);opacity:0;pointer-events:none;transition:opacity .14s var(--hd-ease),transform .14s var(--hd-ease);z-index:60}
+.tip:hover::after,.tip:focus-visible::after{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:640px){.tip::after{display:none}}
 .gmail-toolbar-count{font:500 11.5px Inter,sans-serif;color:var(--text-3);padding-left:2px}
 /* Gmail-style pill compose button — soft elevation, not the site-wide
    neubrutalist offset-shadow "sticker" button; this screen reads as a
@@ -674,6 +757,28 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .hd-rail-count{margin-left:2px;font-size:11px;font-weight:600;color:var(--text-3);flex:none}
 .hd-rail-count.on{color:#fff;background:var(--gold-600);border-radius:99px;padding:1px 7px}
 .hd-rail-soon{margin-left:2px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text-4);background:var(--cream-3);border-radius:99px;padding:2px 7px;flex:none}
+.hd-rail-more{position:relative;flex:none}
+/* Fixed, not absolute: the rail scrolls horizontally (overflow-x:auto), and a
+   scroll container clips on BOTH axes — an absolutely-positioned menu inside it
+   got cut off at the rail's bottom edge. Coordinates are set from the button's
+   rect in openRailMore(). */
+.hd-rail-more-pop{position:fixed;top:0;left:0;width:194px;background:#fff;border:1px solid var(--hd-border);border-radius:var(--radius-lg);box-shadow:var(--hd-shadow-md);padding:6px;z-index:80;opacity:0;transform:translateY(-6px) scale(.98);pointer-events:none;transition:opacity .16s var(--hd-ease),transform .16s var(--hd-ease)}
+.hd-rail-more.open .hd-rail-more-pop{opacity:1;transform:none;pointer-events:auto}
+.hd-rail-more-label{font-size:9.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--text-4);padding:5px 10px 6px}
+.hd-rail-more .chev{margin-left:1px;transition:transform .18s var(--hd-ease)}
+.hd-rail-more.open .chev{transform:rotate(180deg)}
+.hd-more-item .tick{margin-left:auto;color:var(--green-700);opacity:0}
+.hd-more-item.active .tick{opacity:1}
+.hd-more-item{display:flex;align-items:center;gap:9px;width:100%;border:none;background:transparent;padding:8px 10px;border-radius:8px;text-align:left;color:var(--text-2);font-size:13px;font-weight:500;cursor:pointer;transition:background .12s var(--hd-ease),color .12s var(--hd-ease)}
+.hd-more-item svg{flex:none;color:var(--text-4)}
+.hd-more-item:hover{background:var(--green-50);color:var(--green-700)}
+.hd-more-item.active{background:var(--green-50);color:var(--green-700);font-weight:600}
+.hd-more-item.active svg{color:var(--green-700)}
+.mail-starred svg{color:var(--star)}
+/* Without this the shared toolbar hover repaints a starred button green. */
+.mail-starred:hover{background:var(--gold-100)}
+/* Driven from CSS, not a fill= attribute, so the star colour is defined in one place. */
+.gm-star{fill:var(--star);stroke:var(--star)}
 
 .hd-main{flex:1;min-height:0;display:flex;overflow:hidden}
 .hd-list{width:320px;flex:none;border-right:1px solid var(--hd-border);display:flex;flex-direction:column;min-height:0}
@@ -690,6 +795,12 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .hd-thread-solo{flex:1;display:flex}
 .hd-thread-head{flex:none;display:flex;align-items:center;gap:8px;padding:14px 20px;border-bottom:1px solid var(--hd-border);min-height:24px}
 .hd-thread-head .subj{font:600 15px Fraunces,serif;color:var(--text);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* One grouped action bar rather than icons scattered along the header: the
+   icon-only actions sit tight together, a hairline separates the destructive
+   one, and Details/Reply stay as labelled buttons on the end. */
+.hd-thread-actions{flex:none;display:flex;align-items:center;gap:2px;margin-left:auto}
+.hd-thread-actions .btn{margin-left:6px}
+.hd-act-sep{flex:none;width:1px;height:18px;background:var(--hd-border);margin:0 5px}
 .hd-thread-body{flex:1;min-height:0;overflow-y:auto;padding:22px 24px 64px;animation:hd-settle .22s var(--hd-ease) both}
 /* "Details" used to be a fixed side panel; it's now an on-demand popover off
    the header button, next to Reply — same click-outside-to-close pattern as
@@ -1466,8 +1577,9 @@ const S = {
   selectedEmail: null,
   compose: null,   // { to, subject, body, attachments:[], minimized, maximized, sending }
   inboxChannel: 'gmail',
-  inboxView: 'all',      // 'all' | 'unread' | 'gmail' (rail selection when channel is gmail)
+  inboxView: 'all',      // 'all' | 'unread' | 'starred' | 'sent' | 'spam' | 'trash' | 'gmail' (rail selection when channel is gmail)
   inboxSearch: '',
+  mailFolders: null,     // { starred:{emails,fetchedAt,loading}, sent:{...}, spam:{...}, trash:{...} } — lazy-loaded per view
   messages: null,
   messagesChannel: null,
   selectedThreadId: null,
@@ -1693,11 +1805,23 @@ async function api(path) {
   return r.json();
 }
 
-async function apiPost(path, body) {
-  const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  if (r.status === 401) { showAuthScreen(); throw new Error('Not authenticated'); }
-  if (!r.ok) throw await apiError(r);
-  return r.json();
+// `timeoutMs` aborts the request rather than waiting forever. Used by the ones
+// that talk to a mail provider mid-request — a stalled SMTP relay would
+// otherwise hold the fetch open with no way for the user to recover.
+async function apiPost(path, body, { timeoutMs } = {}) {
+  const ctrl = timeoutMs ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeoutMs) : null;
+  try {
+    const r = await fetch(path, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body),
+      ...(ctrl ? { signal: ctrl.signal } : {}),
+    });
+    if (r.status === 401) { showAuthScreen(); throw new Error('Not authenticated'); }
+    if (!r.ok) throw await apiError(r);
+    return r.json();
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function apiPatch(path, body) {
@@ -2126,8 +2250,10 @@ document.addEventListener('click', e => {
   if (nmenu && nmenu.classList.contains('open') && !nmenu.contains(e.target)) closeNotifMenu();
   const dmenu = $('hd-details-menu');
   if (dmenu && dmenu.classList.contains('open') && !dmenu.contains(e.target)) closeThreadDetails();
+  const rmenu = $('hd-rail-more-menu');
+  if (rmenu && rmenu.classList.contains('open') && !rmenu.contains(e.target)) closeRailMore();
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeThreadDetails(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeThreadDetails(); closeRailMore(); } });
 
 async function logout() {
   closeUserMenu();
@@ -2903,13 +3029,29 @@ function renderInboxShell() {
   if (live) renderThreadPane();
 }
 
+// Views beyond the merged inbox — each is a separate mailbox/label fetched
+// lazily on first visit and cached in S.mailFolders (see loadMailFolder).
+// 'unread' isn't here: it's a plain client-side filter over the inbox.
+const MAIL_FOLDER_VIEWS = new Set(['starred', 'sent', 'spam', 'trash']);
+const MAIL_FOLDER_LABELS = { starred: 'Starred', sent: 'Sent', spam: 'Spam', trash: 'Trash' };
+// Shared by the dropdown items and the rail button, so the button shows the
+// folder's own icon once one is selected rather than a generic "more" glyph.
+const MAIL_FOLDER_ICONS = {
+  starred: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`,
+  sent: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>`,
+  spam: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 3 6v6c0 5 3.8 9.2 9 10 5.2-.8 9-5 9-10V6l-9-4Z"/><path d="M12 8v4M12 16h.01"/></svg>`,
+  trash: `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+};
+
 function hdRailHtml() {
   const emails = S.emails || [];
   const unreadCount = emails.filter(e => e.unread).length;
   const view = S.inboxView || 'all';
   const onGmail = S.inboxChannel === 'gmail';
+  const folderActive = onGmail && MAIL_FOLDER_VIEWS.has(view);
   const inboxSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.4 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.4-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.8 1.1z"/></svg>`;
   const dotSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>`;
+  const moreSvg = `<svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>`;
   // WhatsApp/Instagram/Facebook aren't connected yet — the "Soon" channel
   // tabs just cluttered the rail, so this view only ever shows gmail.
   return `
@@ -2920,15 +3062,92 @@ function hdRailHtml() {
       <button class="hd-rail-item ${onGmail && view==='unread'?'active':''}" onclick="selectInboxView('unread')">
         ${dotSvg}<span>Unread</span>${unreadCount ? `<span class="hd-rail-count on">${unreadCount}</span>` : ''}
       </button>
+      <div class="hd-rail-more" id="hd-rail-more-menu">
+        <button class="hd-rail-item ${folderActive?'active':''}" id="hd-rail-more-btn" onclick="toggleRailMore(event)"
+                aria-haspopup="menu" aria-expanded="false" aria-controls="hd-rail-more-pop">
+          ${folderActive ? MAIL_FOLDER_ICONS[view] : moreSvg}<span>${folderActive ? MAIL_FOLDER_LABELS[view] : 'More'}</span>
+          <svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <div class="hd-rail-more-pop" id="hd-rail-more-pop" role="menu" aria-label="Mail folders">
+          <div class="hd-rail-more-label">Folders</div>
+          ${['starred','sent','spam','trash'].map(v => `
+          <button class="hd-more-item ${view===v?'active':''}" role="menuitem" onclick="selectInboxView('${v}')">
+            ${MAIL_FOLDER_ICONS[v]}<span>${MAIL_FOLDER_LABELS[v]}</span>
+            <svg class="tick" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+          </button>`).join('')}
+        </div>
+      </div>
     </div>`;
+}
+
+function toggleRailMore(ev) {
+  if (ev) ev.stopPropagation();
+  const menu = $('hd-rail-more-menu');
+  if (!menu) return;
+  if (menu.classList.contains('open')) closeRailMore(); else openRailMore();
+}
+
+// The menu is position:fixed (the rail is a scroll container and would clip an
+// absolutely-positioned child), so its coordinates come from the button's rect
+// and it closes on anything that would invalidate them.
+function openRailMore() {
+  const menu = $('hd-rail-more-menu');
+  const btn = $('hd-rail-more-btn');
+  const pop = $('hd-rail-more-pop');
+  if (!menu || !btn || !pop) return;
+  const r = btn.getBoundingClientRect();
+  const width = pop.offsetWidth || 194;
+  pop.style.top = `${Math.round(r.bottom + 8)}px`;
+  pop.style.left = `${Math.round(Math.min(r.left, window.innerWidth - width - 12))}px`;
+  menu.classList.add('open');
+  btn.setAttribute('aria-expanded', 'true');
+  window.addEventListener('scroll', closeRailMore, { capture: true, once: true });
+  window.addEventListener('resize', closeRailMore, { once: true });
+}
+
+function closeRailMore() {
+  const menu = $('hd-rail-more-menu');
+  if (!menu) return;
+  menu.classList.remove('open');
+  $('hd-rail-more-btn')?.setAttribute('aria-expanded', 'false');
 }
 
 function selectInboxView(view) {
   S.inboxChannel = 'gmail';
   S.inboxView = view;
   S.selectedEmail = null;
+  closeRailMore();
   renderInboxShell();
-  if (!S.emails) loadGmail();
+  if (MAIL_FOLDER_VIEWS.has(view)) {
+    // Always ask — loadMailFolder holds the 60s cache itself, and starring an
+    // email stales it so the folder reflects the change on the next visit.
+    // Gating on "no emails cached" here meant a folder was fetched once and
+    // then never refreshed again for the whole session.
+    loadMailFolder(view);
+  } else if (!S.emails) {
+    loadGmail();
+  }
+}
+
+// Lazily loads (and caches for 60s) a folder view's messages. Kept separate
+// from S.emails/loadGmail — those poll the merged inbox on their own cadence,
+// while Starred/Sent/Spam/Trash are only fetched when the user opens that tab.
+async function loadMailFolder(view, force) {
+  const cached = S.mailFolders?.[view];
+  if (!force && cached?.emails && Date.now() - (cached.fetchedAt || 0) < 60000) return;
+  // Now that selectInboxView asks on every visit, re-entering a folder mid-fetch
+  // must not stack a second identical request. Both exit paths clear the flag.
+  if (!force && cached?.loading) return;
+  S.mailFolders = S.mailFolders || {};
+  S.mailFolders[view] = { ...(cached || {}), loading: true };
+  if (S.inboxView === view) renderInboxShell();
+  try {
+    const res = await api(`/api/mail/recent?perAccount=25&view=${view}`);
+    S.mailFolders[view] = { emails: applyReadState(res.data || []), fetchedAt: Date.now(), loading: false, errors: res.errors || [] };
+  } catch (err) {
+    S.mailFolders[view] = { emails: cached?.emails || [], fetchedAt: cached?.fetchedAt || 0, loading: false, error: err.message };
+  }
+  if (S.inboxView === view && S.screen === 'inbox') renderInboxShell();
 }
 
 function selectInboxChannel(key) {
@@ -3288,8 +3507,14 @@ function clientAvatarHtml(name, size = 34) {
 // Gmail-style manual refresh — spins the toolbar icon and bypasses the 60s cache.
 async function refreshGmail() {
   const btn = $('gmail-refresh-btn');
+  const view = S.inboxView || 'all';
   btn?.classList.add('spinning');
-  try { await loadGmail(true); } finally { btn?.classList.remove('spinning'); }
+  // In Starred/Sent/Spam/Trash the button has to reload that folder — reloading
+  // the merged inbox left the visible list untouched and looked broken.
+  try {
+    if (MAIL_FOLDER_VIEWS.has(view)) await loadMailFolder(view, true);
+    else await loadGmail(true);
+  } finally { btn?.classList.remove('spinning'); }
 }
 
 // ---- opened-email read state (localStorage) ----
@@ -3420,27 +3645,41 @@ function visibleEmails() {
   return (S.emails || []).filter(e => !f || e.accountId === f);
 }
 
-// Same account filter as visibleEmails(), plus the rail's Unread view and the
-// list's search box — this is what actually populates the list column.
+// Same account filter as visibleEmails(), plus the rail's Unread/folder views
+// and the list's search box — this is what actually populates the list column.
 function inboxEmailList() {
-  let list = visibleEmails();
-  if ((S.inboxView || 'all') === 'unread') list = list.filter(e => e.unread);
+  const view = S.inboxView || 'all';
+  let list;
+  if (MAIL_FOLDER_VIEWS.has(view)) {
+    list = S.mailFolders?.[view]?.emails || [];
+    const f = S.emailAccountFilter;
+    if (f) list = list.filter(e => e.accountId === f);
+  } else {
+    list = visibleEmails();
+    if (view === 'unread') list = list.filter(e => e.unread);
+  }
   const q = (S.inboxSearch || '').trim().toLowerCase();
   if (q) list = list.filter(e => `${extractName(e.from)} ${e.from||''} ${e.subject||''} ${e.body||''}`.toLowerCase().includes(q));
   return list;
 }
 
 function inboxViewLabel() {
-  return (S.inboxView || 'all') === 'unread' ? 'Unread' : 'Email';
+  const view = S.inboxView || 'all';
+  if (view === 'unread') return 'Unread';
+  if (MAIL_FOLDER_VIEWS.has(view)) return MAIL_FOLDER_LABELS[view];
+  return 'Email';
 }
 
 function hdListHtml() {
+  const view = S.inboxView || 'all';
+  const folder = MAIL_FOLDER_VIEWS.has(view) ? S.mailFolders?.[view] : null;
   const list = inboxEmailList();
   S.visibleEmails = list;
   const accts = S.mailAccounts || [];
   const multi = accts.length > 1;
-  const errBar = (S.mailErrors && S.mailErrors.length)
-    ? `<div class="mail-warn">${ICO_ALERT} ${esc(S.mailErrors[0])}</div>` : '';
+  const errList = folder ? (folder.errors || []) : (S.mailErrors || []);
+  const errBar = errList.length ? `<div class="mail-warn">${ICO_ALERT} ${esc(errList[0])}</div>` : '';
+  const loading = folder?.loading && !list.length;
   return `
     <div class="hd-list-head">
       <div class="hd-list-title">${inboxViewLabel()}<span class="hd-list-count">${list.length}</span></div>
@@ -3459,7 +3698,8 @@ function hdListHtml() {
     </select>` : ''}
     <div class="hd-list-rows" id="hd-list-rows">
       ${errBar}
-      ${list.length ? list.map((e,i)=>emailRowHtml(e,i)).join('') : '<div class="text-xs text-muted" style="padding:24px;text-align:center">No conversations here yet</div>'}
+      ${loading ? `<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>`
+        : (list.length ? list.map((e,i)=>emailRowHtml(e,i)).join('') : '<div class="text-xs text-muted" style="padding:24px;text-align:center">No conversations here yet</div>')}
     </div>`;
 }
 
@@ -3478,21 +3718,31 @@ function setMailFilter(id) {
   renderInboxShell();
 }
 
+// The gold star on a list row. Kept as a constant because toggleSelectedStar()
+// patches the row in place (see syncRowStar) instead of re-rendering the list —
+// re-rendering would drop the reader's scroll position mid-thread.
+const MAIL_ROW_STAR_SVG = `<svg class="gm-clip gm-star" width="12" height="12" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`;
+
 function emailRowHtml(e, i) {
-  const name = extractName(e.from) || '?';
+  // Sent mail is always From:you — showing the recipient instead is what
+  // actually distinguishes one row from the next in that view.
+  const isSent = S.inboxView === 'sent';
+  const party = isSent ? (e.to || '') : (e.from || '');
+  const name = (isSent ? (extractName(e.to) || e.to) : extractName(e.from)) || '?';
   const multi = (S.mailAccounts || []).length > 1;
   const acctDot = multi
     ? `<span class="gm-acct-dot" title="Received at ${esc(e.account||'')}" style="background:${avatarColor(e.account||'')}"></span>` : '';
   const unread = !!e.unread;
-  const key = `${name} ${e.from||''} ${e.subject||''} ${e.body||''}`.toLowerCase();
+  const key = `${name} ${e.from||''} ${e.to||''} ${e.subject||''} ${e.body||''}`.toLowerCase();
   return `
     <div class="mail-row ${e===S.selectedEmail?'active':''} ${unread?'unread':'read'}" data-key="${esc(key)}" style="--stagger:${Math.min(i,10)*22}ms" onclick="selectInboxItem(${i})">
-      ${avatarHtml(name, e.from, 40)}
+      ${avatarHtml(name, party, 40)}
       <div class="gm-body">
         <div class="gm-line1">
-          <span class="gm-sender">${esc(name)}</span>
+          <span class="gm-sender">${isSent?'To: ':''}${esc(name)}</span>
           <span class="gm-meta">
             ${acctDot}
+            ${e.starred?MAIL_ROW_STAR_SVG:''}
             ${e.attachments?.length?`<svg class="gm-clip" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`:''}
             <span class="gm-time">${shortDate(e.date)}</span>
           </span>
@@ -3539,6 +3789,172 @@ function warnGmailReconnect() {
   if (S.gmailReconnectWarned) return;
   S.gmailReconnectWarned = true;
   showToast('Reconnect Gmail in Settings so opened mail is marked read in Gmail too', 'error');
+}
+
+// ---- Thread action toolbar (Forward/Star/Mark unread/Delete) ----
+
+// Removes a message id from the local "opened" memory (see rememberRead) so a
+// later refresh doesn't silently re-mark it read on top of "Mark as unread".
+function forgetRead(id) {
+  const key = readIdsKey();
+  if (!key) return;
+  const ids = loadReadIds();
+  if (!ids.has(id)) return;
+  ids.delete(id);
+  try { localStorage.setItem(key, JSON.stringify([...ids])); } catch (_) {}
+}
+
+// Drops a message from whichever list is currently backing the view —
+// S.emails for the merged inbox/unread, or the matching S.mailFolders cache
+// for Starred/Sent/Spam/Trash — used by Delete for an optimistic removal.
+function removeEmailFromCurrentView(id) {
+  const view = S.inboxView || 'all';
+  if (MAIL_FOLDER_VIEWS.has(view)) {
+    const f = S.mailFolders?.[view];
+    if (f && f.emails) f.emails = f.emails.filter(x => x.id !== id);
+  } else {
+    S.emails = (S.emails || []).filter(x => x.id !== id);
+    persistEmailCache();
+  }
+}
+
+// One in-flight star request per email, with the newest wanted state queued
+// behind it. The previous guard simply dropped any click that landed while a
+// request was running, so a second click inside Gmail's ~1s round trip did
+// nothing at all — the star only responded if you clicked slowly. Coalescing
+// keeps the icon instant while still never racing two opposite calls.
+// id -> { desired: bool }; absent means nothing in flight.
+const starPending = new Map();
+
+// Repaints the toolbar star button in place. applyStarLocally used to call
+// renderThreadPane(), which rebuilds the whole pane and rewrites the iframe
+// document — so every star click reloaded the email body and all its remote
+// images. That is most of why toggling felt broken.
+function syncToolbarStar(email) {
+  if (S.selectedEmail !== email) return;
+  const btn = $('hd-star-btn');
+  if (!btn) return;
+  const label = email.starred ? 'Remove star' : 'Star';
+  btn.classList.toggle('mail-starred', !!email.starred);
+  btn.dataset.tip = label;
+  btn.setAttribute('aria-label', label);
+  btn.querySelector('svg')?.setAttribute('fill', email.starred ? 'currentColor' : 'none');
+}
+
+// Adds/removes the gold star on the open email's row without rebuilding the
+// list, so the list agrees with the toolbar button the moment it's clicked.
+function syncRowStar(email) {
+  const i = (S.visibleEmails || []).indexOf(email);
+  if (i < 0) return;
+  const meta = document.querySelectorAll('#hd-list-rows .mail-row')[i]?.querySelector('.gm-meta');
+  if (!meta) return;
+  const existing = meta.querySelector('.gm-star');
+  if (email.starred === !!existing) return;
+  if (!email.starred) { existing.remove(); return; }
+  // Star sits ahead of the attachment clip and the timestamp, as in emailRowHtml.
+  const anchor = meta.querySelector('.gm-clip, .gm-time');
+  if (anchor) anchor.insertAdjacentHTML('beforebegin', MAIL_ROW_STAR_SVG);
+  else meta.insertAdjacentHTML('beforeend', MAIL_ROW_STAR_SVG);
+}
+
+// Keeps the cached Starred folder in step with the toggle, so switching to
+// Starred shows the change immediately, and stales the cache so the next visit
+// still reconciles against the provider's own list.
+function syncStarredFolder(email) {
+  const f = S.mailFolders?.starred;
+  if (!f || !f.emails) return;
+  if (email.starred) {
+    if (!f.emails.some(x => x.id === email.id)) f.emails = [email, ...f.emails];
+  } else {
+    f.emails = f.emails.filter(x => x.id !== email.id);
+  }
+  f.fetchedAt = 0;
+}
+
+function applyStarLocally(email) {
+  syncToolbarStar(email);
+  syncRowStar(email);
+  syncStarredFolder(email);
+  persistEmailCache();
+}
+
+// Every click flips the icon immediately. If a request for this email is
+// already running, the new state is left for that request to pick up when it
+// settles rather than being thrown away.
+function toggleSelectedStar() {
+  const e = S.selectedEmail;
+  if (!e) return;
+  e.starred = !e.starred;
+  applyStarLocally(e);
+  const pending = starPending.get(e.id);
+  if (pending) { pending.desired = e.starred; return; }
+  starPending.set(e.id, { desired: e.starred });
+  flushStar(e);
+}
+
+// Drains the queue for one email: sends the wanted state, and if more clicks
+// arrived while that was in flight, sends the newest one — looping until what
+// the provider has been told matches what the icon shows.
+async function flushStar(email) {
+  let sent;
+  try {
+    for (;;) {
+      const pending = starPending.get(email.id);
+      if (!pending || pending.desired === sent) { starPending.delete(email.id); break; }
+      sent = pending.desired;
+      const r = await apiPost('/api/mail/star', { id: email.id, starred: sent });
+      if (r && r.needsReconnect) { starPending.delete(email.id); undoStar(email, sent); warnGmailReconnect(); return; }
+      if (r && r.ok === false) throw new Error(r.error || '');
+    }
+    // One toast once it settles, not one per click.
+    showToast(email.starred ? 'Starred' : 'Star removed', 'success');
+  } catch (err) {
+    starPending.delete(email.id);
+    undoStar(email, sent);
+    const why = err && err.message;
+    showToast(why ? `Could not update star — ${why}` : 'Could not update star', 'error');
+  }
+}
+
+// The provider refused `sent`, so the icon must go back to the opposite of it —
+// not to some earlier value, which further clicks may have moved past.
+function undoStar(email, sent) {
+  email.starred = !sent;
+  applyStarLocally(email);
+}
+
+function markSelectedUnread() {
+  const e = S.selectedEmail;
+  if (!e) return;
+  e.unread = true;
+  S.selectedEmail = null;
+  forgetRead(e.id);
+  renderInboxShell();
+  persistEmailCache();
+  apiPost('/api/mail/read', { id: e.id, read: false })
+    .then(r => { if (r && r.needsReconnect) warnGmailReconnect(); })
+    .catch(() => {});
+  showToast('Marked as unread', 'success');
+}
+
+// Moves the open email to Trash. Removed from the current list optimistically;
+// a failure just re-shows a toast rather than trying to resurrect the row —
+// the next refresh reconciles reality either way.
+async function deleteSelectedEmail() {
+  const e = S.selectedEmail;
+  if (!e) return;
+  removeEmailFromCurrentView(e.id);
+  S.selectedEmail = null;
+  renderInboxShell();
+  showToast('Moved to Trash', 'success');
+  if (S.mailFolders?.trash) S.mailFolders.trash.fetchedAt = 0; // stale — refetch next visit
+  try {
+    const r = await apiPost('/api/mail/trash', { id: e.id });
+    if (r && r.needsReconnect) warnGmailReconnect();
+    else if (r && r.ok === false) showToast(r.error || 'Could not delete — try again', 'error');
+  } catch (_) {
+    showToast('Could not delete — try again', 'error');
+  }
 }
 
 function formatBytes(n) {
@@ -3637,20 +4053,35 @@ function hdThreadHtml() {
     </div>`;
   }
   const name = extractName(e.from) || '?';
+  const act = (label, onclick, svg, extra = '', id = '') =>
+    `<button class="gmail-toolbar-btn tip ${extra}"${id ? ` id="${id}"` : ''} data-tip="${esc(label)}" aria-label="${esc(label)}" onclick="${onclick}">${svg}</button>`;
   return `
     <div class="hd-thread-head">
       <span class="subj">${esc(e.subject||'(no subject)')}</span>
-      <div class="hd-details-menu" id="hd-details-menu">
-        <button class="btn btn-ghost btn-sm" onclick="toggleThreadDetails(event)">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-          Details
+      <div class="hd-thread-actions">
+        ${act(e.starred ? 'Remove star' : 'Star', 'toggleSelectedStar()',
+          `<svg width="16" height="16" viewBox="0 0 24 24" fill="${e.starred?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`,
+          e.starred ? 'mail-starred' : '', 'hd-star-btn')}
+        ${act('Mark as unread', 'markSelectedUnread()',
+          `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10.5V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-8.5"/><path d="m3 10.5 9-6.5 9 6.5"/><path d="m3 10.5 8.15 5.4a1.5 1.5 0 0 0 1.7 0L21 10.5"/></svg>`)}
+        ${act('Forward', 'openForwardModal()',
+          `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>`)}
+        <span class="hd-act-sep"></span>
+        ${act('Move to Trash', 'deleteSelectedEmail()',
+          `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
+          'danger')}
+        <div class="hd-details-menu" id="hd-details-menu">
+          <button class="btn btn-ghost btn-sm" onclick="toggleThreadDetails(event)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Details
+          </button>
+          <div class="hd-details-pop" id="hd-details-pop">${hdDetailsPopHtml(e)}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="openReplyModal()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
+          Reply
         </button>
-        <div class="hd-details-pop" id="hd-details-pop">${hdDetailsPopHtml(e)}</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="openReplyModal()">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
-        Reply
-      </button>
     </div>
     <div class="hd-thread-body" id="hd-thread-scroll">
       <div class="flex items-center gap-3 mb-5 pb-4" style="border-bottom:1px solid var(--hd-border)">
@@ -3809,13 +4240,49 @@ function openComposeModal() {
   openCompose({ to:'', subject:'', body:'' });
 }
 
+// Like Forward, a reply no longer quotes anything into the textarea. It used to
+// paste `e.body` — the plain-text rendering of the mail — which replaces every
+// image and link with a bare URL (and it cut off at 500 characters). The draft
+// now only references the original; /api/mail/send re-reads it and quotes its
+// real HTML, so the message being answered keeps its own formatting.
 function openReplyModal() {
   const e = S.selectedEmail;
   if (!e) return;
   const replyTo = (e.from || '').match(/<([^>]+)>/)?.[1] || e.from || '';
   const subj = /^re:/i.test(e.subject||'') ? e.subject : 'Re: ' + (e.subject||'');
-  const quoted = `\n\n\nOn ${e.date||''}, ${extractName(e.from)||e.from} wrote:\n> ${(e.body||'').slice(0,500).replace(/\n/g,'\n> ')}`;
-  openCompose({ to: replyTo, subject: subj, body: quoted, from: e.accountId });
+  openCompose({
+    to: replyTo, subject: subj, body: '', from: e.accountId,
+    replyOf: e.id,
+    quoteMeta: {
+      from: e.from||'', date: e.date||'', subject: e.subject||'', to: e.to||'',
+      attachments: e.attachments || [],
+      bodyHtml: e.bodyHtml || '', body: e.body || '',
+    },
+  });
+}
+
+// Forwarding does NOT re-quote the plain-text body here. The text rendering of
+// an HTML mail turns every embedded photo into a bare link, which is exactly
+// what recipients were getting. Instead the draft only carries a reference to
+// the original (`forwardOf`); /api/mail/send re-reads that message server-side
+// and sends its real HTML body plus every part — inline images keep their
+// Content-ID, so photos arrive as photos.
+function openForwardModal() {
+  const e = S.selectedEmail;
+  if (!e) return;
+  const subj = /^fwd:/i.test(e.subject||'') ? e.subject : 'Fwd: ' + (e.subject||'');
+  openCompose({
+    to: '', subject: subj, body: '', from: e.accountId,
+    forwardOf: e.id,
+    quoteMeta: {
+      from: e.from||'', date: e.date||'', subject: e.subject||'', to: e.to||'',
+      attachments: e.attachments || [],
+      // Shown read-only under the note so the sender can see the actual content
+      // going out, not just a From/Subject stub. The server still re-reads the
+      // original at send time — this is a preview, never the payload.
+      bodyHtml: e.bodyHtml || '', body: e.body || '',
+    },
+  });
 }
 
 function openCompose(prefill) {
@@ -3824,8 +4291,15 @@ function openCompose(prefill) {
   S.compose = {
     to: prefill.to||'', subject: prefill.subject||'', body: prefill.body||'',
     from: prefill.from || (S.mailAccounts && S.mailAccounts[0] && S.mailAccounts[0].id) || null,
-    attachments: S.compose?.attachments || [], minimized:false, maximized:false, sending:false
+    // Starts empty every time: carrying the previous draft's files over meant
+    // a reply could silently ship attachments from an unrelated message.
+    attachments: prefill.attachments || [],
+    forwardOf: prefill.forwardOf || null,
+    replyOf: prefill.replyOf || null,
+    quoteMeta: prefill.quoteMeta || null,
+    minimized:false, maximized:false, sending:false
   };
+  S.compose.forwardPreviewOpen = true;
   ensureMailAccounts();
   renderCompose();
   setTimeout(() => { const f = prefill.to ? $('cw-body') : $('cw-to'); f?.focus(); }, 60);
@@ -3856,7 +4330,7 @@ function renderCompose() {
   if (!c) { cc.innerHTML = ''; return; }
   const title = c.minimized
     ? (c.subject?.trim() || c.to?.trim() || 'New Message')
-    : 'New Message';
+    : (c.forwardOf ? 'Forward Message' : c.replyOf ? 'Reply' : 'New Message');
   cc.innerHTML = `
     <div class="compose-win inbox-mono ${c.minimized?'minimized':''} ${c.maximized?'maximized':''}">
       <div class="compose-head" onclick="if(event.target.closest('.compose-head-btn'))return; toggleComposeMin()">
@@ -3884,11 +4358,12 @@ function renderCompose() {
         </div>` : ''}
         <div class="compose-field"><label>To</label><input id="cw-to" type="text" placeholder="recipient@email.com" value="${esc(c.to)}"></div>
         <div class="compose-field"><label>Subject</label><input id="cw-subject" type="text" placeholder="Subject" value="${esc(c.subject)}"></div>
-        <textarea id="cw-body" class="compose-textarea" placeholder="Write your message…">${esc(c.body)}</textarea>
+        <textarea id="cw-body" class="compose-textarea" placeholder="${c.forwardOf?'Add a note (optional)…':c.replyOf?'Write your reply…':'Write your message…'}">${esc(c.body)}</textarea>
+        ${renderForwardCard()}
         <div class="compose-attach-list" id="cw-attachments">${renderAttachChips()}</div>
         <div class="compose-foot">
           <button class="btn btn-primary" onclick="sendComposeEmail()" ${c.sending?'disabled':''} style="padding:9px 22px">
-            ${c.sending?'<span class="spinner" style="width:14px;height:14px;border-width:2px"></span>':'Send'}
+            ${c.sending?'<span class="spinner" style="width:14px;height:14px;border-width:2px"></span> Sending…':'Send'}
           </button>
           <input type="file" id="cw-file" multiple style="display:none" onchange="onAttachFiles(this.files)">
           <button class="compose-icon-btn" title="Attach files" onclick="$('cw-file').click()">
@@ -3900,6 +4375,77 @@ function renderCompose() {
           </button>
         </div>
       </div>
+    </div>`;
+  paintForwardPreview();
+}
+
+// The forwarded original, shown as a read-only card under the note box so it's
+// obvious what's actually going out. The content itself is assembled on the
+// server at send time from the original message, so there is nothing here to
+// edit — only the note above it.
+// Flips the read-only preview of the message being forwarded. Fields are
+// captured first so an in-progress note survives the re-render.
+function toggleForwardPreview() {
+  if (!S.compose) return;
+  captureComposeFields();
+  S.compose.forwardPreviewOpen = !S.compose.forwardPreviewOpen;
+  renderCompose();
+}
+
+// Paints the original into the preview iframe. Written directly to the document
+// (same as the reading pane) rather than via srcdoc, which Safari blocks on
+// full load before showing anything.
+function paintForwardPreview() {
+  const m = S.compose?.quoteMeta;
+  const frame = $('cw-fwd-frame');
+  if (!m || !m.bodyHtml || !frame) return;
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{font-family:Inter,system-ui,sans-serif;font-size:12.5px;line-height:1.6;color:#0a0a0a;margin:0;padding:10px;word-wrap:break-word;overflow-x:hidden}img{max-width:100%;height:auto}table{max-width:100%!important}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit}</style></head><body>${m.bodyHtml}</body></html>`);
+  doc.close();
+  const resize = () => { try { if (doc.body) frame.style.height = doc.documentElement.scrollHeight + 'px'; } catch (_) {} };
+  resize();
+  // Remote images (most of a marketing mail) settle after first paint.
+  try { new ResizeObserver(resize).observe(doc.body); }
+  catch (_) { setTimeout(resize, 300); setTimeout(resize, 900); }
+}
+
+function renderForwardCard() {
+  const c = S.compose;
+  if (!c?.forwardOf && !c?.replyOf) return '';
+  const m = c.quoteMeta || {};
+  const open = c.forwardPreviewOpen !== false;
+  const row = (k, v) => v ? `<div class="fwd-row"><span>${k}</span><b>${esc(v)}</b></div>` : '';
+  const atts = m.attachments || [];
+  const isReply = !!c.replyOf;
+  // A reply quotes the original but does not send the sender their own files
+  // back — only the inline images the quoted HTML points at. See buildReply.
+  const note = isReply
+    ? 'Quoted under your reply with its original formatting. Attachments are not sent back.'
+    : `Original formatting, images and ${atts.length ? `${atts.length} attachment${atts.length>1?'s':''}` : 'any embedded photos'} are sent with it.`;
+  return `
+    <div class="compose-fwd">
+      <div class="compose-fwd-head">
+        ${isReply
+          ? `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg> Replying to`
+          : `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg> Forwarded message`}
+      </div>
+      ${row('From', m.from)}${row('Subject', m.subject)}${row('Date', shortDate(m.date) || m.date)}
+      <div class="compose-fwd-note">
+        <span>${note}</span>
+        <button type="button" class="compose-fwd-toggle" onclick="toggleForwardPreview()">${open ? 'Hide' : 'Show'} original</button>
+      </div>
+      ${open ? `<div class="compose-fwd-preview">${
+        m.bodyHtml
+          ? `<iframe id="cw-fwd-frame" sandbox="allow-same-origin" scrolling="no"></iframe>`
+          : `<pre class="compose-fwd-plain">${esc(m.body || '(this message has no readable body)')}</pre>`
+      }</div>` : ''}
+      ${(!isReply && atts.length) ? `<div class="compose-attach-list" style="margin-top:6px">${atts.map(a=>`
+        <span class="attach-chip">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+          <span class="aname">${esc(a.filename)}</span>
+          <span style="color:var(--text-4)">${fmtSize(a.size)}</span>
+        </span>`).join('')}</div>` : ''}
     </div>`;
 }
 
@@ -3947,17 +4493,35 @@ function onAttachFiles(files) {
 
 function removeAttachment(i) { captureComposeFields(); S.compose.attachments.splice(i,1); renderCompose(); }
 
+// Generous, because a forward re-reads the original over IMAP before sending and
+// this GoDaddy mailbox routinely takes 6-10s just for that — but still bounded.
+const SEND_TIMEOUT_MS = 120000;
+
 async function sendComposeEmail() {
   captureComposeFields();
   const c = S.compose;
   const to = c.to?.trim(), subject = c.subject?.trim(), body = c.body;
-  if (!to || !subject || !body?.trim()) { showToast('Fill in To, Subject and Message','error'); return; }
+  // On a forward the note is optional — the original message is the content.
+  if (!to || !subject || (!body?.trim() && !c.forwardOf)) {
+    showToast('Fill in To, Subject and Message','error'); return;
+  }
   c.sending = true; renderCompose();
   try {
-    const res = await apiPost('/api/mail/send', { accountId: c.from, to, subject, body, attachments: c.attachments });
+    const res = await apiPost('/api/mail/send', {
+      accountId: c.from, to, subject, body, attachments: c.attachments,
+      forwardOf: c.forwardOf || undefined,
+      replyOf: c.replyOf || undefined,
+    }, { timeoutMs: SEND_TIMEOUT_MS });
     closeCompose();
     showToast(res.from ? `Sent from ${res.from}` : 'Email sent!', 'success');
-  } catch(e) { c.sending=false; renderCompose(); showToast('Failed: '+e.message, 'error'); }
+  } catch(e) {
+    c.sending = false; renderCompose();
+    // Aborting the fetch does not stop the send already running on the server,
+    // so this must not claim the message failed — only that we stopped waiting.
+    showToast(e.name === 'AbortError'
+      ? 'Still no answer from the mail server after 2 minutes. Check Sent before resending — it may have gone out.'
+      : 'Failed: ' + e.message, 'error');
+  }
 }
 
 function closeModal() {
