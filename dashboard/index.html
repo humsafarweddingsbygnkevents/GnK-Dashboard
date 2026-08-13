@@ -1303,6 +1303,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .cx-sel:focus{outline:none;border-color:var(--green-500);box-shadow:var(--cx-ring)}
 .cx-sel.on{border-color:var(--green-200);background-color:var(--green-50);color:var(--green-900);font-weight:600;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%232E5D3B' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")}
+/* Shaped like .cx-sel so it sits level with the rail, but without the chevron:
+   a date input already draws its own calendar button, and .cx-sel's arrow
+   landed on top of it. */
+.cx-date{height:38px;padding:0 11px 0 13px;border:1px solid var(--cx-field);border-radius:10px;background-color:#fff;
+  cursor:pointer;box-shadow:var(--cx-e1);font:500 13px Inter,sans-serif;color:var(--text-2);
+  transition:border-color 170ms,box-shadow 170ms,color 170ms,background-color 170ms}
+.cx-date:hover{border-color:var(--cx-field-hover);color:var(--text)}
+.cx-date:focus{outline:none;border-color:var(--green-500);box-shadow:var(--cx-ring)}
+.cx-date.on{border-color:var(--green-200);background-color:var(--green-50);color:var(--green-900);font-weight:600}
 .cx-clear{border:none;background:none;padding:0 4px;height:38px;font:500 12.5px Inter,sans-serif;color:var(--text-3);
   cursor:pointer;transition:color 150ms}
 .cx-clear:hover{color:var(--red)}
@@ -2056,6 +2065,8 @@ function showApp() {
   const initial = screenForPath(location.pathname) || S.screen || (isEmployee ? 'attendance' : 'dashboard');
   navigate(initial, { replace: true });
   startNotifPolling();
+  // Warmed here so the first client form opens without waiting on it.
+  loadManagers();
 }
 
 // Cosmetic role gating only — the real enforcement is requireAdmin on the
@@ -2348,6 +2359,19 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeRailMore(); } });
 
+// Clicking the dd / mm / yyyy segments of a date field only moves the caret —
+// the browser opens the calendar from its own little icon and nowhere else, so
+// the field reads as dead to anyone who clicks the part that shows the date.
+// showPicker() on any click makes the whole control open it. Delegated so it
+// covers every date input in the app, including ones rendered later.
+document.addEventListener('click', e => {
+  const el = e.target?.closest?.('input[type="date"]');
+  if (!el || el.disabled || el.readOnly || typeof el.showPicker !== 'function') return;
+  // Throws if the browser won't honour it (already open, no user gesture);
+  // either way there is nothing to do about it.
+  try { el.showPicker(); } catch (_) {}
+});
+
 async function logout() {
   closeUserMenu();
   try { await fetch('/api/auth/logout', { method:'POST' }); } catch (_) {}
@@ -2629,7 +2653,6 @@ function paintDashConfirmedClients(res) {
 function paintDashReminders(res) {
   if (!dashAlive() || !$('dash-reminders')) return;
   try {
-    const isAdminUser = S.admin?.role !== 'employee';
     if (res) {
       const list = res.data || [];
       const rb = $('dash-reminders'); rb.classList.add('rich');
@@ -2640,7 +2663,7 @@ function paintDashReminders(res) {
         const nm = c.name||'?';
         const accent = avatarColor(nm);
         const pills = [`<span class="cl-pill ${c.overdue?'red':'gold'}">${calSvg}${c.overdue?'Overdue · ':''}${fmtDate(c.nextFollowUpAt)}</span>`];
-        if (isAdminUser && c.relationshipManager) pills.push(`<span class="cl-pill">${rmSvg}${esc(c.relationshipManager)}</span>`);
+        if (c.relationshipManager) pills.push(`<span class="cl-pill">${rmSvg}${esc(c.relationshipManager)}</span>`);
         if (c.phone) pills.push(`<span class="cl-pill">${phoneSvg}${esc(c.phone)}</span>`);
         return `
         <div class="cl-card" style="--accent:${accent}" onclick="navigate('reminders')">
@@ -5265,7 +5288,9 @@ async function openClientDrawer(id) {
     <div class="drawer-overlay" onclick="closeDrawer()"></div>
     <div class="drawer" style="width:540px;max-width:94vw;box-shadow:var(--cx-e3)"><div style="display:flex;justify-content:center;padding:60px"><div class="spinner"></div></div></div>`;
   try {
-    const c = await api('/api/clients/' + id);
+    // In parallel, and the picker's list is not worth failing the drawer over:
+    // loadManagers swallows its own errors and falls back to an empty list.
+    const [c] = await Promise.all([api('/api/clients/' + id), loadManagers()]);
     S.drawerClient = c;
     dc.querySelector('.drawer').innerHTML = clientDrawerHtml(c, false);
     suppressAutofill(dc);
@@ -5427,7 +5452,7 @@ function clientDrawerHtml(c, editing) {
             <div><label class="cx-lab" for="cd-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-hotel" value="${esc(preferredPlace(c)||'')}"></div>
             <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}"></div>
             <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}"></div>
-            <div><label class="cx-lab" for="cd-rm">Relationship Manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rm" value="${esc(c.relationshipManager||'')}"></div>
+            <div><label class="cx-lab" for="cd-rm">Relationship Manager</label>${rmSelectHtml('cd-rm', c.relationshipManager)}</div>
             <div>
               <label class="cx-lab" for="cd-enquirysource">Source</label>
               <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}" placeholder="Source name & ref">
@@ -5502,6 +5527,35 @@ async function deleteClient(id, name) {
 }
 
 // Upper bound for event/wedding date inputs (today + 10 years), as YYYY-MM-DD.
+// Accounts a client can be assigned to. Fetched once per session — the list
+// only changes when someone joins the team — and never fatal: if the call
+// fails the picker still offers Unassigned plus whatever the client already
+// has, so the form stays usable.
+async function loadManagers() {
+  if (S.managers) return S.managers;
+  try { S.managers = (await api('/api/clients/managers')).data || []; }
+  catch (_) { S.managers = []; }
+  return S.managers;
+}
+
+// The Relationship Manager control, shared by the New Client modal and the
+// edit drawer. A value that doesn't match any account — every client filed
+// before this was a picker — is kept as its own option and marked, so opening
+// a form can't silently reassign the client to whoever sorts first.
+function rmSelectHtml(id, current) {
+  const names = S.managers || [];
+  const cur = String(current || '').trim();
+  const known = names.some((n) => n.toLowerCase() === cur.toLowerCase());
+  const legacy = cur && !known ? cur : null;
+  const opt = (n, label) =>
+    `<option value="${esc(n)}"${cur && n.toLowerCase() === cur.toLowerCase() ? ' selected' : ''}>${esc(label || n)}</option>`;
+  return `<select class="input cx-in" id="${id}">
+    <option value="">— Unassigned —</option>
+    ${legacy ? opt(legacy, `${legacy} (not an account)`) : ''}
+    ${names.map((n) => opt(n)).join('')}
+  </select>`;
+}
+
 function maxEventDate() {
   const d = new Date();
   d.setFullYear(d.getFullYear() + 10);
@@ -5685,7 +5739,10 @@ function eventTypeOptionsHtml(current) {
   return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }
 
-function openNewClientModal() {
+async function openNewClientModal() {
+  // The Relationship Manager picker is built into the markup below, so its
+  // options have to be in hand before the form is written.
+  await loadManagers();
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal cx-sheet" role="dialog" aria-modal="true" aria-labelledby="nc-heading">
@@ -5756,7 +5813,7 @@ function openNewClientModal() {
           <div class="cx-sec">
             <div class="cx-sec-t">Ownership</div>
             <div class="cx-grid">
-              <div><label class="cx-lab" for="nc-rm">Relationship Manager</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rm"></div>
+              <div><label class="cx-lab" for="nc-rm">Relationship Manager</label>${rmSelectHtml('nc-rm', '')}</div>
               <div><label class="cx-lab">Filled by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(S.admin?.name||S.admin?.email||'—')}" disabled></div>
             </div>
           </div>
@@ -5860,7 +5917,9 @@ async function createClient(btn) {
     preferredHotel: $('nc-hotel')?.value || undefined,
     guestCount: $('nc-guests')?.value ? Number($('nc-guests').value) : undefined,
     roomCount: $('nc-rooms')?.value ? Number($('nc-rooms').value) : undefined,
-    relationshipManager: $('nc-rm')?.value || undefined,
+    // Trimmed like the edit drawer does: ownership is matched on this string,
+    // so a stray space would quietly hide the client from whoever owns it.
+    relationshipManager: $('nc-rm')?.value.trim() || undefined,
     enquirySource: src.enquirySource || undefined,
     enquirySourceOther: src.enquirySourceOther || undefined,
     // Budget is captured as two figures — Hotel and Event & decor — landing on
@@ -7244,7 +7303,6 @@ function remindersPillIcons() {
 }
 
 async function renderReminders() {
-  const isAdminUser = S.admin?.role !== 'employee';
   S.reminderDate = S.reminderDate || '';
   // 'due' = today + overdue, 'upcoming' = tomorrow onward, 'date' = one picked
   // day. The picked day is its own view rather than a modifier on the other
@@ -7256,14 +7314,12 @@ async function renderReminders() {
     <div class="page-header mb-4">
       <div>
         <div class="page-title">Follow-up Reminders</div>
-        <div class="page-sub">${isAdminUser
-          ? "Which relationship manager owes a follow-up today, what's coming up, or a date you pick"
-          : "Clients you owe a follow-up — a card stays here until you push its date forward"}</div>
+        <div class="page-sub">Every client owed a follow-up — due today, coming up, or on a date you pick</div>
       </div>
     </div>
     <div class="cx-rail">
       <div class="rem-segs">${seg('Due today', 'due')}${seg('Upcoming', 'upcoming')}</div>
-      <input type="date" class="cx-sel" id="rem-date-input" value="${esc(S.reminderDate)}" max="${maxEventDate()}" onchange="setReminderDate(this.value)">
+      <input type="date" class="cx-date${S.reminderView === 'date' ? ' on' : ''}" id="rem-date-input" value="${esc(S.reminderDate)}" max="${maxEventDate()}" onchange="setReminderDate(this.value)">
       ${S.reminderView === 'date' ? `<button class="btn btn-ghost btn-sm" onclick="setReminderView('due')">Clear date</button>` : ''}
       <span class="cx-railcount" id="rem-rail-count"></span>
     </div>
@@ -7303,7 +7359,6 @@ async function loadReminders() {
 function renderReminderList() {
   const el = $('reminders-list');
   if (!el) return;
-  const isAdminUser = S.admin?.role !== 'employee';
   const list = S.reminderData || [];
   const countEl = $('rem-rail-count');
   if (countEl) countEl.textContent = `${list.length} ${list.length === 1 ? 'client' : 'clients'}`;
@@ -7312,7 +7367,7 @@ function renderReminderList() {
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".3"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       <p>${S.reminderView === 'date' ? 'No follow-ups on this date'
         : S.reminderView === 'upcoming' ? 'Nothing scheduled ahead yet'
-        : "Nothing due — you're all caught up"}</p>
+        : "Nothing due — everyone's all caught up"}</p>
     </div>`;
     return;
   }
@@ -7321,7 +7376,11 @@ function renderReminderList() {
     const nm = c.name || '?';
     const accent = avatarColor(nm);
     const pills = [`<span class="cl-pill ${c.overdue ? 'red' : 'gold'}">${ic.cal}${c.overdue ? 'Overdue · ' : ''}${fmtDate(c.nextFollowUpAt)}</span>`];
-    if (isAdminUser && c.relationshipManager) pills.push(`<span class="cl-pill">${ic.rm}${esc(c.relationshipManager)}</span>`);
+    // Shown to everyone now that the list isn't scoped to the viewer — without
+    // it there is no way to tell whose client a card is, or that it is nobody's.
+    pills.push(c.relationshipManager
+      ? `<span class="cl-pill">${ic.rm}${esc(c.relationshipManager)}</span>`
+      : `<span class="cl-pill">${ic.rm}Unassigned</span>`);
     if (c.phone) pills.push(`<span class="cl-pill">${ic.phone}${esc(c.phone)}</span>`);
     return `
     <div class="cl-card" style="--accent:${accent}" onclick="openClientDrawer(${c.id})">

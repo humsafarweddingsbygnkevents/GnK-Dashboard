@@ -363,10 +363,38 @@ router.get('/summary', async (_req, res) => {
 // it off active/no-response) — never on a timer, and never just because
 // someone viewed it. Editing the remark alone, without pushing the date
 // forward, deliberately leaves it in place.
-async function requesterName(req) {
-  if (!req.admin?.sub) return null;
-  const admin = await prisma.admin.findUnique({ where: { id: req.admin.sub }, select: { name: true, email: true } });
-  return admin?.name || admin?.email || null;
+// Relationship Manager is a free-text column: whoever files the client types a
+// name, so one person lands in the data as "Arnav", "arnav" or "Arnav Khanna".
+// Matching ownership by `equals` on the account's full name therefore only ever
+// hit when someone typed it character for character — which nobody had, so
+// every employee's reminder list came back empty however many clients were
+// theirs. These are the spellings that count as the requester.
+//
+// Two accounts sharing a first name will share those clients. That is inherent
+// to ownership being a typed name rather than a link to the account, and is the
+// reason to move this field to a picker; it is not made worse by matching here.
+async function requesterAliases(req) {
+  if (!req.admin?.sub) return [];
+  const admin = await prisma.admin.findUnique({
+    where: { id: req.admin.sub },
+    select: { name: true, email: true },
+  });
+  if (!admin) return [];
+  const aliases = new Set();
+  const add = (v) => { const s = String(v || '').trim(); if (s) aliases.add(s); };
+  add(admin.name);
+  if (admin.name) add(admin.name.trim().split(/\s+/)[0]); // "Arnav" for "Arnav Khanna"
+  add(admin.email);
+  if (admin.email) add(admin.email.split('@')[0]);
+  return [...aliases];
+}
+
+// Narrows `where` to the clients the requester owns. Callers use it for an
+// employee (who only ever sees their own) and for an admin asking for theirs.
+async function scopeToOwnClients(req, where) {
+  const aliases = await requesterAliases(req);
+  if (aliases.length) where.relationshipManager = { in: aliases, mode: 'insensitive' };
+  else where.id = -1; // no resolvable name -> never matches, empty result
 }
 
 function startOfDayUTC(d) {
@@ -379,11 +407,12 @@ function startOfDayUTC(d) {
 // an admin check a particular future/past date rather than just "today".
 // With `range=upcoming`, returns everything scheduled tomorrow or later — the
 // forward-looking list. `date` wins if both are sent.
-// Employees always see their own (matched on relationshipManager by name);
-// admins see everyone unless scope=mine.
+// Everyone sees every follow-up: the team is small enough that a client going
+// unchased matters more than who owns it, and scoping employees to their own
+// meant a client nobody had been assigned was invisible to all of them.
+// `scope=mine` narrows to the requester's own for the dashboard panel.
 router.get('/followups', async (req, res) => {
   try {
-    const isAdmin = req.admin?.role !== 'employee';
     const where = { status: { in: STATUSES_REQUIRING_FOLLOWUP } };
 
     const endOfToday = new Date(startOfDayUTC(new Date()).getTime() + 24 * 60 * 60 * 1000);
@@ -403,11 +432,7 @@ router.get('/followups', async (req, res) => {
       where.nextFollowUpAt = { lt: endOfToday };
     }
 
-    if (!isAdmin || req.query.scope === 'mine') {
-      const name = await requesterName(req);
-      if (name) where.relationshipManager = { equals: name, mode: 'insensitive' };
-      else where.id = -1; // no resolvable name -> never matches, empty result
-    }
+    if (req.query.scope === 'mine') await scopeToOwnClients(req, where);
 
     const clients = await prisma.client.findMany({
       where,
@@ -428,6 +453,32 @@ router.get('/followups', async (req, res) => {
   }
 });
 
+// GET /api/clients/managers — the names a client can be assigned to, for the
+// Relationship Manager picker. It lives here rather than on the accounts route
+// because that one is admin-only and employees fill this field too; it answers
+// with names and nothing else, which is already what the client cards show.
+// Typing the name by hand is what let one person become "Arnav", "arnav" and
+// "Arnav Khanna" at once, none of which matched their account.
+// Registered before /:id for the same reason /summary is.
+router.get('/managers', async (req, res) => {
+  try {
+    const accounts = await prisma.admin.findMany({
+      where: { active: true },
+      select: { name: true, email: true },
+      orderBy: { name: 'asc' },
+    });
+    // Deduped: the field holds a name, so two accounts sharing one are a single
+    // choice here (and, unavoidably, a single owner as far as this column goes).
+    const names = [...new Set(
+      accounts.map((a) => (a.name || '').trim() || a.email).filter(Boolean),
+    )];
+    return res.json({ data: names });
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /api/clients/followups/summary — lightweight counts for the bell badge
 // and the dashboard stat cards. Registered before /:id for the same reason
 // /summary above is — Express would otherwise try to parse "followups" as an
@@ -438,12 +489,8 @@ router.get('/followups/summary', async (req, res) => {
     const startOfToday = startOfDayUTC(new Date());
     const endOfToday = new Date(startOfToday.getTime() + 24 * 60 * 60 * 1000);
     const where = { status: { in: STATUSES_REQUIRING_FOLLOWUP }, nextFollowUpAt: { lt: endOfToday } };
-    if (!isAdmin) {
-      const name = await requesterName(req);
-      if (name) where.relationshipManager = { equals: name, mode: 'insensitive' };
-      else where.id = -1; // no resolvable name -> never matches, empty result
-    }
-
+    // Unscoped for everyone, exactly like /followups — the badge has to count
+    // the same rows as the page it opens, or it points at an empty list.
     const [dueCount, overdueCount, byManagerRaw] = await Promise.all([
       prisma.client.count({ where }),
       prisma.client.count({ where: { ...where, nextFollowUpAt: { lt: startOfToday } } }),
