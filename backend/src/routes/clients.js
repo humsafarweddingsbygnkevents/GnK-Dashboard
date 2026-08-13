@@ -4,6 +4,7 @@ const { Router } = require('express');
 
 const router = Router();
 const prisma = require('../lib/prisma');
+const requireAdmin = require('../middleware/requireAdmin');
 const { CATEGORIES, classifyMessage, upsertClientFromMessage } = require('../lib/agent/classifier');
 
 // Fields allowed through PATCH — source, id and createdByName (set once, at
@@ -577,8 +578,9 @@ router.get('/:id', async (req, res) => {
 
 // DELETE /api/clients/:id — for spam/junk auto-created profiles. ClientFunction
 // rows cascade (onDelete: Cascade in the schema). Stored Messages are kept —
-// deleting a client never deletes conversation history.
-router.delete('/:id', async (req, res) => {
+// deleting a client never deletes conversation history. Admin only: employees
+// can create and edit clients but never remove a profile.
+router.delete('/:id', requireAdmin, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   if (!Number.isInteger(id) || id < 1) {
     return res.status(400).json({ error: 'id must be a positive integer' });

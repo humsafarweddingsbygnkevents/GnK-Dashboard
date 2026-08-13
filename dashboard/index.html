@@ -423,6 +423,61 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .nc-remark-row .input{flex:1}
 .nc-remark-remove{flex:none;margin-top:4px;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;font-size:13px;transition:background .12s,color .12s}
 .nc-remark-remove:hover{background:var(--cream-3);color:var(--text)}
+/* Attendance entry modal — one row per task: what was done + how long it took.
+   The hours box and the remove button are fixed width so every row lines up
+   with the header captions and with the total underneath. The remove button
+   on a lone row is hidden but keeps its space, so the columns never shift. */
+/* A task description runs to 500 characters and can arrive as one unbroken
+   word, which no `max-width` on a <td> can hold back (auto table layout
+   ignores it). The inner div takes the width instead, breaks mid-word when it
+   has to, and clamps to two lines — the full text stays in the title. */
+.att-task-cell{max-width:340px;overflow-wrap:anywhere;white-space:normal;
+  display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+/* The employee name in the admin log — plain text. The row's "Open" button is
+   the one and only way into the day, so the name isn't a second target. */
+.att-name{font:600 13px Inter,sans-serif;color:var(--text)}
+/* Task text in the drawer keeps its line breaks but still breaks a long
+   unbroken string instead of pushing the panel sideways. */
+.att-note-wrap{overflow-wrap:anywhere}
+.att-task-count{margin-top:3px;font:600 10.5px Inter,sans-serif;letter-spacing:.04em;text-transform:uppercase;color:var(--text-3)}
+/* One task inside the day drawer: text and hours on top, its own status and
+   actions underneath, so a day of several tasks stays readable. */
+.att-day-task{border:1px solid var(--cx-line-soft);border-radius:11px;padding:12px 14px;margin-bottom:10px;background:var(--cx-tint)}
+.att-day-task-top{display:flex;align-items:flex-start;gap:10px}
+.att-day-task-n{flex:none;width:20px;height:20px;margin-top:1px;border-radius:50%;background:#fff;border:1px solid var(--cx-line);
+  display:flex;align-items:center;justify-content:center;font:600 10.5px Inter,sans-serif;color:var(--text-3)}
+.att-day-task-text{flex:1;min-width:0;font-size:13.5px;line-height:1.55;color:var(--text);white-space:pre-wrap}
+.att-day-task-hrs{flex:none;font:600 13px Inter,sans-serif;color:var(--green-700);white-space:nowrap}
+.att-day-task-foot{display:flex;align-items:center;gap:6px;margin-top:9px;padding-left:30px;flex-wrap:wrap}
+/* The day's remarks live under its tasks — one box for the whole day, however
+   many remarks it takes. */
+.att-remarks-box{border:1px solid var(--cx-line-soft);border-radius:11px;padding:12px 14px;background:var(--cx-tint)}
+.att-remarks-box #att-remarks-list .nc-remark-row:last-child{margin-bottom:0}
+.att-remarks-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+/* The date an employee sees but can't change — shaped like .input so the form
+   keeps its rhythm, tinted so it reads as fixed rather than empty. */
+.att-date-fixed{border:1px solid var(--border);border-radius:var(--radius);padding:9px 13px;font-size:13.5px;background:var(--cream-2);color:var(--text-2)}
+.att-task-head{display:flex;gap:8px;margin-bottom:5px;font:600 10.5px Inter,sans-serif;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3)}
+.att-task-head .t{flex:1;min-width:0}
+.att-task-head .h{width:72px;flex:none;text-align:center}
+.att-task-head .s{width:132px;flex:none}
+.att-task-head .x{width:30px;flex:none}
+.att-task-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.att-task-row .att-task-in{flex:1;min-width:0}
+.att-task-row .att-hrs-in{width:72px;flex:none;text-align:center;padding-left:8px;padding-right:8px}
+/* Status is per task, not per day — a day is often half finished. */
+.att-task-row .att-status-in{width:132px;flex:none;padding-left:9px;padding-right:20px}
+/* Removing a saved task only queues the delete; this says so until Save. */
+.att-del-note{margin-top:8px;font-size:11.5px;color:var(--red)}
+.att-task-remove{flex:none;width:30px;height:30px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text-3);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .12s,color .12s}
+.att-task-remove:hover{background:var(--red-bg);color:var(--red)}
+/* The list caps at three rows (max-height set by attSyncTaskRows) and scrolls
+   past that, so a long day can't stretch the modal past the viewport. The 3px
+   padding gives the focus ring room the overflow would otherwise clip, and the
+   matching negative margin keeps the rows aligned with the header captions. */
+#att-task-list{overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;padding:3px;margin:-3px}
+.att-total{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-top:12px;padding-top:11px;border-top:1px solid var(--border);font-size:12.5px;color:var(--text-3)}
+.att-total b{font-family:Fraunces,serif;font-size:15px;font-weight:600;color:var(--text)}
 .field-caption{font-size:10.5px;font-weight:600;letter-spacing:.02em;color:var(--text-3);margin-bottom:4px}
 .drawer-section-title{letter-spacing:.08em;text-transform:uppercase;font-size:10.5px;color:var(--text-3);font-weight:600;margin-bottom:10px}
 .info-row{display:flex;align-items:baseline;justify-content:space-between;gap:14px;padding:8px 0;border-bottom:1px solid var(--cream-3);font-size:13.5px}
@@ -1568,6 +1623,20 @@ const pico = (name, size = 16) =>
   `<span class="pico" style="--pico:url('/icons/${name}.png');width:${size}px;height:${size}px"></span>`;
 
 // ============================================================
+// FEATURE FLAGS
+// ============================================================
+// Hwoli AI is paused, not deleted. Everything it needs is still here — the
+// chat screen (renderHwoli), the /hwoli route, the backend /api/hwoli chat
+// route, and the Settings card for the OpenRouter key. Flipping this to true
+// is the only change needed to bring the whole feature back; nothing else
+// reads the key or the screen. While it is false:
+//   · the OpenRouter API Key card is hidden from Settings
+//   · /hwoli redirects to the dashboard instead of opening the chat
+// Any key already saved stays in localStorage under 'openrouter_key' and is
+// picked up again as soon as this is switched on.
+const HWOLI_ENABLED = false;
+
+// ============================================================
 // STATE
 // ============================================================
 const S = {
@@ -2334,6 +2403,9 @@ function navigate(screen, { push = true, replace = false } = {}) {
   // Team (other people's accounts/attendance) and Settings stay admin-only;
   // a direct call for either no-ops to attendance (the API would 403 anyway).
   if (S.admin?.role === 'employee' && EMPLOYEE_HIDDEN_SCREENS.includes(screen)) screen = 'attendance';
+  // Hwoli is paused — /hwoli falls back to the dashboard until HWOLI_ENABLED
+  // goes true, at which point the screen works again untouched.
+  if (screen === 'hwoli' && !HWOLI_ENABLED) screen = S.admin?.role === 'employee' ? 'attendance' : 'dashboard';
   stopMessagesPolling();
   S.screen = screen;
   const path = SCREEN_PATHS[screen];
@@ -2974,6 +3046,7 @@ async function openHotelDrawer(id) {
 
 function closeDrawer() {
   S.drawerClient = null;
+  S.attDrawerDay = null;
   const c = $('drawer-container');
   const overlay = c.querySelector('.drawer-overlay');
   const panel = c.querySelector('.drawer');
@@ -5208,6 +5281,20 @@ function setClientDrawerMode(editing) {
   if (!c) return;
   const drawer = document.querySelector('#drawer-container .drawer');
   if (drawer) { drawer.innerHTML = clientDrawerHtml(c, editing); suppressAutofill(drawer); }
+  // Remember how the form looked the moment Edit opened, so Save can tell an
+  // actual edit from someone opening the form and closing it untouched.
+  S.clientEditBaseline = editing ? clientFormSignature() : null;
+}
+
+// Every field value in the open drawer, in DOM order. Comparing the whole form
+// rather than the built payload sidesteps the render-side mappings (preferred
+// hotel/city, check-in/wedding date, the enquiry source label) that would
+// otherwise read as changes when nothing was typed. Adding or removing a
+// remark changes the field count, so that counts as a change too.
+function clientFormSignature() {
+  const drawer = document.querySelector('#drawer-container .drawer');
+  if (!drawer) return null;
+  return [...drawer.querySelectorAll('input, select, textarea')].map(el => el.value).join('\u0001');
 }
 
 // One key/value line in the drawer. `value` is trusted HTML (callers escape);
@@ -5223,6 +5310,13 @@ function infoRow(label, value, showEmpty) {
 function clientDrawerHtml(c, editing) {
   const isDM = (c.source==='instagram'||c.source==='facebook') && c.channelUserId;
   const safeName = esc(c.name).replace(/'/g,'&#39;');
+  // Deleting a client profile is admin-only — the API rejects it for employees.
+  const canDelete = S.admin?.role !== 'employee';
+  const deleteBtn = canDelete ? `
+        <button class="cx-btn cx-btn-danger" onclick="deleteClient(${c.id}, '${safeName}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          Delete
+        </button>` : '<span></span>';
   const header = `
       <div class="cx-dh">
         <div class="flex items-start gap-3">
@@ -5309,10 +5403,7 @@ function clientDrawerHtml(c, editing) {
         ${functionsHtml}
       </div>
       <div class="cx-dfoot">
-        <button class="cx-btn cx-btn-danger" onclick="deleteClient(${c.id}, '${safeName}')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-          Delete
-        </button>
+        ${deleteBtn}
         <button class="cx-btn cx-btn-primary" onclick="setClientDrawerMode(true)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
           Edit
@@ -5368,7 +5459,7 @@ function clientDrawerHtml(c, editing) {
             </div>
             <div id="cd-followup-wrap" style="display:${STATUSES_REQUIRING_FOLLOWUP.includes(c.status)?'block':'none'}">
               <label class="cx-lab" for="cd-followup">Next follow-up date <span class="req">*</span></label>
-              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-followup" type="date" min="1950-01-01" max="${maxEventDate()}" value="${c.nextFollowUpAt?String(c.nextFollowUpAt).slice(0,10):''}">
+              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-followup" type="date" min="1950-01-01" max="${maxEventDate()}" value="${c.nextFollowUpAt?String(c.nextFollowUpAt).slice(0,10):''}" onchange="this.blur()">
             </div>
             <div>
               <label class="cx-lab" for="cd-eventtype">Event type</label>
@@ -5391,10 +5482,7 @@ function clientDrawerHtml(c, editing) {
         ${functionsHtml}
       </div>
       <div class="cx-dfoot">
-        <button class="cx-btn cx-btn-danger" onclick="deleteClient(${c.id}, '${safeName}')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-          Delete
-        </button>
+        ${deleteBtn}
         <div class="flex gap-2">
           <button class="cx-btn cx-btn-ghost" onclick="setClientDrawerMode(false)">Cancel</button>
           <button class="cx-btn cx-btn-primary" onclick="saveClientDrawer(${c.id}, this)">Save changes</button>
@@ -5511,6 +5599,12 @@ document.addEventListener('input', e => {
 });
 
 async function saveClientDrawer(id, btn) {
+  // Opened Edit, touched nothing, hit Save — close it quietly. No request, no
+  // "Updated" toast for a save that changed nothing.
+  if (S.clientEditBaseline != null && clientFormSignature() === S.clientEditBaseline) {
+    setClientDrawerMode(false);
+    return;
+  }
   if (!validateClientForm('cd')) return;
   if (btn?.disabled) return;
   if (btn) btn.disabled = true;
@@ -5545,7 +5639,7 @@ async function saveClientDrawer(id, btn) {
   try {
     const updated = await apiPatch('/api/clients/' + id, body);
     S.drawerClient = updated;
-    showToast('Client updated', 'success');
+    showToast('Updated', 'success');
     setClientDrawerMode(false);
     afterClientChange();
   } catch(e) { flagDuplicatePhone('cd-phone', e.message); showToast('Error: '+e.message, 'error'); }
@@ -5642,7 +5736,7 @@ function openNewClientModal() {
               </div>
               <div id="nc-followup-wrap" style="display:none">
                 <label class="cx-lab" for="nc-followup">Next follow-up date <span class="req">*</span></label>
-                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-followup" type="date" min="1950-01-01" max="${maxEventDate()}">
+                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-followup" type="date" min="1950-01-01" max="${maxEventDate()}" onchange="this.blur()">
               </div>
               <div class="cx-full">
                 <label class="cx-lab" for="nc-event-other">Other <span class="hint">— anything the fields above don't cover</span></label>
@@ -6060,11 +6154,16 @@ async function sendHwoli() {
 // ATTENDANCE (employee) + TEAM (admin) SCREENS
 // ============================================================
 const ATT_STATUS = {
-  in_progress: { label: 'In progress', badge: 'badge-blue' },
+  in_progress: { label: 'On-going',    badge: 'badge-blue' },
   completed:   { label: 'Completed',   badge: 'badge-green' },
   blocked:     { label: 'Blocked',     badge: 'badge-red' },
   on_leave:    { label: 'On leave',    badge: 'badge-gold' },
 };
+
+// What the picker offers. "Blocked" is deliberately absent — it stays in
+// ATT_STATUS above so rows already logged with it keep their proper label and
+// colour in the table instead of falling back to a grey unknown pill.
+const ATT_STATUS_CHOICES = ['in_progress', 'completed', 'on_leave'];
 
 function attBadge(status) {
   const m = ATT_STATUS[status] || { label: status, badge: 'badge-gray' };
@@ -6152,41 +6251,179 @@ function attErrMsg(e) {
   try { return JSON.parse(e.message).error || e.message; } catch (_) { return e.message; }
 }
 
+// The admin log (screen 'team') and an admin's own log (screen 'attendance')
+// are two lists that can hold the very same rows, and only the one on show is
+// kept current — a mutation reloads that one and leaves the other as it was.
+// Reading them merged therefore resurrects rows that have just been deleted, so
+// everything reads the screen's own list and falls back only when it's unloaded.
+function attEntryList() {
+  const own = S.screen === 'attendance';
+  const primary = own ? S.attEntries : S.teamAtt;
+  // Loaded, not non-empty: once the screen has painted, an empty list means
+  // there is genuinely nothing left. Falling back on empty would let the other
+  // list put a just-deleted day back on screen.
+  if (Array.isArray(primary)) return primary;
+  return (own ? S.teamAtt : S.attEntries) || [];
+}
+
 function attFindEntry(id) {
-  return (S.attEntries || []).find(e => e.id === id) || (S.teamAtt || []).find(e => e.id === id);
+  return attEntryList().find(e => e.id === id);
+}
+
+// A day's work is one attendance record, not one per task. The API still keeps
+// a row per task — that is what lets each task carry its own hours and status —
+// so the log folds them back together here: one line per person per day, with
+// the tasks, the day's total and the day's statuses on it. Order is preserved
+// from the API (newest day first).
+function attGroupEntries(entries) {
+  const days = new Map();
+  for (const e of entries) {
+    const key = `${e.employeeId}|${e.date}`;
+    if (!days.has(key)) days.set(key, { key, employeeId: e.employeeId, employee: e.employee, date: e.date, tasks: [] });
+    days.get(key).tasks.push(e);
+  }
+  return [...days.values()];
+}
+
+function attFindDay(employeeId, date) {
+  const all = attEntryList().filter(e => e.employeeId === employeeId && e.date === date);
+  return all.length ? { employeeId, date, employee: all[0].employee, tasks: all } : null;
 }
 
 // `lockedDates` (a Set) is passed only for the employee's own view — when a
-// row's date is in it, that day has closed and the edit/delete actions are
-// replaced with a "Locked" pill. Admins pass nothing and keep full control.
+// day is in it, that day has closed and editing is replaced with a "Locked"
+// pill. Admins pass nothing and keep full control.
 function attRowsHTML(entries, { showEmployee = false, lockedDates = null } = {}) {
   if (!entries.length) {
     return `<tr><td colspan="${showEmployee ? 6 : 5}" style="text-align:center;padding:36px;color:var(--text-3)">No entries yet${showEmployee ? '' : ' — log your first task with “New entry”'}.</td></tr>`;
   }
-  return entries.map(e => {
+  return attGroupEntries(entries).map(d => {
     // In-window dates use the server flag; anything before the window is an
     // older month and always closed.
     const locked = lockedDates &&
-      (lockedDates.has(e.date) || (lockedDates._from && e.date < lockedDates._from));
-    // Remark stays editable even on a locked day — unlike Edit/Delete, it
-    // carries no lock criteria (e.g. noting work done after the 7:30 cutoff).
-    const actions = locked
-      ? `<span class="badge badge-gray" title="This day has closed">${ICO_LOCK} Locked</span>
-         <button class="btn btn-ghost btn-sm" onclick="attOpenRemarkModal(${e.id})">Remark${e.remarks ? ` (${attParseRemarks(e.remarks).length})` : ''}</button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="attOpenEntryModal(${e.id})">Edit</button>
-         <button class="btn btn-ghost btn-sm" onclick="attOpenRemarkModal(${e.id})">Remark${e.remarks ? ` (${attParseRemarks(e.remarks).length})` : ''}</button>
-         <button class="btn btn-ghost btn-sm" style="color:var(--red)" id="att-del-${e.id}" onclick="attDeleteEntry(${e.id})">Delete</button>`;
+      (lockedDates.has(d.date) || (lockedDates._from && d.date < lockedDates._from));
+    const total = d.tasks.reduce((sum, t) => sum + t.timeSpentMinutes, 0);
+    const summary = d.tasks.map(t => t.taskDescription).join(' · ');
+    // One badge per distinct status — a day is usually all one thing, but a
+    // half-finished day genuinely is both "on-going" and "completed".
+    const statuses = [...new Set(d.tasks.map(t => t.status))];
+    const open = `attOpenDayDrawer(${d.employeeId}, '${d.date}')`;
     return `
     <tr>
-      ${showEmployee ? `<td style="font-weight:600;color:var(--text)">${esc(e.employee?.name || e.employee?.email || '#' + e.employeeId)}</td>` : ''}
-      <td style="white-space:nowrap">${esc(attFmtDate(e.date))}</td>
-      <td style="max-width:340px">${esc(e.taskDescription)}</td>
-      <td style="white-space:nowrap">${attFmtMins(e.timeSpentMinutes)}</td>
-      <td>${attBadge(e.status)}</td>
-      <td style="max-width:220px;color:var(--text-3)">${e.comment ? esc(e.comment) : '—'}</td>
-      <td style="white-space:nowrap;text-align:right">${actions}</td>
+      ${showEmployee ? `<td><span class="att-name">${esc(d.employee?.name || d.employee?.email || '#' + d.employeeId)}</span></td>` : ''}
+      <td style="white-space:nowrap">${esc(attFmtDate(d.date))}</td>
+      <td>
+        <div class="att-task-cell" title="${esc(summary).replace(/"/g, '&quot;')}">${esc(summary)}</div>
+        ${d.tasks.length > 1 ? `<div class="att-task-count">${d.tasks.length} tasks</div>` : ''}
+      </td>
+      <td style="white-space:nowrap">${attFmtMins(total)}</td>
+      <td>${statuses.map(s => attBadge(s)).join(' ')}</td>
+      <td style="white-space:nowrap;text-align:right">
+        ${locked ? `<span class="badge badge-gray" title="This day has closed">${ICO_LOCK} Locked</span>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="${open}">Open</button>
+      </td>
     </tr>`;
   }).join('');
+}
+
+// Everything the drawer's task cards are drawn from, as one string. Stamped on
+// the drawer so a reload can tell whether what's on screen is still true.
+// Remarks are deliberately left out: they're edited in place, and a background
+// refresh must not wipe one someone is halfway through typing.
+function attDaySig(day) {
+  return day.tasks.map(t => `${t.id}:${t.timeSpentMinutes}:${t.status}:${t.taskDescription}`).join('|');
+}
+
+// A day drawer left open while the list reloads must not go on showing tasks
+// the reload dropped — the buttons on a deleted task 404 ("Entry not found").
+// Called from every repaint, so this holds however the change was made: an
+// edit here, a delete, or another admin's change arriving on the 60s refresh.
+function attSyncOpenDrawer() {
+  const open = S.attDrawerDay;
+  if (!open) return;
+  const day = attFindDay(open.employeeId, open.date);
+  if (!day) return closeDrawer(); // the day's last task is gone
+  const sig = document.querySelector('#drawer-container .cx-drawer')?.dataset.attSig;
+  if (sig !== undefined && sig !== attDaySig(day)) attOpenDayDrawer(open.employeeId, open.date);
+}
+
+// One day's attendance in the side drawer: every task with its own hours,
+// status and actions, and the day's total. This is where the per-task controls
+// live now that the table shows a day per line.
+function attOpenDayDrawer(employeeId, date) {
+  const day = attFindDay(employeeId, date);
+  if (!day) return;
+  // Lets a delete know a day is on screen and which one, so it can redraw it.
+  S.attDrawerDay = { employeeId, date };
+  const who = day.employee?.name || day.employee?.email || '#' + day.employeeId;
+  const total = day.tasks.reduce((sum, t) => sum + t.timeSpentMinutes, 0);
+  const locked = S.attLockedDates &&
+    (S.attLockedDates.has(date) || (S.attLockedDates._from && date < S.attLockedDates._from));
+
+  const taskHTML = day.tasks.map((t, i) => `
+      <div class="att-day-task">
+        <div class="att-day-task-top">
+          <span class="att-day-task-n">${i + 1}</span>
+          <div class="att-day-task-text att-note-wrap">${esc(t.taskDescription)}</div>
+          <span class="att-day-task-hrs">${attFmtMins(t.timeSpentMinutes)}</span>
+        </div>
+        <div class="att-day-task-foot">
+          ${attBadge(t.status)}
+          <span style="flex:1"></span>
+          ${locked ? '' : `<button class="btn btn-ghost btn-sm" onclick="closeDrawer();attOpenEntryModal(${t.id})">Edit</button>`}
+          ${locked ? '' : `<button class="btn btn-ghost btn-sm" style="color:var(--red)" id="att-del-${t.id}" onclick="attDeleteEntry(${t.id})">Delete</button>`}
+        </div>
+      </div>`).join('');
+
+  // Remarks belong to the day, not to any one task — "worked past 7:30" is
+  // about the evening, not about task three. They're edited here, in the space
+  // under the tasks, and there can be as many as the day needs.
+  const remarks = attDayRemarks(day);
+  if (!remarks.length) remarks.push('');
+  const remarkHTML = remarks.map((r, i) => `
+      <div class="nc-remark-row">
+        <div class="nc-remark-num">${i + 1}</div>
+        <textarea class="input" rows="2" placeholder="Add a remark…">${esc(r)}</textarea>
+        ${i > 0 ? `<button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">${ICO_CLOSE}</button>` : ''}
+      </div>`).join('');
+
+  $('drawer-container').innerHTML = `
+    <div class="drawer-overlay" onclick="closeDrawer()"></div>
+    <div class="drawer" style="width:520px;max-width:94vw;box-shadow:var(--cx-e3)">
+      <div class="cx-drawer" data-att-sig="${esc(attDaySig(day))}">
+        <div class="cx-dh">
+          <div class="flex items-start gap-3">
+            <div style="flex:1;min-width:0">
+              <div class="cx-dh-name">${esc(who)}</div>
+              <div class="flex items-center gap-2" style="margin-top:7px;flex-wrap:wrap">
+                <span style="font-size:12.5px;color:var(--text-3)">${esc(attFmtDate(date))}</span>
+                <span style="color:#D5CFBD">·</span>
+                <span style="font-size:12.5px;color:var(--text-3)">${day.tasks.length} task${day.tasks.length > 1 ? 's' : ''}</span>
+                ${locked ? `<span class="badge badge-gray">${ICO_LOCK} Locked</span>` : ''}
+              </div>
+            </div>
+            <button class="cx-x" onclick="closeDrawer()" title="Close">${ICO_CLOSE}</button>
+          </div>
+        </div>
+        <div class="cx-dbody">
+          <div class="cx-dsec">
+            <div class="cx-dsec-t">Tasks</div>
+            ${taskHTML}
+            <div class="cx-row total"><span class="k">Total time</span><span class="v">${attFmtMins(total)}</span></div>
+          </div>
+          <div class="cx-dsec">
+            <div class="cx-dsec-t">Remarks</div>
+            <div class="att-remarks-box">
+              <div id="att-remarks-list">${remarkHTML}</div>
+              <div class="att-remarks-foot">
+                <button type="button" class="btn btn-ghost btn-sm" onclick="attAddRemarkRow()">${ICO_PLUS} Add remark</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="attSaveDayRemarks()">Save remarks</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
 }
 
 // Day-status pill for the attendance sheet (present/pending/absent/off/unlocked).
@@ -6217,7 +6454,10 @@ async function renderAttendance() {
   // repaint after the background refresh (mutations clear this cache). The
   // status call carries the live 7:30 PM lock state and absent days.
   if (!cacheGet('att:mine')) setContent('<div class="empty" style="padding:60px 0"><span class="spinner"></span></div>');
-  swr('att:mine', 60000, async () => {
+  // Returned, not fired and forgotten: callers that mutate and then redraw
+  // (a save, a delete) await this to mean "the new list has landed and
+  // painted". Without the return they carried on against the old one.
+  return swr('att:mine', 60000, async () => {
     const [entries, status] = await Promise.all([
       api('/api/attendance').then(r => r.data),
       api('/api/attendance/status').then(r => r.data),
@@ -6236,7 +6476,10 @@ function paintAttendance(entries, status) {
   S.attEntries = entries;
   S.attStatus = status;
 
+  // Kept on S so the day drawer can tell a closed day from an open one without
+  // recomputing the window.
   const lockedDates = attLockedDates(status);
+  S.attLockedDates = lockedDates;
   const summary = status?.summary || {};
   const today = attToday();
   const todayDay = (status?.days || []).find(d => d.date === today);
@@ -6306,78 +6549,269 @@ function paintAttendance(entries, status) {
       </div>
       <div style="overflow:auto">
         <table class="tbl">
-          <thead><tr><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th>Comment</th><th></th></tr></thead>
+          <thead><tr><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th></th></tr></thead>
           <tbody>${attRowsHTML(entries, { lockedDates })}</tbody>
         </table>
       </div>
     </div>`);
+  attSyncOpenDrawer();
 }
 
-// Shared add/edit modal. Employees always write their own rows (the server
-// forces it anyway); admins pick the employee when creating from Team.
-function attOpenEntryModal(entryId, prefillDate) {
+// Shared add/edit modal, scoped to a whole day rather than a single task.
+// Opening it from any task loads every task that day already has, so the day is
+// edited as one thing: rows can be corrected, added or removed side by side
+// instead of one modal per task. Employees always write their own rows (the
+// server forces it anyway); admins pick the employee when creating from Team.
+function attOpenEntryModal(entryId, prefillDate, prefillEmployeeId) {
   const entry = entryId ? attFindEntry(entryId) : null;
   const isAdmin = S.admin?.role !== 'employee';
   const employees = (S.teamEmployees || []).filter(e => e.role === 'employee' && (e.active || (entry && entry.employeeId === e.id)));
-  const h = entry ? Math.floor(entry.timeSpentMinutes / 60) : '';
-  const m = entry ? entry.timeSpentMinutes % 60 : '';
+  // Editing pulls in the day's other tasks; creating starts with one empty row.
+  const dayTasks = entry ? (attFindDay(entry.employeeId, entry.date)?.tasks || [entry]) : [];
+  const tasks = dayTasks.length
+    ? dayTasks.map(t => ({ id: t.id, text: t.taskDescription, mins: t.timeSpentMinutes, status: t.status }))
+    : [{}];
+  // Nobody picks the date — no calendar for admins either, so neither past nor
+  // future days can be filled from here. It is today, or the day the system
+  // already decided: the row being edited, or a day an admin reopened for an
+  // employee (that shortcut supplies the date; the employee never chooses it).
   const dateVal = entry ? entry.date : (prefillDate || attToday());
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="position:relative;max-width:460px">
+      <div class="modal" style="position:relative;max-width:560px">
         <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
-        <div class="modal-title">${entry ? 'Edit entry' : 'New attendance entry'}</div>
-        <input type="hidden" id="att-entry-id" value="${entry ? entry.id : ''}">
+        <div class="modal-title">${entry ? 'Edit tasks' : 'New attendance entry'}</div>
+        <input type="hidden" id="att-entry-employee" value="${entry ? entry.employeeId : ''}">
+        <input type="hidden" id="att-delete-ids" value="">
         ${isAdmin && !entry ? `
         <div class="auth-field"><label class="label">Employee</label>
-          <select class="input" id="att-employee">${employees.map(e => `<option value="${e.id}">${esc(e.name || e.email)}</option>`).join('')}</select></div>` : ''}
+          <select class="input" id="att-employee">${employees.map(e => `<option value="${e.id}" ${prefillEmployeeId === e.id ? 'selected' : ''}>${esc(e.name || e.email)}</option>`).join('')}</select></div>` : ''}
         <div class="auth-field"><label class="label">Date</label>
-          <input class="input" type="date" id="att-date" value="${dateVal}"></div>
-        <div class="auth-field"><label class="label">Task description</label>
-          <textarea class="input" id="att-task" rows="3" maxlength="500" placeholder="What did you work on?">${entry ? esc(entry.taskDescription) : ''}</textarea></div>
-        <div class="auth-field"><label class="label">Time spent</label>
-          <div style="display:flex;gap:10px;align-items:center">
-            <input class="input" type="number" id="att-hours" min="0" max="24" placeholder="0" value="${h}" style="width:90px"> <span class="text-sm text-muted">hours</span>
-            <input class="input" type="number" id="att-mins" min="0" max="59" placeholder="0" value="${m}" style="width:90px"> <span class="text-sm text-muted">minutes</span>
-          </div></div>
-        <div class="auth-field"><label class="label">Status</label>
-          <select class="input" id="att-status">
-            ${Object.entries(ATT_STATUS).map(([k, v]) => `<option value="${k}" ${entry && entry.status === k ? 'selected' : ''}>${v.label}</option>`).join('')}
-          </select></div>
-        <div class="auth-field"><label class="label">Comment <span class="text-muted">(optional)</span></label>
-          <input class="input" type="text" id="att-comment" maxlength="1000" placeholder="Anything worth noting" value="${entry && entry.comment ? esc(entry.comment).replace(/"/g,'&quot;') : ''}"></div>
-        <button class="btn btn-primary" style="width:100%;margin-top:16px;justify-content:center" onclick="attSubmitEntry()">${entry ? 'Save changes' : 'Add entry'}</button>
+          <div class="att-date-fixed">${esc(attFmtDate(dateVal))}</div>
+          <input type="hidden" id="att-date" value="${dateVal}">
+        </div>
+        <div class="auth-field">
+          <label class="label">Tasks</label>
+          <div class="att-task-head"><span class="t">What you worked on</span><span class="h">Hours</span><span class="s">Status</span><span class="x"></span></div>
+          <div id="att-task-list">${tasks.map(t => attTaskRowHTML(t)).join('')}</div>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="attAddTaskRow()">${ICO_PLUS} Add task</button>
+          <div class="att-del-note" id="att-del-note" hidden></div>
+          <div class="att-total"><span>Total time</span><b id="att-total">—</b></div>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:16px;justify-content:center" onclick="attSubmitEntry()">${entry ? 'Save changes' : 'Submit entry'}</button>
       </div>
+    </div>`;
+  attSyncTaskRows();
+  attUpdateTotal();
+  // Opened from one particular task — start the cursor on that task's row.
+  const row = entryId && $('att-task-list').querySelector(`.att-task-row[data-id="${entryId}"]`);
+  if (row) { row.scrollIntoView({ block: 'nearest' }); row.querySelector('.att-task-in').focus({ preventScroll: true }); }
+}
+
+// Hours are entered as a decimal (1.5 = an hour and a half) and stored as the
+// whole minutes the API expects, so half-hours need no second box. `data-id`
+// carries the attendance row a line came from — empty means a task that doesn't
+// exist yet, which is what tells the save to POST rather than PATCH.
+function attTaskRowHTML(task) {
+  const t = task || {};
+  const hrs = t.mins ? String(+(t.mins / 60).toFixed(2)) : '';
+  const text = t.text ? esc(t.text).replace(/"/g, '&quot;') : '';
+  // A task still carrying a retired status (Blocked) keeps it as an option while
+  // it's open, so editing the task can't silently reclassify it.
+  const keys = [...ATT_STATUS_CHOICES];
+  if (t.status && !keys.includes(t.status)) keys.push(t.status);
+  const cur = t.status || ATT_STATUS_CHOICES[0];
+  return `
+    <div class="att-task-row" data-id="${t.id || ''}">
+      <input class="input att-task-in" type="text" maxlength="500" placeholder="What did you work on?" value="${text}" oninput="attUpdateTotal()">
+      <input class="input att-hrs-in" type="number" min="0" max="24" step="0.5" placeholder="0" value="${hrs}" oninput="attUpdateTotal()">
+      <select class="input att-status-in">${keys.map(k => `<option value="${k}" ${k === cur ? 'selected' : ''}>${esc(ATT_STATUS[k]?.label || k)}</option>`).join('')}</select>
+      <button type="button" class="att-task-remove" onclick="attRemoveTaskRow(this)" title="Remove task">${ICO_CLOSE}</button>
     </div>`;
 }
 
-async function attSubmitEntry() {
-  const id = $('att-entry-id').value;
-  const hours = parseInt($('att-hours').value || '0', 10) || 0;
-  const mins = parseInt($('att-mins').value || '0', 10) || 0;
-  const body = {
-    date: $('att-date').value,
-    taskDescription: $('att-task').value.trim(),
-    timeSpentMinutes: hours * 60 + mins,
-    status: $('att-status').value,
-    comment: $('att-comment').value.trim() || null,
-  };
-  if (!body.date) return showToast('Pick a date', 'error');
-  if (!body.taskDescription) return showToast('Describe the task', 'error');
-  if (body.timeSpentMinutes < 1) return showToast('Enter the time spent', 'error');
-  const empSel = $('att-employee');
-  if (empSel) body.employeeId = parseInt(empSel.value, 10);
-  try {
-    if (id) await apiPatch(`/api/attendance/${id}`, body);
-    else await apiPost('/api/attendance', body);
-    closeModal();
-    showToast(id ? 'Entry updated' : 'Entry added', 'success');
-    cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
-    S.screen === 'team' ? renderTeam() : renderAttendance();
-  } catch (e) { showToast(attErrMsg(e), 'error'); }
+// How many task rows stay visible before the list starts scrolling.
+const ATT_VISIBLE_TASK_ROWS = 3;
+
+// Owns everything that depends on how many rows there are: the per-row remove
+// button (a lone task can't be removed, but the button keeps its space so the
+// columns don't shift when a second row appears) and the scroll cap. The cap is
+// measured off a real row rather than hard-coded, so it stays right if the
+// input padding ever changes.
+function attSyncTaskRows() {
+  const list = $('att-task-list');
+  if (!list) return;
+  const rows = [...list.children];
+  if (!rows.length) return;
+  const many = rows.length > 1;
+  rows.forEach(row => {
+    const x = row.querySelector('.att-task-remove');
+    if (x) { x.style.visibility = many ? 'visible' : 'hidden'; x.tabIndex = many ? 0 : -1; }
+  });
+  const pitch = rows[0].offsetHeight + (parseFloat(getComputedStyle(rows[0]).marginBottom) || 0);
+  list.style.maxHeight = rows.length > ATT_VISIBLE_TASK_ROWS && pitch
+    ? `${Math.round(pitch * ATT_VISIBLE_TASK_ROWS)}px`
+    : '';
+  attSyncDeleteNote();
 }
 
-// Multi-remark modal — e.g. logging that work continued past 7:30. Reuses the
+// Removing a saved task queues its deletion rather than doing it — nothing is
+// destroyed until Save, so the note spells out what the button will do.
+function attSyncDeleteNote() {
+  const note = $('att-del-note');
+  if (!note) return;
+  const n = attDeleteIds().length;
+  note.hidden = !n;
+  note.textContent = n ? `${n} task${n > 1 ? 's' : ''} will be deleted when you save.` : '';
+}
+
+function attDeleteIds() {
+  const box = $('att-delete-ids');
+  return box && box.value ? box.value.split(',').map(Number).filter(Boolean) : [];
+}
+
+function attAddTaskRow() {
+  const list = $('att-task-list');
+  if (!list) return;
+  list.insertAdjacentHTML('beforeend', attTaskRowHTML(null));
+  attSyncTaskRows();
+  const row = list.lastElementChild;
+  row.scrollIntoView({ block: 'nearest' });
+  row.querySelector('.att-task-in').focus({ preventScroll: true });
+  attUpdateTotal();
+}
+
+function attRemoveTaskRow(btn) {
+  const list = $('att-task-list');
+  if (!list || list.children.length <= 1) return;
+  const row = btn.closest('.att-task-row');
+  const box = $('att-delete-ids');
+  // A row that came from a saved task is deleted on save; a row that was never
+  // saved just disappears.
+  if (row.dataset.id && box) box.value = box.value ? `${box.value},${row.dataset.id}` : row.dataset.id;
+  row.remove();
+  attSyncTaskRows();
+  attUpdateTotal();
+}
+
+// Every row as { el, id, text, minutes, status }, in order. `id` is null for a
+// task that doesn't exist yet. Rows left completely blank are the caller's to
+// filter — validation needs to tell "blank" from "half filled".
+function attCollectTasks() {
+  const list = $('att-task-list');
+  if (!list) return [];
+  return [...list.children].map(el => {
+    const hrs = Number(el.querySelector('.att-hrs-in').value);
+    return {
+      el,
+      id: el.dataset.id ? parseInt(el.dataset.id, 10) : null,
+      text: el.querySelector('.att-task-in').value.trim(),
+      minutes: Number.isFinite(hrs) && hrs > 0 ? Math.round(hrs * 60) : 0,
+      status: el.querySelector('.att-status-in').value,
+    };
+  });
+}
+
+function attUpdateTotal() {
+  const out = $('att-total');
+  if (!out) return;
+  const total = attCollectTasks().reduce((sum, t) => sum + t.minutes, 0);
+  out.textContent = total ? attFmtMins(total) : '—';
+}
+
+// "2 tasks updated · 1 deleted" — only the parts that actually happened, with
+// the noun on whichever comes first.
+function attSaveSummary({ updated, added, deleted }) {
+  const bits = [];
+  const say = (n, verb) => (bits.length ? `${n} ${verb}` : `${n} task${n > 1 ? 's' : ''} ${verb}`);
+  if (updated) bits.push(say(updated, 'updated'));
+  if (added) bits.push(say(added, 'added'));
+  if (deleted) bits.push(say(deleted, 'deleted'));
+  return bits.join(' · ');
+}
+
+// Each task is its own attendance row — same shape the log has always stored,
+// so the table, totals and the 7:30 lock all keep working untouched. The form
+// edits a whole day at once, so saving it is a diff: rows that came from a task
+// are PATCHed (and skipped entirely when nothing about them changed), new rows
+// are POSTed, and rows the user removed are DELETEd last, so a failure part-way
+// through never destroys a task the rest of the save didn't get to replace.
+async function attSubmitEntry() {
+  const date = $('att-date').value;
+  const rows = attCollectTasks();
+  // A saved row stays in even if it was blanked out, so validation can catch it
+  // rather than the save quietly skipping it.
+  const tasks = rows.filter(t => t.id || t.text || t.minutes);
+  const deleteIds = attDeleteIds();
+
+  if (!date) return showToast('Pick a date', 'error');
+  if (!tasks.length && !deleteIds.length) return showToast('Add at least one task', 'error');
+  const noText = tasks.find(t => !t.text);
+  if (noText) { noText.el.querySelector('.att-task-in').focus(); return showToast('Describe the task', 'error'); }
+  const noTime = tasks.find(t => !t.minutes);
+  if (noTime) { noTime.el.querySelector('.att-hrs-in').focus(); return showToast('Enter the hours for each task', 'error'); }
+  const total = tasks.reduce((sum, t) => sum + t.minutes, 0);
+  if (total > 1440) return showToast('That adds up to more than 24 hours', 'error');
+
+  // Creating: the admin's picker names the employee. Editing: the day already
+  // belongs to someone, so new tasks follow it. Either is ignored for an
+  // employee's own session — the server forces the id from the session.
+  const empSel = $('att-employee');
+  const employeeId = empSel
+    ? parseInt(empSel.value, 10)
+    : (parseInt($('att-entry-employee')?.value, 10) || null);
+
+  const edits = tasks.filter(t => t.id).filter(t => {
+    const o = attFindEntry(t.id);
+    return !o || o.date !== date || o.taskDescription !== t.text ||
+      o.timeSpentMinutes !== t.minutes || o.status !== t.status;
+  });
+  const creates = tasks.filter(t => !t.id);
+  if (!edits.length && !creates.length && !deleteIds.length) return closeModal();
+
+  // Opened from a day rather than from "New entry" — a saved task was on screen,
+  // or one was queued for deletion. That day's drawer is put back afterwards.
+  const fromDay = tasks.some(t => t.id) || deleteIds.length > 0;
+  // Awaited: the list has to have reloaded before the drawer is drawn again,
+  // or it draws the tasks that were just deleted and their buttons 404.
+  const refresh = () => {
+    cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
+    return S.screen === 'team' ? renderTeam() : renderAttendance();
+  };
+  const reopenDay = async () => {
+    await refresh();
+    if (fromDay && employeeId && attFindDay(employeeId, date)) attOpenDayDrawer(employeeId, date);
+  };
+  const done = { updated: 0, added: 0, deleted: 0 };
+
+  try {
+    for (const t of edits) {
+      await apiPatch(`/api/attendance/${t.id}`, { date, taskDescription: t.text, timeSpentMinutes: t.minutes, status: t.status });
+      done.updated++;
+    }
+    for (const t of creates) {
+      const body = { date, taskDescription: t.text, timeSpentMinutes: t.minutes, status: t.status };
+      if (employeeId) body.employeeId = employeeId;
+      await apiPost('/api/attendance', body);
+      done.added++;
+    }
+    for (const delId of deleteIds) { await apiDelete(`/api/attendance/${delId}`); done.deleted++; }
+    closeModal();
+    showToast(attSaveSummary(done), 'success');
+    await reopenDay();
+  } catch (e) {
+    // A run that failed part-way has already written some of it — say what
+    // landed and close, so retrying can't silently duplicate the creates.
+    // Nothing written yet leaves the form open to retry.
+    if (done.updated || done.added || done.deleted) {
+      closeModal();
+      showToast(`${attSaveSummary(done)}, then stopped — ${attErrMsg(e)}`, 'error');
+      await reopenDay();
+    } else showToast(attErrMsg(e), 'error');
+  }
+}
+
+// Multi-remark editing — e.g. logging that work continued past 7:30. Reuses the
 // numbered add/remove row pattern from the New Client modal and stores the
 // result in the entry's existing `comment` field (numbered + newline-joined
 // when there's more than one).
@@ -6390,32 +6824,16 @@ function attParseRemarks(comment) {
   return [comment];
 }
 
-function attOpenRemarkModal(entryId) {
-  const entry = attFindEntry(entryId);
-  if (!entry) return;
-  const remarks = attParseRemarks(entry.remarks);
-  if (!remarks.length) remarks.push('');
-  $('modal-container').innerHTML = `
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal" style="position:relative;max-width:460px">
-        <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
-        <div class="modal-title">Remarks — ${esc(attFmtDate(entry.date))}</div>
-        <input type="hidden" id="att-remark-entry-id" value="${entry.id}">
-        <div class="mb-4">
-          <label class="label">Remark <span class="text-muted">(e.g. worked past 7:30 — note why)</span></label>
-          <div id="att-remarks-list">
-            ${remarks.map((r, i) => `
-            <div class="nc-remark-row">
-              <div class="nc-remark-num">${i + 1}</div>
-              <textarea class="input" rows="2" placeholder="Add a remark…">${esc(r)}</textarea>
-              ${i > 0 ? `<button type="button" class="nc-remark-remove" onclick="attRemoveRemarkRow(this)" title="Remove remark">${ICO_CLOSE}</button>` : ''}
-            </div>`).join('')}
-          </div>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="attAddRemarkRow()">+ Add remark</button>
-        </div>
-        <button class="btn btn-primary" style="width:100%;margin-top:8px;justify-content:center" onclick="attSaveRemarks()">Save remarks</button>
-      </div>
-    </div>`;
+// A day's remarks, in task order. The API keeps `remarks` per row, so a day
+// that was annotated under the old per-task UI can have them spread across
+// several rows; they all read as the day's, and the next save folds them onto
+// the day's first task (attDayRemarkAnchor) so they stay in one place.
+function attDayRemarks(day) {
+  return day.tasks.flatMap(t => attParseRemarks(t.remarks));
+}
+
+function attDayRemarkAnchor(day) {
+  return day.tasks.reduce((first, t) => (t.id < first.id ? t : first), day.tasks[0]);
 }
 
 function attAddRemarkRow() {
@@ -6447,15 +6865,25 @@ function attCollectRemarks() {
   return vals.length === 1 ? vals[0] : vals.map((v, i) => `${i + 1}. ${v}`).join('\n');
 }
 
-async function attSaveRemarks() {
-  const id = $('att-remark-entry-id').value;
+// Saved straight from the open day drawer. Remarks carry no lock criteria, so
+// the API accepts a remarks-only update even on a closed day — which is the
+// point: that's when someone explains why the day ran long.
+async function attSaveDayRemarks() {
+  const day = S.attDrawerDay && attFindDay(S.attDrawerDay.employeeId, S.attDrawerDay.date);
+  if (!day) return;
+  const anchor = attDayRemarkAnchor(day);
   const remarks = attCollectRemarks();
+  // Rows holding remarks that have just been consolidated onto the anchor.
+  const stale = day.tasks.filter(t => t.id !== anchor.id && t.remarks);
+  if ((anchor.remarks || null) === remarks && !stale.length) return showToast('No changes to save');
   try {
-    await apiPatch(`/api/attendance/${id}`, { remarks });
-    closeModal();
+    await apiPatch(`/api/attendance/${anchor.id}`, { remarks });
+    for (const t of stale) await apiPatch(`/api/attendance/${t.id}`, { remarks: null });
     showToast('Remarks saved', 'success');
     cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
-    S.screen === 'team' ? renderTeam() : renderAttendance();
+    // Awaited so the drawer redraws from the reloaded list, not the stale one.
+    await (S.screen === 'team' ? renderTeam() : renderAttendance());
+    if (S.attDrawerDay) attOpenDayDrawer(day.employeeId, day.date);
   } catch (e) { showToast(attErrMsg(e), 'error'); }
 }
 
@@ -6470,9 +6898,14 @@ async function attDeleteEntry(id) {
   }
   try {
     await apiDelete(`/api/attendance/${id}`);
-    showToast('Entry deleted', 'success');
+    showToast('Task deleted', 'success');
     cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
-    S.screen === 'team' ? renderTeam() : renderAttendance();
+    // Awaited: the drawer reads S.attEntries / S.teamAtt, which only refresh
+    // when the render's fetch resolves. The repaint then rebuilds the open
+    // drawer (or closes it, if that was the day's last task) via
+    // attSyncOpenDrawer — without the await it would redraw from the stale
+    // list and the deleted task would reappear.
+    await (S.screen === 'team' ? renderTeam() : renderAttendance());
   } catch (e) { showToast(attErrMsg(e), 'error'); }
 }
 
@@ -6480,7 +6913,8 @@ async function renderTeam() {
   const absMonth = S.teamAbsMonth || attToday().slice(0, 7);
   const key = `team:${S.teamEmpFilter || ''}:${S.teamFrom || ''}:${S.teamTo || ''}:${absMonth}`;
   if (!cacheGet(key)) setContent('<div class="empty" style="padding:60px 0"><span class="spinner"></span></div>');
-  swr(key, 60000, async () => {
+  // Returned for the same reason as renderAttendance — see the note there.
+  return swr(key, 60000, async () => {
     const q = [];
     if (S.teamEmpFilter) q.push(`employeeId=${S.teamEmpFilter}`);
     if (S.teamFrom) q.push(`from=${S.teamFrom}`);
@@ -6515,6 +6949,8 @@ function teamSetAbsMonth(month) {
 function paintTeam(employees, att, status, absences, absMonth) {
   S.teamEmployees = employees;
   S.teamAtt = att;
+  // Admins bypass the 7:30 lock, so nothing is closed to them in this view.
+  S.attLockedDates = null;
   S.teamStatus = status;
   S.teamAbsences = absences;
   S.teamAbsMonth = absMonth;
@@ -6589,11 +7025,12 @@ function paintTeam(employees, att, status, absences, absMonth) {
       </div>
       <div style="overflow:auto">
         <table class="tbl">
-          <thead><tr><th>Employee</th><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th>Comment</th><th></th></tr></thead>
+          <thead><tr><th>Employee</th><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th></th></tr></thead>
           <tbody>${attRowsHTML(att, { showEmployee: true })}</tbody>
         </table>
       </div>
     </div>`);
+  attSyncOpenDrawer();
 }
 
 // Admin day-by-day sheet for one employee: shows present/absent/off/pending
@@ -7279,7 +7716,8 @@ function renderSettings() {
           </div>`}
         </div>
       </div>
-      <!-- OpenRouter -->
+      <!-- OpenRouter — hidden while Hwoli AI is paused (see HWOLI_ENABLED) -->
+      ${!HWOLI_ENABLED ? '' : `
       <div class="settings-panel" style="--stagger:120ms">
         <div class="settings-panel-head">
           <span class="ph-icon">${pico('key', 15)}</span>
@@ -7296,7 +7734,7 @@ function renderSettings() {
           </div>
           ${savedKey ? `<div class="text-xs text-muted mt-2">${ICO_CHECK} Key saved · Hwoli is ready</div>` : `<div class="text-xs" style="color:var(--gold-600);margin-top:8px">⚠ No key set — Hwoli AI will not work</div>`}
         </div>
-      </div>
+      </div>`}
       <!-- DB stats -->
       <div class="settings-panel" style="--stagger:180ms">
         <div class="settings-panel-head">
