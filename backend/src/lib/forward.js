@@ -156,12 +156,20 @@ function buildQuotedMessage(parsed, note = '', mode = 'forward') {
 
   // Threading: without In-Reply-To/References a reply opens a new conversation
   // in the recipient's client instead of landing under the message it answers.
+  //
+  // A forward gets References too, but no In-Reply-To — it continues the
+  // conversation without being an answer to it. Without References a forward
+  // carries no link back to its original at all, so neither the recipient's
+  // client nor our own inbox can thread the two, and the Fwd: shows up as an
+  // unrelated message sitting next to the mail it came from.
   const refs = [parsed.references, parsed.messageId].flat().filter(Boolean).join(' ');
   return {
     text,
     html,
     attachments,
-    ...(isReply && parsed.messageId ? { inReplyTo: parsed.messageId, references: refs } : {}),
+    ...(parsed.messageId
+      ? { references: refs, ...(isReply ? { inReplyTo: parsed.messageId } : {}) }
+      : {}),
   };
 }
 

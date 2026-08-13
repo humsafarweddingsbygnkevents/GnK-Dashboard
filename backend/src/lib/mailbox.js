@@ -158,6 +158,12 @@ async function parseMessage(msg) {
   const parsed = await simpleParser(msg.source);
   return {
     uid: msg.uid,
+    // Threading headers. mailparser gives `references` as a string or an array
+    // depending on how many there are; normalised to an array so the client
+    // never has to care.
+    messageId: parsed.messageId || null,
+    inReplyTo: parsed.inReplyTo || null,
+    references: parsed.references ? [].concat(parsed.references) : [],
     subject: parsed.subject || '(no subject)',
     from: parsed.from?.text || '',
     to: parsed.to?.text || '',

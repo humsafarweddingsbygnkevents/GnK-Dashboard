@@ -133,6 +133,13 @@ async function fetchRecent(account, { maxResults = 15, pageToken, labelIds } = {
       const msgLabelIds = msg.data.labelIds || [];
       return {
         id,
+        // Gmail's own conversation id — authoritative, and free here. The
+        // RFC 822 headers come along too so a Gmail message and an IMAP one
+        // can still be threaded against each other by Message-ID.
+        threadId: msg.data.threadId || null,
+        messageId: headerValue(headers, 'Message-ID'),
+        inReplyTo: headerValue(headers, 'In-Reply-To'),
+        references: headerValue(headers, 'References'),
         subject: headerValue(headers, 'Subject'),
         from: headerValue(headers, 'From'),
         to: headerValue(headers, 'To'),

@@ -643,6 +643,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .gm-line1{display:flex;align-items:center;gap:8px}
 .gm-sender{flex:1;min-width:0;font:600 13.5px Inter,sans-serif;color:var(--text-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mail-row.unread .gm-sender{font-weight:700;color:var(--text)}
+/* How many messages are in the conversation — Gmail's little count after the
+   participant names. Only rendered when there is more than one. */
+.gm-count{margin-left:5px;font:500 11.5px Inter,sans-serif;color:var(--text-3)}
+.mail-row.unread .gm-count{color:var(--text-2)}
 .gm-meta{display:flex;align-items:center;gap:6px;flex:none}
 .gm-acct-dot{width:7px;height:7px;border-radius:50%;flex:none}
 .gm-clip{opacity:.55;flex:none;color:var(--text-3)}
@@ -802,6 +806,30 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .hd-thread-actions .btn{margin-left:6px}
 .hd-act-sep{flex:none;width:1px;height:18px;background:var(--hd-border);margin:0 5px}
 .hd-thread-body{flex:1;min-height:0;overflow-y:auto;padding:22px 24px 64px;animation:hd-settle .22s var(--hd-ease) both}
+/* ---- Conversation stack ----
+   A thread renders every message at once. Older ones sit collapsed as a single
+   clickable line; the newest is expanded. Both states live in the DOM and are
+   swapped by .tm-open/.tm-collapsed, so toggling never re-renders the pane. */
+.tm+.tm{border-top:1px solid var(--hd-border);margin-top:16px;padding-top:16px}
+.tm-summary{display:none;align-items:center;gap:10px;cursor:pointer;padding:4px 6px;margin:-4px -6px;border-radius:var(--radius);transition:background .12s var(--hd-ease)}
+.tm-summary:hover{background:var(--cream-2)}
+.tm-collapsed>.tm-summary{display:flex}
+.tm-collapsed>.tm-full{display:none}
+.tm-sum-name{font:600 13px Inter,sans-serif;color:var(--text);flex:none;max-width:38%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tm-sum-snippet{flex:1;min-width:0;font:400 12.5px Inter,sans-serif;color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm-sum-date{font:500 11px Inter,sans-serif;color:var(--text-3);flex:none}
+.tm-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--hd-border);cursor:pointer}
+/* Only worth collapsing when there is something else to collapse to. */
+.tm:only-child>.tm-head{cursor:default}
+.hd-thread-count{flex:none;font:600 11.5px Inter,sans-serif;color:var(--text-3);background:var(--cream-2);border:1px solid var(--border-soft);border-radius:999px;padding:1px 7px}
+/* Per-message Reply/Forward. Pill-shaped and calm like the rest of the reading
+   surface — the site-wide neubrutalist button would shout here. */
+.tm-actions{display:flex;gap:9px;margin-top:18px}
+.tm-actions .btn{border:1.5px solid var(--hd-border);border-radius:999px;padding:7px 17px;
+  background:transparent;color:var(--text-2);box-shadow:none;
+  transition:background .16s var(--hd-ease),border-color .16s var(--hd-ease),color .16s var(--hd-ease),transform .16s var(--hd-ease)}
+.tm-actions .btn:hover{background:var(--green-50);border-color:var(--green-200);color:var(--green-700);transform:none;box-shadow:none}
+.tm-actions .btn:active{transform:scale(.97);box-shadow:none}
 /* Buttons inside the inbox reading/reply surfaces get a calmer, soft-elevation
    treatment instead of the site-wide neubrutalist offset-shadow button — a
    deliberate exception scoped to these containers only. */
@@ -1695,6 +1723,13 @@ function emailSource(domain) {
 function cleanSnippet(body) {
   if (!body) return '';
   return String(body)
+    // A forward's plain-text body opens with the "Forwarded message" banner and
+    // a From/Date/Subject/To block. Left in, every forwarded row previews as
+    // "---------- Forwarded message ----" instead of the mail's actual words.
+    .replace(/-{2,}\s*Forwarded message\s*-{2,}/gi, ' ')
+    .replace(/^[ \t]*(?:From|Date|Sent|Subject|To|Cc|Bcc|Reply-To)[ \t]*:.*$/gim, ' ')
+    .replace(/^On\s[\s\S]{4,160}?\bwrote:/gim, ' ')  // a reply's attribution line
+    .replace(/^[ \t]*>+[ \t]?/gm, ' ')               // quoted-reply markers
     .replace(/https?:\/\/\S+/g,' ')         // strip URLs
     .replace(/[\w.+-]+@[\w.-]+/g,' ')        // strip emails
     .replace(/\s+/g,' ').trim().slice(0,90);
@@ -2495,7 +2530,6 @@ function paintDashClients(clientsRes) {
               ${statusBadgeHtml(c)}
             </div>
             <div class="cl-meta">${pills.join('')}</div>
-            ${c.notes?`<div class="cl-note">${esc(c.notes)}</div>`:''}
           </div>
         </div>`;}).join('') : emptyPanel('client', 'No clients yet');
     } else {
@@ -3102,7 +3136,7 @@ function closeRailMore() {
 function selectInboxView(view) {
   S.inboxChannel = 'gmail';
   S.inboxView = view;
-  S.selectedEmail = null;
+  clearMailSelection();
   closeRailMore();
   renderInboxShell();
   if (MAIL_FOLDER_VIEWS.has(view)) {
@@ -3140,7 +3174,7 @@ async function loadMailFolder(view, force) {
 function selectInboxChannel(key) {
   S.inboxChannel = key;
   if (key === 'gmail') S.inboxView = 'gmail';
-  S.selectedEmail = null;
+  clearMailSelection();
   S.selectedThreadId = null;
   renderInboxShell();
   if (isLiveChannel(key) && !S.emails) loadGmail();
@@ -3611,6 +3645,13 @@ async function loadGmail(force) {
     S.emailsFetchedAt = Date.now();
     persistEmailCache();
     if (S.screen === 'inbox' && isLiveChannel(S.inboxChannel)) renderInboxShell();
+    // Sent is fetched alongside the inbox, not only when its folder is opened:
+    // a forward or reply of yours has to appear inside the conversation it
+    // continues, and grouping can only do that with the message in hand.
+    // loadMailFolder holds its own 60s cache, so this is cheap on refreshes.
+    loadMailFolder('sent')
+      .then(() => { if (S.screen === 'inbox' && isLiveChannel(S.inboxChannel)) renderInboxShell(); })
+      .catch(() => {});
   } catch(e) {
     if (S.emails) return; // keep showing the cached inbox on a failed refresh
     const el = $('hd-list');
@@ -3632,6 +3673,135 @@ function visibleEmails() {
   return (S.emails || []).filter(e => !f || e.accountId === f);
 }
 
+// ---- Conversation threading ----
+//
+// A forward or a reply is not a new email — it belongs under the message it
+// came from, the way Gmail stacks a conversation. Three passes, strongest
+// evidence first, unioned together so any one of them can join two messages.
+
+// Everything a client might stick in front of a subject when replying or
+// forwarding, including the non-English ones our mail actually sees.
+const SUBJECT_PREFIX_RE = /^\s*(?:(?:re|fw|fwd|aw|antwort|rv|enc|tr|sv|vs)\s*(?:\[\d+\])?\s*:\s*)+/i;
+function threadSubject(s) {
+  return String(s || '').replace(SUBJECT_PREFIX_RE, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+function hasReplyPrefix(s) {
+  return SUBJECT_PREFIX_RE.test(String(s || ''));
+}
+
+// Message-IDs out of a header that may be a bare string, a space-separated
+// list, or (from IMAP) an array. Angle brackets are part of the syntax, not
+// the identity, so ids are compared without them.
+function normMsgId(v) {
+  const m = /<([^>]+)>/.exec(String(v || ''));
+  return m ? m[1].trim().toLowerCase() : (String(v || '').trim().toLowerCase() || null);
+}
+function refMsgIds(e) {
+  const raw = [].concat(e.references || [], e.inReplyTo || []).join(' ');
+  return (raw.match(/<[^>]+>/g) || []).map(normMsgId).filter(Boolean);
+}
+
+function mailTime(e) {
+  const t = new Date(e && e.date).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+// How far apart two messages sharing a subject may sit and still be one
+// conversation. Long enough for a venue enquiry that goes quiet for a few
+// weeks; short enough that next season's identically-titled mail starts fresh.
+const SUBJECT_THREAD_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+
+// `extras` are messages allowed to *join* a conversation without being able to
+// start one — your own Sent mail while reading the Inbox. Gmail shows the reply
+// you sent inside the thread it answers, but a sent message with nothing to
+// attach to does not turn up in Inbox as a row of its own.
+function conversationsOf(list, extras = []) {
+  // A message can legitimately be in both lists — a Gmail message carrying both
+  // INBOX and SENT labels has one id in two fetches — so extras are de-duped
+  // against the primary list before anything is grouped.
+  const seen = new Set(list.map((e) => e.id));
+  const add = [];
+  extras.forEach((e) => { if (e && !seen.has(e.id)) { seen.add(e.id); add.push(e); } });
+  const primaryCount = list.length;
+  const all = add.length ? list.concat(add) : list;
+  const n = all.length;
+  const parent = Array.from({ length: n }, (_, i) => i);
+  const find = (i) => { while (parent[i] !== i) { parent[i] = parent[parent[i]]; i = parent[i]; } return i; };
+  const union = (a, b) => { a = find(a); b = find(b); if (a !== b) parent[b] = a; };
+
+  // 1. Gmail's own conversation id. Authoritative where we have it.
+  const byThread = new Map();
+  all.forEach((e, i) => {
+    if (!e.threadId) return;
+    const k = (e.accountId || '') + '|' + e.threadId;
+    if (byThread.has(k)) union(byThread.get(k), i); else byThread.set(k, i);
+  });
+
+  // 2. The Message-ID graph: anything a message references, in any mailbox.
+  // This is what threads a reply to us with our own copy in Sent.
+  const owner = new Map();
+  all.forEach((e, i) => {
+    const id = normMsgId(e.messageId);
+    if (id && !owner.has(id)) owner.set(id, i);
+  });
+  all.forEach((e, i) => {
+    refMsgIds(e).forEach((ref) => { if (owner.has(ref)) union(owner.get(ref), i); });
+  });
+
+  // 3. Subject fallback, deliberately one-directional: only a message that
+  // *carries* a Re:/Fwd: prefix may attach to an earlier one with the same
+  // subject. Two bare subjects never merge, so a run of identically-titled
+  // notifications ("Your order has shipped") stays a run of separate rows —
+  // while a Fwd: whose original predates this fix, and so has no References
+  // header to go on, still lands on the message it was forwarded from.
+  const byDate = Array.from({ length: n }, (_, i) => i).sort((a, b) => mailTime(all[a]) - mailTime(all[b]));
+  const lastBySubject = new Map();
+  byDate.forEach((i) => {
+    const e = all[i];
+    const sub = threadSubject(e.subject);
+    if (sub.length < 3) return;
+    const key = (e.accountId || '') + '|' + sub;
+    const prev = lastBySubject.get(key);
+    if (prev && hasReplyPrefix(e.subject) && mailTime(e) - prev.t <= SUBJECT_THREAD_WINDOW_MS) {
+      union(prev.i, i);
+    }
+    lastBySubject.set(key, { i, t: mailTime(e) });
+  });
+
+  // Group, keeping the order the caller sorted the list in: a conversation
+  // takes the position of its newest message, which for a date-descending
+  // list is simply where its first member appeared.
+  const groups = new Map();
+  all.forEach((e, i) => {
+    const r = find(i);
+    if (!groups.has(r)) groups.set(r, { msgs: [], hasPrimary: false });
+    const g = groups.get(r);
+    g.msgs.push(e);
+    if (i < primaryCount) g.hasPrimary = true;
+  });
+
+  // A group made only of extras has nothing to attach to in this view — a sent
+  // message whose original is not in the Inbox does not belong in the Inbox.
+  return [...groups.values()].filter((g) => g.hasPrimary).map(({ msgs }) => {
+    const ordered = msgs.slice().sort((a, b) => mailTime(a) - mailTime(b));
+    const latest = ordered[ordered.length - 1];
+    const first = ordered[0];
+    return {
+      id: 'conv:' + first.id,
+      messages: ordered,
+      latest,
+      count: ordered.length,
+      // The conversation is titled by what started it, prefix stripped, as in
+      // Gmail — not by whichever reply happens to be newest.
+      subject: first.subject || latest.subject || '',
+      date: latest.date,
+      unread: ordered.some((m) => m.unread),
+      starred: ordered.some((m) => m.starred),
+      attachments: ordered.some((m) => m.attachments && m.attachments.length),
+    };
+  });
+}
+
 // Same account filter as visibleEmails(), plus the rail's Unread/folder views
 // and the list's search box — this is what actually populates the list column.
 function inboxEmailList() {
@@ -3645,9 +3815,33 @@ function inboxEmailList() {
     list = visibleEmails();
     if (view === 'unread') list = list.filter(e => e.unread);
   }
-  const q = (S.inboxSearch || '').trim().toLowerCase();
-  if (q) list = list.filter(e => `${extractName(e.from)} ${e.from||''} ${e.subject||''} ${e.body||''}`.toLowerCase().includes(q));
   return list;
+}
+
+// Search matches against every message in a conversation and keeps or drops
+// the whole thread. Filtering messages *before* grouping would tear a reply
+// out of its conversation and show it as a lone row.
+function conversationSearchKey(c) {
+  return c.messages
+    .map(m => `${extractName(m.from)} ${m.from || ''} ${m.to || ''} ${m.subject || ''} ${m.body || ''}`)
+    .join(' ').toLowerCase();
+}
+
+// What the list column actually renders: one row per conversation.
+//
+// The messages that can *join* a conversation are not the same set as the ones
+// that can start a row. Reading the Inbox, your Sent mail joins — a forward you
+// sent belongs under the message it forwarded, which is the whole point of
+// threading — but a sent message with no counterpart here stays out of Inbox.
+// Reading Sent, the Inbox joins for the same reason in reverse.
+function inboxConversationList() {
+  const view = S.inboxView || 'all';
+  const pool = view === 'sent' ? (S.emails || []) : (S.mailFolders?.sent?.emails || []);
+  const f = S.emailAccountFilter;
+  const extras = f ? pool.filter(e => e.accountId === f) : pool;
+  const convs = conversationsOf(inboxEmailList(), extras);
+  const q = (S.inboxSearch || '').trim().toLowerCase();
+  return q ? convs.filter(c => conversationSearchKey(c).includes(q)) : convs;
 }
 
 function inboxViewLabel() {
@@ -3660,8 +3854,16 @@ function inboxViewLabel() {
 function hdListHtml() {
   const view = S.inboxView || 'all';
   const folder = MAIL_FOLDER_VIEWS.has(view) ? S.mailFolders?.[view] : null;
-  const list = inboxEmailList();
-  S.visibleEmails = list;
+  const list = inboxConversationList();
+  S.visibleConversations = list;
+  // Grouping builds fresh conversation objects on every render, so the open
+  // one is re-found by the id of the message being read — not by object
+  // identity, which a refresh would break, and not by conversation id, which
+  // shifts when an older message arrives and becomes the thread's opener.
+  if (S.selectedConversation && S.selectedEmail) {
+    const again = list.find(c => c.messages.some(m => m.id === S.selectedEmail.id));
+    if (again) S.selectedConversation = again;
+  }
   const accts = S.mailAccounts || [];
   const multi = accts.length > 1;
   const errList = folder ? (folder.errors || []) : (S.mailErrors || []);
@@ -3686,7 +3888,7 @@ function hdListHtml() {
     <div class="hd-list-rows" id="hd-list-rows">
       ${errBar}
       ${loading ? `<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>`
-        : (list.length ? list.map((e,i)=>emailRowHtml(e,i)).join('') : '<div class="text-xs text-muted" style="padding:24px;text-align:center">No conversations here yet</div>')}
+        : (list.length ? list.map((c,i)=>conversationRowHtml(c,i)).join('') : '<div class="text-xs text-muted" style="padding:24px;text-align:center">No conversations here yet</div>')}
     </div>`;
 }
 
@@ -3710,42 +3912,74 @@ function setMailFilter(id) {
 // re-rendering would drop the reader's scroll position mid-thread.
 const MAIL_ROW_STAR_SVG = `<svg class="gm-clip gm-star" width="12" height="12" viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`;
 
-function emailRowHtml(e, i) {
+// The people in a conversation, oldest first and de-duplicated — Gmail's
+// "Abhishek Kamra, me" line. A one-message conversation reads exactly as the
+// single sender did before threading existed.
+function conversationParties(c) {
+  const isSent = S.inboxView === 'sent';
+  const names = [];
+  c.messages.forEach((m) => {
+    const n = (isSent ? (extractName(m.to) || m.to) : extractName(m.from)) || '?';
+    if (!names.includes(n)) names.push(n);
+  });
+  return names;
+}
+
+function conversationRowHtml(c, i) {
   // Sent mail is always From:you — showing the recipient instead is what
   // actually distinguishes one row from the next in that view.
   const isSent = S.inboxView === 'sent';
+  const e = c.latest;
   const party = isSent ? (e.to || '') : (e.from || '');
-  const name = (isSent ? (extractName(e.to) || e.to) : extractName(e.from)) || '?';
+  const names = conversationParties(c);
+  const name = names[names.length - 1] || '?';
+  const label = names.length > 1 ? names.join(', ') : name;
   const multi = (S.mailAccounts || []).length > 1;
   const acctDot = multi
     ? `<span class="gm-acct-dot" title="Received at ${esc(e.account||'')}" style="background:${avatarColor(e.account||'')}"></span>` : '';
-  const unread = !!e.unread;
-  const key = `${name} ${e.from||''} ${e.to||''} ${e.subject||''} ${e.body||''}`.toLowerCase();
   return `
-    <div class="mail-row ${e===S.selectedEmail?'active':''} ${unread?'unread':'read'}" data-key="${esc(key)}" style="--stagger:${Math.min(i,10)*22}ms" onclick="selectInboxItem(${i})">
+    <div class="mail-row ${c===S.selectedConversation?'active':''} ${c.unread?'unread':'read'}" data-key="${esc(conversationSearchKey(c))}" style="--stagger:${Math.min(i,10)*22}ms" onclick="selectInboxItem(${i})">
       ${avatarHtml(name, party, 40)}
       <div class="gm-body">
         <div class="gm-line1">
-          <span class="gm-sender">${isSent?'To: ':''}${esc(name)}</span>
+          <span class="gm-sender">${isSent?'To: ':''}${esc(label)}${c.count>1?`<span class="gm-count">${c.count}</span>`:''}</span>
           <span class="gm-meta">
             ${acctDot}
-            ${e.starred?MAIL_ROW_STAR_SVG:''}
-            ${e.attachments?.length?`<svg class="gm-clip" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`:''}
-            <span class="gm-time">${shortDate(e.date)}</span>
+            ${c.starred?MAIL_ROW_STAR_SVG:''}
+            ${c.attachments?`<svg class="gm-clip" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>`:''}
+            <span class="gm-time">${shortDate(c.date)}</span>
           </span>
         </div>
-        <div class="gm-subject">${esc(e.subject||'(no subject)')}</div>
+        <div class="gm-subject">${esc(c.subject||'(no subject)')}</div>
         <div class="gm-snippet">${esc(cleanSnippet(e.body))}</div>
       </div>
     </div>`;
 }
 
+// The open message and the conversation around it are set together and must
+// never drift apart, so they are cleared together too.
+function clearMailSelection() {
+  S.selectedEmail = null;
+  S.selectedConversation = null;
+  S.expandedMessageIds = new Set();
+}
+
 function selectInboxItem(i) {
-  const e = (S.visibleEmails || [])[i];
-  S.selectedEmail = e;
+  const c = (S.visibleConversations || [])[i];
+  S.selectedConversation = c;
+  // The toolbar (reply, forward, star, trash, save-as-client) acts on one
+  // message, not the whole thread — the newest, which is the one that opens
+  // expanded. Expanding an older message re-points it; see expandThreadMessage.
+  S.selectedEmail = c ? c.latest : null;
+  S.expandedMessageIds = c ? new Set([c.latest.id]) : new Set();
   document.querySelectorAll('#hd-list-rows .mail-row').forEach((r,j) => r.classList.toggle('active', j===i));
   renderThreadPane();
-  if (e) markEmailRead(e, i);
+  if (c) markConversationRead(c, i);
+}
+
+// Opening a conversation marks every unread message in it read, as Gmail does.
+function markConversationRead(c, i) {
+  c.messages.filter(m => m.unread).forEach(m => markEmailRead(m, i));
 }
 
 // Opening an email marks it read. The row is restyled in place — bold/white
@@ -3831,14 +4065,19 @@ function syncToolbarStar(email) {
 // Adds/removes the gold star on the open email's row without rebuilding the
 // list, so the list agrees with the toolbar button the moment it's clicked.
 function syncRowStar(email) {
-  const i = (S.visibleEmails || []).indexOf(email);
+  // A row is a conversation now, and it shows a star when *any* message in it
+  // is starred — so unstarring one message of several must leave the row's
+  // star alone.
+  const convs = S.visibleConversations || [];
+  const i = convs.findIndex(c => c.messages.includes(email));
   if (i < 0) return;
+  const starred = convs[i].messages.some(m => m.starred);
   const meta = document.querySelectorAll('#hd-list-rows .mail-row')[i]?.querySelector('.gm-meta');
   if (!meta) return;
   const existing = meta.querySelector('.gm-star');
-  if (email.starred === !!existing) return;
-  if (!email.starred) { existing.remove(); return; }
-  // Star sits ahead of the attachment clip and the timestamp, as in emailRowHtml.
+  if (starred === !!existing) return;
+  if (!starred) { existing.remove(); return; }
+  // Star sits ahead of the attachment clip and the timestamp, as in conversationRowHtml.
   const anchor = meta.querySelector('.gm-clip, .gm-time');
   if (anchor) anchor.insertAdjacentHTML('beforebegin', MAIL_ROW_STAR_SVG);
   else meta.insertAdjacentHTML('beforeend', MAIL_ROW_STAR_SVG);
@@ -3914,7 +4153,7 @@ function markSelectedUnread() {
   const e = S.selectedEmail;
   if (!e) return;
   e.unread = true;
-  S.selectedEmail = null;
+  clearMailSelection();
   forgetRead(e.id);
   renderInboxShell();
   persistEmailCache();
@@ -3931,7 +4170,7 @@ async function deleteSelectedEmail() {
   const e = S.selectedEmail;
   if (!e) return;
   removeEmailFromCurrentView(e.id);
-  S.selectedEmail = null;
+  clearMailSelection();
   renderInboxShell();
   showToast('Moved to Trash', 'success');
   if (S.mailFolders?.trash) S.mailFolders.trash.fetchedAt = 0; // stale — refetch next visit
@@ -4032,19 +4271,20 @@ function avatarGradient(name) {
 // ---- Thread pane (email reading view) ----
 
 function hdThreadHtml() {
+  const c = S.selectedConversation;
   const e = S.selectedEmail;
-  if (!e) {
+  if (!c || !e) {
     return `<div class="empty" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center">
       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" opacity=".4"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 7 10-7"/></svg>
       <p>Select a conversation to read</p>
     </div>`;
   }
-  const name = extractName(e.from) || '?';
   const act = (label, onclick, svg, extra = '', id = '') =>
     `<button class="gmail-toolbar-btn tip ${extra}"${id ? ` id="${id}"` : ''} data-tip="${esc(label)}" aria-label="${esc(label)}" onclick="${onclick}">${svg}</button>`;
   return `
     <div class="hd-thread-head">
-      <span class="subj">${esc(e.subject||'(no subject)')}</span>
+      <span class="subj">${esc(c.subject||'(no subject)')}</span>
+      ${c.count > 1 ? `<span class="hd-thread-count">${c.count}</span>` : ''}
       <div class="hd-thread-actions">
         ${act(e.starred ? 'Remove star' : 'Star', 'toggleSelectedStar()',
           `<svg width="16" height="16" viewBox="0 0 24 24" fill="${e.starred?'currentColor':'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87L18.18 21 12 17.77 5.82 21 7 14.14l-5-4.87 6.91-1.01L12 2z"/></svg>`,
@@ -4069,57 +4309,254 @@ function hdThreadHtml() {
       </div>
     </div>
     <div class="hd-thread-body" id="hd-thread-scroll">
-      <div class="flex items-center gap-3 mb-5 pb-4" style="border-bottom:1px solid var(--hd-border)">
-        ${avatarHtml(name, e.from, 42)}
-        <div style="min-width:0;flex:1">
-          <div style="font:600 14px Inter,sans-serif;color:var(--text)">${esc(name)}</div>
-          <div class="text-xs text-muted truncate">${esc(e.from||'')}</div>
-        </div>
-        <span class="text-xs text-muted" style="flex:none">${esc(e.date||'')}</span>
-      </div>
-      <div class="text-xs text-muted mb-4" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <span>To: ${esc(e.to||'')}</span>
-        ${e.account ? `<span class="mail-detail-acct" title="Received in this mailbox"><span class="mail-acct-dot" style="background:${avatarColor(e.account)}"></span>${esc(e.account)}</span>` : ''}
-      </div>
-      ${(e.attachments && e.attachments.length) ? `
-      <div class="flex gap-2 mb-4" style="flex-wrap:wrap">
-        ${e.attachments.map((a,idx) => `
-          <a class="attach-chip" href="${attachmentUrl(e,a)}" target="_blank" rel="noopener" onclick="previewAttachment(event, S.selectedEmail, S.selectedEmail.attachments[${idx}])" style="text-decoration:none;cursor:pointer">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
-            <span class="aname">${esc(a.filename)}</span>
-            ${a.size ? `<span style="opacity:.6">${formatBytes(a.size)}</span>` : ''}
-          </a>`).join('')}
-      </div>` : ''}
-      ${e.bodyHtml
-        ? `<iframe id="mail-frame" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" style="width:100%;min-height:300px;border:none;background:#fff" referrerpolicy="no-referrer"></iframe>`
-        : `<div style="font-size:14px;line-height:1.75;color:var(--text-2);white-space:pre-wrap">${esc(e.body||'(No body)')}</div>`}
+      ${c.messages.map((m, idx) => threadMessageHtml(m, idx, c)).join('')}
     </div>`;
 }
+
+// One message inside the open conversation. Older messages render collapsed to
+// a single clickable line — sender, snippet, date — exactly as Gmail stacks a
+// thread; the newest opens expanded. Both states are in the DOM at once and
+// swapped by a class, so expanding never re-renders the pane and never
+// reloads another message's remote images.
+function threadMessageHtml(m, idx, c) {
+  const expanded = S.expandedMessageIds && S.expandedMessageIds.has(m.id);
+  const name = extractName(m.from) || '?';
+  return `
+    <div class="tm ${expanded ? 'tm-open' : 'tm-collapsed'}" data-idx="${idx}">
+      <div class="tm-summary" onclick="toggleThreadMessage(${idx})">
+        ${avatarHtml(name, m.from, 28)}
+        <span class="tm-sum-name">${esc(name)}</span>
+        <span class="tm-sum-snippet">${esc(cleanSnippet(m.body))}</span>
+        <span class="tm-sum-date">${esc(shortDate(m.date))}</span>
+      </div>
+      <div class="tm-full">
+        <div class="tm-head" onclick="toggleThreadMessage(${idx})">
+          ${avatarHtml(name, m.from, 42)}
+          <div style="min-width:0;flex:1">
+            <div style="font:600 14px Inter,sans-serif;color:var(--text)">${esc(name)}</div>
+            <div class="text-xs text-muted truncate">${esc(m.from||'')}</div>
+          </div>
+          <span class="text-xs text-muted" style="flex:none">${esc(m.date||'')}</span>
+        </div>
+        <div class="text-xs text-muted mb-4" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <span>To: ${esc(m.to||'')}</span>
+          ${m.account ? `<span class="mail-detail-acct" title="Received in this mailbox"><span class="mail-acct-dot" style="background:${avatarColor(m.account)}"></span>${esc(m.account)}</span>` : ''}
+        </div>
+        ${(m.attachments && m.attachments.length) ? `
+        <div class="flex gap-2 mb-4" style="flex-wrap:wrap">
+          ${m.attachments.map((a,ai) => `
+            <a class="attach-chip" href="${attachmentUrl(m,a)}" target="_blank" rel="noopener" onclick="previewAttachment(event, S.selectedConversation.messages[${idx}], S.selectedConversation.messages[${idx}].attachments[${ai}])" style="text-decoration:none;cursor:pointer">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+              <span class="aname">${esc(a.filename)}</span>
+              ${a.size ? `<span style="opacity:.6">${formatBytes(a.size)}</span>` : ''}
+            </a>`).join('')}
+        </div>` : ''}
+        ${m.bodyHtml
+          ? `<iframe id="mail-frame-${idx}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" style="width:100%;min-height:120px;border:none;background:#fff" referrerpolicy="no-referrer"></iframe>`
+          : `<div style="font-size:14px;line-height:1.75;color:var(--text-2);white-space:pre-wrap">${esc(m.body||'(No body)')}</div>`}
+        <div class="tm-actions">
+          <button class="btn btn-ghost btn-sm" onclick="replyToThreadMessage(${idx})">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
+            Reply
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="forwardThreadMessage(${idx})">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
+            Forward
+          </button>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Reply/Forward under each message act on *that* message, not on whatever the
+// toolbar last pointed at. In a run of replies and forwards the difference
+// matters: replying to the third message of a thread has to quote the third
+// message. Both modals read S.selectedEmail, so the pick is made by re-pointing
+// it — the same thing expanding a message does.
+function replyToThreadMessage(idx) { withThreadMessage(idx, openReplyModal); }
+function forwardThreadMessage(idx) { withThreadMessage(idx, openForwardModal); }
+
+function withThreadMessage(idx, fn) {
+  const m = S.selectedConversation && S.selectedConversation.messages[idx];
+  if (!m) return;
+  S.selectedEmail = m;
+  syncToolbarStar(m);
+  fn();
+}
+
+// Expand/collapse one message in the open conversation. The toolbar follows
+// the message you opened — star, reply, forward and trash act on that one, not
+// on whatever happened to be newest when the thread opened.
+function toggleThreadMessage(idx) {
+  const c = S.selectedConversation;
+  const m = c && c.messages[idx];
+  if (!m) return;
+  const el = document.querySelector(`#hd-thread-scroll .tm[data-idx="${idx}"]`);
+  if (!el) return;
+  const open = !el.classList.contains('tm-open');
+  el.classList.toggle('tm-open', open);
+  el.classList.toggle('tm-collapsed', !open);
+  if (!S.expandedMessageIds) S.expandedMessageIds = new Set();
+  if (open) {
+    S.expandedMessageIds.add(m.id);
+    S.selectedEmail = m;
+    syncToolbarStar(m);
+    paintMailFrame(idx, m);
+  } else {
+    S.expandedMessageIds.delete(m.id);
+  }
+}
+
+// ---- Gmail-style trimmed content ("•••") ----
+//
+// Gmail never shows the quoted trail of a forward or a reply inline: the
+// "---------- Forwarded message ---------" header and everything under it fold
+// behind a small grey ••• chip you click to expand. Reading a Fwd: in Sent
+// otherwise opens on a wall of headers instead of on what was actually written.
+//
+// The chip is a native <details>/<summary>, not a scripted button, because the
+// mail body renders in an iframe sandboxed WITHOUT allow-scripts — nothing
+// inside that frame can run JS. <details> is the browser's own toggle, so it
+// works with scripting disabled.
+
+// Container classes the major clients wrap their quotes in.
+const QUOTE_SELECTORS = [
+  'blockquote.gmail_quote', 'div.gmail_quote', '.gmail_quote_container',
+  'div.moz-cite-prefix',        // Thunderbird
+  'div[id^="divRplyFwdMsg"]',   // Outlook
+  '#appendonsend',              // Outlook (newer)
+];
+// …and the textual markers everything else writes. Anchored at the start so a
+// note typed above the forward does not drag the whole band into the fold.
+const FWD_MARKER_RE = /^-{2,}\s*Forwarded message\s*-{2,}/i;
+const REPLY_MARKER_RE = /^On\s.{4,160}\bwrote:/i;
+
+function isQuoteMarker(text) {
+  const t = String(text || '').trim();
+  if (!t) return false;
+  return FWD_MARKER_RE.test(t) || REPLY_MARKER_RE.test(t.split('\n')[0].trim());
+}
+
+// The node the quote begins at. Pre-order, so the outermost element whose text
+// *starts* with a marker wins — for a forward carrying a note that is the
+// header block alone, and the note above it stays visible.
+function findQuoteStart(body) {
+  // One comma-joined query, not a loop over the list in priority order: this
+  // returns the first match in *document* order, so a reply's outer
+  // div.gmail_quote wins over the blockquote.gmail_quote nested inside it and
+  // the "On …, X wrote:" attribution folds away with the quote, as in Gmail.
+  const container = body.querySelector(QUOTE_SELECTORS.join(','));
+  if (container) return container;
+  // querySelectorAll('*') is document order, i.e. every ancestor before its
+  // own descendants — which is what makes "outermost match wins" hold.
+  for (const el of body.querySelectorAll('*')) {
+    if (isQuoteMarker(el.textContent)) return el;
+  }
+  return null;
+}
+
+// Folds the quote into a <details> placed at body level. The marker usually
+// sits a level or two down (inside our own white intro band) while the quoted
+// message itself sits at the top, so the fold has to collect the marker plus
+// everything after it at *every* level up to <body>. Hoisting the <details> to
+// body level rather than leaving it where the marker was matters: nesting the
+// original inside the intro band would inherit that band's 13px Arial and
+// padding onto a message that had its own layout.
+//
+// Nothing is ever folded unless readable text survives outside the chip. A
+// forward carrying no note of its own is *entirely* quoted content, so folding
+// it hides the whole body and leaves only the mail's own background painting a
+// tall empty box — a dark newsletter becomes a black rectangle with a chip in
+// the corner. The chip is worth it above a note or a reply, where what you
+// wrote stays on screen; it is never worth it when it is all there is.
+function collapseQuotedContent(doc) {
+  const body = doc && doc.body;
+  if (!body || body.querySelector('.gm-quote-fold')) return false;
+  const start = findQuoteStart(body);
+  if (!start) return false;
+
+  const trail = [start];
+  for (let node = start; node && node !== body; node = node.parentNode) {
+    for (let n = node.nextSibling; n; n = n.nextSibling) trail.push(n);
+  }
+
+  // Trail nodes are disjoint and all inside body, so subtracting their text
+  // gives exactly what would still be visible above the chip.
+  const bare = (s) => String(s || '').replace(/\s/g, '').length;
+  const hidden = trail.reduce((sum, n) => sum + bare(n.textContent), 0);
+  if (bare(body.textContent) - hidden < 2) return false;
+
+  let top = start;
+  while (top.parentNode && top.parentNode !== body) top = top.parentNode;
+
+  const details = doc.createElement('details');
+  details.className = 'gm-quote-fold';
+  const summary = doc.createElement('summary');
+  summary.setAttribute('title', 'Show trimmed content');
+  summary.setAttribute('aria-label', 'Show trimmed content');
+  // The grey pill is an inner span, not the <summary> itself: WebKit stops
+  // honouring the native click-to-toggle once <summary> is given a display
+  // other than list-item, which would leave the fold permanently shut.
+  summary.innerHTML = '<span class="gm-quote-chip"><span></span><span></span><span></span></span>';
+  details.appendChild(summary);
+
+  body.insertBefore(details, top.nextSibling);
+  trail.forEach((n) => details.appendChild(n));
+  return true;
+}
+
+// Injected into the mail iframe alongside the reading styles.
+const QUOTE_FOLD_CSS =
+  '.gm-quote-fold{margin:2px 0}' +
+  '.gm-quote-fold>summary{list-style:none;width:-moz-max-content;width:max-content;' +
+  'margin:6px 0;padding:0;cursor:pointer;user-select:none}' +
+  '.gm-quote-fold>summary::-webkit-details-marker{display:none}' +
+  '.gm-quote-fold>summary::marker{content:""}' +
+  '.gm-quote-chip{display:inline-flex;align-items:center;justify-content:center;gap:3px;' +
+  'width:32px;height:16px;background:#dadce0;border-radius:9px;vertical-align:middle}' +
+  '.gm-quote-chip:hover{background:#c4c7c5}' +
+  '.gm-quote-chip>span{width:3px;height:3px;border-radius:50%;background:#5f6368}';
 
 function renderThreadPane() {
   const t = $('hd-thread');
   if (!t) return;
   t.innerHTML = hdThreadHtml();
-  const e = S.selectedEmail;
-  if (e && e.bodyHtml) {
-    const frame = $('mail-frame');
-    if (frame) {
-      // Write directly to the iframe document — Safari paints this immediately
-      // (unlike srcdoc, which it blocks on full load). allow-same-origin makes this work.
-      const doc = frame.contentDocument || frame.contentWindow.document;
-      const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.7;color:#0a0a0a;margin:0;padding:0;word-wrap:break-word;overflow-x:hidden}img{max-width:100%;height:auto}a{color:#000;text-decoration:underline}table{max-width:100%!important}blockquote{margin:12px 0;padding:2px 0 2px 14px;border-left:3px solid #e5e5e5;color:#525252}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit}hr{border:none;border-top:1px solid #e5e5e5;margin:18px 0}</style></head><body>${e.bodyHtml}</body></html>`;
-      doc.open();
-      doc.write(html);
-      doc.close();
-      const resize = () => { try { if (doc.body) frame.style.height = (doc.documentElement.scrollHeight + 48) + 'px'; } catch(_){} };
-      resize(); // text paints & sizes instantly
-      // Grow smoothly as remote images finish loading — no delayed jump
-      try {
-        const ro = new ResizeObserver(resize);
-        ro.observe(doc.body);
-      } catch(_) { setTimeout(resize, 300); setTimeout(resize, 800); }
-    }
-  }
+  const c = S.selectedConversation;
+  if (!c) return;
+  // Only the expanded messages get their bodies written. A collapsed one is
+  // painted lazily the first time it is opened — see toggleThreadMessage —
+  // so opening a long thread does not fetch every message's remote images.
+  c.messages.forEach((m, idx) => {
+    if (S.expandedMessageIds && S.expandedMessageIds.has(m.id)) paintMailFrame(idx, m);
+  });
+}
+
+// Writes one message's HTML into its own iframe, once. Split out of
+// renderThreadPane so expanding a message paints just that frame instead of
+// rebuilding the pane, which would reload every other message's images.
+function paintMailFrame(idx, m) {
+  if (!m || !m.bodyHtml) return;
+  const frame = $('mail-frame-' + idx);
+  if (!frame || frame.dataset.painted) return;
+  frame.dataset.painted = '1';
+  // Write directly to the iframe document — Safari paints this immediately
+  // (unlike srcdoc, which it blocks on full load). allow-same-origin makes this work.
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><base target="_blank"><style>body{font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.7;color:#0a0a0a;margin:0;padding:0;word-wrap:break-word;overflow-x:hidden}img{max-width:100%;height:auto}a{color:#000;text-decoration:underline}table{max-width:100%!important}blockquote{margin:12px 0;padding:2px 0 2px 14px;border-left:3px solid #e5e5e5;color:#525252}pre{white-space:pre-wrap;word-break:break-word;font-family:inherit}hr{border:none;border-top:1px solid #e5e5e5;margin:18px 0}${QUOTE_FOLD_CSS}</style></head><body>${m.bodyHtml}</body></html>`;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  try { collapseQuotedContent(doc); } catch(_){}
+  const resize = () => { try { if (doc.body) frame.style.height = (doc.documentElement.scrollHeight + 48) + 'px'; } catch(_){} };
+  resize(); // text paints & sizes instantly
+  // Expanding the ••• changes the document height. The ResizeObserver below
+  // catches it, but this fires first and without a layout round-trip.
+  try { doc.addEventListener('toggle', resize, true); } catch(_){}
+  // Grow smoothly as remote images finish loading — no delayed jump
+  try {
+    const ro = new ResizeObserver(resize);
+    ro.observe(doc.body);
+  } catch(_) { setTimeout(resize, 300); setTimeout(resize, 800); }
 }
 
 function extractName(from) {

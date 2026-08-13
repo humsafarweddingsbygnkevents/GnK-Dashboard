@@ -223,6 +223,9 @@ router.get('/recent', async (req, res) => {
         subject: e.subject, from: e.from, to: e.to, date: e.date,
         body: e.body, bodyHtml: e.bodyHtml, unread: e.unread, starred: e.starred,
         attachments: e.attachments || [],
+        // IMAP has no server-side conversation id, so the client threads these
+        // from the RFC 822 headers instead. See conversationsOf() in the dashboard.
+        messageId: e.messageId, inReplyTo: e.inReplyTo, references: e.references || [],
         account: m.email, accountType: 'imap', accountId: 'imap:' + m.id,
       }));
     }),
@@ -317,7 +320,10 @@ router.post('/send', async (req, res) => {
       text = built.text;
       html = built.html;
       parts = parts.concat(built.attachments);
-      if (built.inReplyTo) threading = { inReplyTo: built.inReplyTo, references: built.references };
+      // Keyed off references, not inReplyTo: a forward sets only the former.
+      if (built.references) {
+        threading = { references: built.references, ...(built.inReplyTo ? { inReplyTo: built.inReplyTo } : {}) };
+      }
     }
 
     if (type === 'imap') {
