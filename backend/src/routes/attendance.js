@@ -164,9 +164,10 @@ router.post('/', async (req, res) => {
 });
 
 // GET /api/attendance/status — day-by-day attendance for a month (or a custom
-// from/to range), with each day resolved to present/pending/absent/off/
-// unlocked and a `locked` flag. Employees only ever see their own; admins must
-// name an employeeId. Absence is computed live here, never stored.
+// from/to range), with each day resolved to present/reopened/pending/absent/
+// off/unlocked, a `locked` flag and `changedSinceReopen`. Employees only ever
+// see their own; admins must name an employeeId. Absence is computed live
+// here, never stored.
 router.get('/status', async (req, res) => {
   try {
     let employeeId;
@@ -195,8 +196,16 @@ router.get('/status', async (req, res) => {
     ]);
 
     const entriesByDate = new Map();
-    for (const e of entries) entriesByDate.set(e.date, (entriesByDate.get(e.date) || 0) + 1);
+    // Newest write per day, against the moment the day was reopened: that pair
+    // is what tells an admin whether a day they opened has been filled in yet.
+    const entryUpdatedAt = new Map();
+    for (const e of entries) {
+      entriesByDate.set(e.date, (entriesByDate.get(e.date) || 0) + 1);
+      const seen = entryUpdatedAt.get(e.date);
+      if (!seen || e.updatedAt > seen) entryUpdatedAt.set(e.date, e.updatedAt);
+    }
     const unlockedDates = new Set(unlocks.map((u) => u.date));
+    const reopenedAt = new Map(unlocks.map((u) => [u.date, u.createdAt]));
 
     // The employee isn't "absent" before they existed — clamp expectations to
     // their account creation date (in IST).
@@ -206,6 +215,8 @@ router.get('/status', async (req, res) => {
       dates: dateRange(from, to),
       entriesByDate,
       unlockedDates,
+      reopenedAt,
+      entryUpdatedAt,
       joinDate,
       workWeekdays: workWeekdaysFor(employeeId),
     });

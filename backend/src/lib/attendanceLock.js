@@ -45,6 +45,14 @@ function isDeadlinePassed(dateStr, now = new Date()) {
   return minutes >= DEADLINE_MIN;
 }
 
+// The instant a date's 19:30 IST deadline falls, in ms since epoch. 19:30 IST
+// is 14:00 UTC (1170 − 330 minutes), so this needs no timezone library and
+// doesn't move with the server's own clock. Used to tell an entry written
+// while the day was still open from one written after it closed.
+function deadlineAt(dateStr) {
+  return new Date(`${dateStr}T00:00:00Z`).getTime() + (DEADLINE_MIN - IST_OFFSET_MIN) * 60_000;
+}
+
 // "YYYY-MM-DD" one day after the given date (UTC-safe).
 function nextDate(dateStr) {
   const d = new Date(`${dateStr}T00:00:00Z`);
@@ -78,25 +86,56 @@ function weekdayLabel(dateStr) {
 // MON_FRI_EMPLOYEE_IDS in routes/attendance.js). Returns one row per day with
 // a display status plus a `locked` flag (writes blocked).
 //
-//   present  — at least one entry logged
+//   present  — at least one entry logged, on a day that is closed normally
+//   reopened — an admin reopened the day and it now holds entries. Deliberately
+//              not "present": a day filled after its deadline, while still open
+//              for further edits, is not the same thing as one logged on time,
+//              and an admin looking at the sheet has to be able to see which is
+//              which — otherwise reopening an absent day quietly turned it green
+//              and there was nothing left saying it had ever been reopened.
 //   pending  — working day, deadline not yet passed, nothing logged
 //   unlocked — deadline passed but an admin reopened it; awaiting a fresh entry
 //   absent   — working day, deadline passed, nothing logged, not reopened
 //   off      — non-working day for this account, or before they joined
-function computeDayStatuses({ dates, entriesByDate, unlockedDates, joinDate, workWeekdays, now = new Date() }) {
+//
+// `reopenedAt` (date -> when the unlock was created) and `entryUpdatedAt`
+// (date -> newest entry updatedAt) are optional; pass both and each day also
+// carries `changedSinceReopen`, i.e. the employee has written to it since the
+// admin opened it. That is the cue for the admin to lock it again, so callers
+// that only need absences can leave them out.
+//
+// `entryUpdatedAt` alone also gives `refilled`: the day holds entries written
+// after its own deadline, so it was filled late rather than on the day. Locking
+// a reopened day deletes the unlock row, which would otherwise leave a day that
+// had been absent looking identical to one logged on time — this is derived
+// from the entries themselves, so it survives the lock and needs no new column.
+// An admin writing an entry for a past day (they bypass the deadline, see
+// routes/attendance.js) counts too, which is right: the day was still filled
+// after it closed.
+function computeDayStatuses({
+  dates, entriesByDate, unlockedDates, joinDate, workWeekdays,
+  reopenedAt, entryUpdatedAt, now = new Date(),
+}) {
   return dates.map((date) => {
     const count = entriesByDate.get(date) || 0;
     const unlocked = unlockedDates.has(date);
     const passed = isDeadlinePassed(date, now);
     const working = isWorkingDay(date, workWeekdays);
     const beforeJoin = joinDate && date < joinDate;
+    // A reopening only means anything once the day had actually closed. Before
+    // the deadline the day is open to the employee anyway, so an unlock row
+    // sitting there must not colour a normal day's status.
+    const reopened = unlocked && passed;
 
     let status;
-    if (count > 0) status = 'present';
+    if (count > 0) status = reopened ? 'reopened' : 'present';
     else if (!working || beforeJoin) status = 'off';
     else if (!passed) status = 'pending';
     else if (unlocked) status = 'unlocked';
     else status = 'absent';
+
+    const openedAt = reopened && reopenedAt ? reopenedAt.get(date) : null;
+    const touchedAt = entryUpdatedAt ? entryUpdatedAt.get(date) : null;
 
     return {
       date,
@@ -108,6 +147,12 @@ function computeDayStatuses({ dates, entriesByDate, unlockedDates, joinDate, wor
       // admin reopened it. Present/off days locked past deadline become
       // read-only; unlocked days are writable again.
       locked: passed && !unlocked,
+      // Written to since the reopening — false on a day reopened but not yet
+      // touched, so "nothing has changed" and "they've filled it" read apart.
+      changedSinceReopen: Boolean(openedAt && touchedAt && touchedAt > openedAt),
+      // Holds entries written after its own deadline. Outlives the unlock row,
+      // so a day stays marked as filled late once it is locked again.
+      refilled: Boolean(count > 0 && touchedAt && touchedAt.getTime() > deadlineAt(date)),
       entryCount: count,
     };
   });
@@ -121,6 +166,7 @@ module.exports = {
   todayIST,
   isWorkingDay,
   isDeadlinePassed,
+  deadlineAt,
   nextDate,
   dateRange,
   weekdayLabel,
