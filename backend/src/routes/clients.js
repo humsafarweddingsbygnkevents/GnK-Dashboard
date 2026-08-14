@@ -17,6 +17,11 @@ const PATCHABLE = ['name', 'phone', 'email', 'weddingDate', 'preferredCity',
 
 const SOURCES = ['gmail', 'instagram', 'facebook', 'manual', 'whatsapp', 'test'];
 
+// Internal test accounts — excluded from the Relationship Manager picker so
+// dev/QA logins don't show up as assignable owners. Ids 6 (Pratham,
+// endraode.7@gmail.com) and 8 (Pratham raj, endraode.5@gmail.com).
+const RM_EXEMPT_ADMIN_IDS = new Set([6, 8]);
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Staff-facing pipeline stage: has this lead confirmed, is it still being
@@ -512,7 +517,7 @@ router.get('/followups', async (req, res) => {
 router.get('/managers', async (req, res) => {
   try {
     const accounts = await prisma.admin.findMany({
-      where: { active: true },
+      where: { active: true, id: { notIn: [...RM_EXEMPT_ADMIN_IDS] } },
       select: { name: true, email: true },
       orderBy: { name: 'asc' },
     });

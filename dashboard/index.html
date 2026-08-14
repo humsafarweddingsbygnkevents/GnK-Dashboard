@@ -5413,15 +5413,6 @@ function clTagHtml(c) {
   const m = CATEGORY_META[c.category] || { label: c.category };
   return `<span class="cx-plain">${esc(m.label)}</span>`;
 }
-function clSourceHtml(c) {
-  if (!c.source || c.source === 'manual') {
-    const label = enquirySourceLabel(c);
-    return label ? esc(label) : `<span class="cx-none">—</span>`;
-  }
-  const s = CLIENT_SOURCES.find(x => x.key === c.source);
-  if (!s || !s.icon) return esc(c.source);
-  return `<span style="display:inline-flex;align-items:center;gap:5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${s.icon}</svg>${esc(s.label)}</span>`;
-}
 const clDash = '<span class="cx-none">—</span>';
 
 function paintClients(data, meta) {
@@ -5587,7 +5578,6 @@ function clientDrawerHtml(c, editing) {
               ${clStatusHtml(c)}
               <span style="color:#D5CFBD">·</span>
               ${clTagHtml(c)}
-              ${clSourceHtml(c)}
             </div>
           </div>
           <button class="cx-x" onclick="closeDrawer()" title="Close">${ICO_CLOSE}</button>
@@ -5636,7 +5626,7 @@ function clientDrawerHtml(c, editing) {
           ${infoRow('No. of rooms', c.roomCount ?? '', true)}
           ${infoRow('Check-in', c.checkInDate ? fmtDate(c.checkInDate) : (c.weddingDate ? fmtDate(c.weddingDate) : ''), true)}
           ${infoRow('Check-out', c.checkOutDate ? fmtDate(c.checkOutDate) : '', true)}
-          ${infoRow('Dates Finalised', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
+          ${infoRow('Event Date Status', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
           ${STATUSES_REQUIRING_FOLLOWUP.includes(c.status) ? infoRow('Next follow-up', c.nextFollowUpAt ? fmtDate(c.nextFollowUpAt) : '', true) : ''}
         </div>
 
@@ -5686,8 +5676,8 @@ function clientDrawerHtml(c, editing) {
             <div><label class="cx-lab" for="cd-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-phone" value="${esc(c.phone||'')}"></div>
             <div><label class="cx-lab" for="cd-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-email" value="${esc(c.email||'')}"></div>
             <div><label class="cx-lab" for="cd-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-hotel" value="${esc(preferredPlace(c)||'')}"></div>
-            <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}"></div>
             <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}"></div>
+            <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}"></div>
             <div><label class="cx-lab" for="cd-rm">Relationship Manager <span class="req">*</span></label>${rmSelectHtml('cd-rm', c.relationshipManager)}</div>
             <div>
               <label class="cx-lab" for="cd-enquirysource">Source</label>
@@ -5709,17 +5699,17 @@ function clientDrawerHtml(c, editing) {
         <div class="cx-dsec">
           <div class="cx-dsec-t">Event &amp; status</div>
           <div class="cx-grid">
-            <div><label class="cx-lab" for="cd-checkin">Check-in date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-checkin" type="date" min="1950-01-01" max="${maxEventDate()}" value="${dateVal}"></div>
+            <div><label class="cx-lab" for="cd-checkin">Check-in date <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-checkin" type="date" min="1950-01-01" max="${maxEventDate()}" value="${dateVal}"></div>
             <div><label class="cx-lab" for="cd-checkout">Check-out date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-checkout" type="date" min="1950-01-01" max="${maxEventDate()}" value="${outVal}"></div>
             <div>
-              <label class="cx-lab" for="cd-status">Status</label>
+              <label class="cx-lab" for="cd-status">Status <span class="req">*</span></label>
               <select class="input cx-in" id="cd-status" onchange="onStatusSelectChange(this,'cd')">${statusOptionsHtml('cd', c.status)}</select>
               <div id="cd-status-other-wrap" style="display:${c.status==='other'?'block':'none'};margin-top:8px">
                 <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-status-other" value="${esc(c.statusOther||'')}">
               </div>
             </div>
             <div>
-              <label class="cx-lab" for="cd-datestatus">Dates Finalised</label>
+              <label class="cx-lab" for="cd-datestatus">Event Date Status</label>
               <select class="input cx-in" id="cd-datestatus">${dateStatusOptionsHtml(c.dateStatus||'')}</select>
             </div>
             <div id="cd-followup-wrap" style="display:${STATUSES_REQUIRING_FOLLOWUP.includes(c.status)?'block':'none'}">
@@ -5727,9 +5717,8 @@ function clientDrawerHtml(c, editing) {
               <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-followup" type="date" min="1950-01-01" max="${maxEventDate()}" value="${c.nextFollowUpAt?String(c.nextFollowUpAt).slice(0,10):''}" onchange="this.blur()">
             </div>
             <div>
-              <label class="cx-lab" for="cd-eventtype">Event type</label>
+              <label class="cx-lab" for="cd-eventtype">Event type <span class="req">*</span></label>
               <select class="input cx-in" id="cd-eventtype" onchange="onOtherSelectChange(this,'cd-eventtype-other-wrap')">
-                <option value="" ${!c.eventType?'selected':''}></option>
                 ${eventTypeOptionsHtml(c.eventType)}
               </select>
               <div id="cd-eventtype-other-wrap" style="display:${c.eventType==='other'?'block':'none'};margin-top:8px">
@@ -5818,9 +5807,10 @@ function validateClientForm(prefix) {
 
   if (!f('-rm')?.value.trim()) errors.push([f('-rm'), 'Relationship Manager is required']);
 
-  // Beyond check-in (below), nothing else in the event block is compulsory —
-  // on a first call the team often only has a name and a number. Whatever
-  // they do fill in still has to be sane, which the format checks below handle.
+  // Beyond check-in, status, and event type (below), nothing else in the
+  // event block is compulsory — on a first call the team often only has a
+  // name and a number. Whatever they do fill in still has to be sane, which
+  // the format checks below handle.
 
   // Source is required on hand-added enquiries: whoever takes the call knows
   // where it came from, and it's the one thing nobody can reconstruct later.
@@ -5829,15 +5819,23 @@ function validateClientForm(prefix) {
   if (prefix === 'nc' && !f('-enquirysource')?.value.trim())
     errors.push([f('-enquirysource'), 'Source is required']);
 
-  // Same reasoning for check-in date: required going forward, but editing
-  // stays permissive since older records may not have one.
-  if (prefix === 'nc' && !f('-checkin')?.value)
+  // Check-in date is required on both create and edit — same as Status and
+  // Event type, a legacy record missing it has to get one filled in the
+  // next time anyone saves that client.
+  if (!f('-checkin')?.value)
     errors.push([f('-checkin'), 'Check-in date is required']);
 
   // Status has no sensible default — the old auto-selected "No Response"
   // made every fresh lead look like a follow-up someone already ignored.
-  if (prefix === 'nc' && !f('-status')?.value)
+  // Required on both create and edit, so a legacy record missing it has to
+  // get one picked the next time anyone touches that client.
+  if (!f('-status')?.value)
     errors.push([f('-status'), 'Status is required']);
+
+  // Same reasoning as Status — no default event type either, and it's the
+  // one thing every enquiry has by definition.
+  if (!f('-eventtype')?.value)
+    errors.push([f('-eventtype'), 'Event type is required']);
 
   const phone = f('-phone')?.value.trim();
   if (!phone) errors.push([f('-phone'), 'Phone number is required']);
@@ -5987,14 +5985,15 @@ function statusOptionsHtml(prefix, current) {
 }
 
 function eventTypeOptionsHtml(current) {
+  const placeholder = current ? '' : `<option value="" selected disabled>Select event type</option>`;
   const opts = EVENT_TYPE_OPTIONS.some(([k]) => k === current) || !current
     ? EVENT_TYPE_OPTIONS
     : [[current, current], ...EVENT_TYPE_OPTIONS];
-  return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  return placeholder + opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }
 
 function dateStatusOptionsHtml(current) {
-  const placeholder = current ? '' : `<option value="" selected disabled>Select dates finalised</option>`;
+  const placeholder = current ? '' : `<option value="" selected disabled>Select event date status</option>`;
   const opts = DATE_STATUS_OPTIONS.some(([k]) => k === current) || !current
     ? DATE_STATUS_OPTIONS
     : [[current, current], ...DATE_STATUS_OPTIONS];
@@ -6032,9 +6031,8 @@ async function openNewClientModal() {
             <div class="cx-sec-t">The event</div>
             <div class="cx-grid">
               <div>
-                <label class="cx-lab" for="nc-eventtype">Event type</label>
+                <label class="cx-lab" for="nc-eventtype">Event type <span class="req">*</span></label>
                 <select class="input cx-in" id="nc-eventtype" onchange="onOtherSelectChange(this,'nc-eventtype-other-wrap')">
-                  <option value="" selected></option>
                   ${eventTypeOptionsHtml('')}
                 </select>
                 <div id="nc-eventtype-other-wrap" style="display:none;margin-top:8px">
@@ -6044,17 +6042,17 @@ async function openNewClientModal() {
               <div><label class="cx-lab" for="nc-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-hotel"></div>
               <div><label class="cx-lab" for="nc-checkin">Check-in date <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkin" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
               <div><label class="cx-lab" for="nc-checkout">Check-out date</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-checkout" type="date" min="1950-01-01" max="${maxEventDate()}"></div>
-              <div><label class="cx-lab" for="nc-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-guests" type="number" min="1" max="1000000" step="1"></div>
               <div><label class="cx-lab" for="nc-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rooms" type="number" min="1" max="100000" step="1"></div>
+              <div><label class="cx-lab" for="nc-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-guests" type="number" min="1" max="1000000" step="1"></div>
               <div>
-                <label class="cx-lab" for="nc-status">Status</label>
+                <label class="cx-lab" for="nc-status">Status <span class="req">*</span></label>
                 <select class="input cx-in" id="nc-status" onchange="onStatusSelectChange(this,'nc')">${statusOptionsHtml('nc', '')}</select>
                 <div id="nc-status-other-wrap" style="display:none;margin-top:8px">
                   <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-status-other">
                 </div>
               </div>
               <div>
-                <label class="cx-lab" for="nc-datestatus">Dates Finalised</label>
+                <label class="cx-lab" for="nc-datestatus">Event Date Status</label>
                 <select class="input cx-in" id="nc-datestatus">${dateStatusOptionsHtml('tentative')}</select>
               </div>
               <div id="nc-followup-wrap" style="display:none">
