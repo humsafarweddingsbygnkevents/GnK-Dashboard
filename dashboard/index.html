@@ -3258,7 +3258,6 @@ async function openHotelDrawer(id) {
       ${primaryContactLines ? `<div class="mb-5"><div class="label mb-2">Primary Contact</div>${primaryContactLines}</div>` : ''}
       ${secondaryContactLines ? `<div class="mb-5"><div class="label mb-2">Secondary Contact</div>${secondaryContactLines}</div>` : ''}
       ${hasVal(h.relationshipManager) ? `<div class="mb-5"><div class="label mb-2">Relationship Manager</div><div class="text-sm">${esc(h.relationshipManager)}</div></div>` : ''}
-      ${hasVal(h.notes) ? `<div class="mb-5"><div class="label mb-2">Notes</div><div class="text-sm" style="line-height:1.6;color:var(--text-2)">${esc(h.notes)}</div></div>` : ''}
       ${hasVal(h.website) ? `<div class="mb-1"><div class="label mb-2">Website</div><div class="text-sm" style="word-break:break-word"><a href="${/^https?:\/\//.test(h.website)?esc(h.website):'#'}" target="_blank" style="color:var(--green-700)">${esc(h.website)}</a></div></div>` : ''}
     `;
   } catch(e) {

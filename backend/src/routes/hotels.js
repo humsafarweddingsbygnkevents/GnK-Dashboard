@@ -34,7 +34,6 @@ const HOTEL_SELECT = {
   guestCapacity: true,
   guestCapacityMax: true,
   relationshipManager: true,
-  notes: true,
   city: { select: { name: true } },
 };
 
