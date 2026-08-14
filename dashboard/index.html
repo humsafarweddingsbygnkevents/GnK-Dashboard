@@ -5229,7 +5229,7 @@ function paintClients(data, meta) {
       <div class="cx-scroll">
       <table class="cx-tbl">
         <thead><tr>
-          <th>Client</th><th>Type</th><th>Hotel</th><th>Guests</th><th>Rooms</th><th>Budget</th><th>Event date</th><th>Status</th><th>Source</th><th style="width:34px"></th>
+          <th>Client</th><th>Type</th><th>Hotel</th><th>Guests</th><th>Rooms</th><th>Budget</th><th>Event date</th><th>Status</th><th>Relationship Manager</th><th style="width:34px"></th>
         </tr></thead>
         <tbody>${data.map(c=>{
           const budget = budgetTotalLakhs(c);
@@ -5253,7 +5253,7 @@ function paintClients(data, meta) {
             <td class="num">${budget != null ? '₹'+budget+'L' : clDash}</td>
             <td class="num">${date ? fmtDate(date) : clDash}</td>
             <td>${clStatusHtml(c)}</td>
-            <td>${clSourceHtml(c)}</td>
+            <td>${c.relationshipManager ? esc(c.relationshipManager) : clDash}</td>
             <td><svg class="cx-chev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></td>
           </tr>`;}).join('')}
         </tbody>
@@ -5407,7 +5407,7 @@ function clientDrawerHtml(c, editing) {
           ${infoRow('No. of rooms', c.roomCount ?? '', true)}
           ${infoRow('Check-in', c.checkInDate ? fmtDate(c.checkInDate) : (c.weddingDate ? fmtDate(c.weddingDate) : ''), true)}
           ${infoRow('Check-out', c.checkOutDate ? fmtDate(c.checkOutDate) : '', true)}
-          ${infoRow('Date status', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
+          ${infoRow('Date Finalised', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
           ${STATUSES_REQUIRING_FOLLOWUP.includes(c.status) ? infoRow('Next follow-up', c.nextFollowUpAt ? fmtDate(c.nextFollowUpAt) : '', true) : ''}
         </div>
 
@@ -5490,7 +5490,7 @@ function clientDrawerHtml(c, editing) {
               </div>
             </div>
             <div>
-              <label class="cx-lab" for="cd-datestatus">Date status</label>
+              <label class="cx-lab" for="cd-datestatus">Date Finalised</label>
               <select class="input cx-in" id="cd-datestatus">${dateStatusOptionsHtml(c.dateStatus||'')}</select>
             </div>
             <div id="cd-followup-wrap" style="display:${STATUSES_REQUIRING_FOLLOWUP.includes(c.status)?'block':'none'}">
@@ -5761,7 +5761,7 @@ function eventTypeOptionsHtml(current) {
 }
 
 function dateStatusOptionsHtml(current) {
-  const placeholder = current ? '' : `<option value="" selected disabled>Select date status</option>`;
+  const placeholder = current ? '' : `<option value="" selected disabled>Select date finalised</option>`;
   const opts = DATE_STATUS_OPTIONS.some(([k]) => k === current) || !current
     ? DATE_STATUS_OPTIONS
     : [[current, current], ...DATE_STATUS_OPTIONS];
@@ -5821,7 +5821,7 @@ async function openNewClientModal() {
                 </div>
               </div>
               <div>
-                <label class="cx-lab" for="nc-datestatus">Date status</label>
+                <label class="cx-lab" for="nc-datestatus">Date Finalised</label>
                 <select class="input cx-in" id="nc-datestatus">${dateStatusOptionsHtml('')}</select>
               </div>
               <div id="nc-followup-wrap" style="display:none">
