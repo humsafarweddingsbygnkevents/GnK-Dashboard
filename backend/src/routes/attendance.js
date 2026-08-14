@@ -6,6 +6,7 @@ const router = Router();
 const prisma = require('../lib/prisma');
 const {
   DATE_RE,
+  UNLOCK_WINDOW_MIN,
   istNow,
   todayIST,
   isDeadlinePassed,
@@ -29,18 +30,21 @@ function isAdmin(req) {
   return req.admin?.role === 'admin';
 }
 
-// True when an employee may NOT write to `date`: its 19:30 IST deadline has
-// passed and no admin has reopened it. Admins are never lock-restricted, so
-// callers only invoke this for employee writes.
+// True when an employee may NOT write to `date`: its 20:00 IST deadline has
+// passed and no admin has reopened it — or an admin did, but that reopening
+// is more than UNLOCK_WINDOW_MIN old and has auto-expired (see the note atop
+// attendanceLock.js). Admins are never lock-restricted, so callers only
+// invoke this for employee writes.
 async function isLockedForEmployee(employeeId, date) {
   if (!isDeadlinePassed(date)) return false;
   const unlock = await prisma.attendanceUnlock.findUnique({
     where: { employeeId_date: { employeeId, date } },
   });
-  return !unlock;
+  if (!unlock) return true;
+  return Date.now() - unlock.createdAt.getTime() >= UNLOCK_WINDOW_MIN * 60_000;
 }
 
-const LOCK_MSG = 'This day is locked (attendance closes at 7:30 PM). Ask an admin to reopen it.';
+const LOCK_MSG = 'This day is locked (attendance closes at 8:00 PM). Ask an admin to reopen it.';
 
 function validDate(s) {
   if (typeof s !== 'string' || !DATE_RE.test(s)) return false;
@@ -236,7 +240,7 @@ router.get('/status', async (req, res) => {
       return acc;
     }, {});
 
-    res.json({ data: { from, to, deadline: '19:30', days, summary } });
+    res.json({ data: { from, to, deadline: '20:00', days, summary } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Internal server error' });
@@ -247,6 +251,8 @@ router.get('/status', async (req, res) => {
 // dashboard home + attendance pages. Employees see only their own absent dates;
 // admins see every active employee's. Default window is the current IST month.
 // Absence is derived live (working day, deadline passed, no entry, not reopened).
+// A reopening older than UNLOCK_WINDOW_MIN reads as expired here too — see
+// the note atop attendanceLock.js.
 router.get('/absences', async (req, res) => {
   try {
     const today = todayIST();
@@ -271,7 +277,7 @@ router.get('/absences', async (req, res) => {
       }),
       prisma.attendanceUnlock.findMany({
         where: { employeeId: { in: ids }, date: { gte: from, lte: to } },
-        select: { employeeId: true, date: true },
+        select: { employeeId: true, date: true, createdAt: true },
       }),
     ]);
 
@@ -282,9 +288,16 @@ router.get('/absences', async (req, res) => {
       m.set(e.date, (m.get(e.date) || 0) + 1);
     }
     const unlocksByEmp = new Map();
+    // date -> when each unlock was created, per employee — feeds computeDayStatuses
+    // so a reopening older than UNLOCK_WINDOW_MIN reads as expired here too, not
+    // just in /status (otherwise an auto-expired day would still show "reopened"
+    // instead of "absent" on this endpoint).
+    const reopenedAtByEmp = new Map();
     for (const u of unlocks) {
       if (!unlocksByEmp.has(u.employeeId)) unlocksByEmp.set(u.employeeId, new Set());
       unlocksByEmp.get(u.employeeId).add(u.date);
+      if (!reopenedAtByEmp.has(u.employeeId)) reopenedAtByEmp.set(u.employeeId, new Map());
+      reopenedAtByEmp.get(u.employeeId).set(u.date, u.createdAt);
     }
 
     const perEmployee = employees.map((emp) => {
@@ -292,6 +305,7 @@ router.get('/absences', async (req, res) => {
         dates,
         entriesByDate: entriesByEmp.get(emp.id) || new Map(),
         unlockedDates: unlocksByEmp.get(emp.id) || new Set(),
+        reopenedAt: reopenedAtByEmp.get(emp.id) || new Map(),
         joinDate: istNow(new Date(emp.createdAt)).date,
         workWeekdays: workWeekdaysFor(emp.id),
       });

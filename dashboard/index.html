@@ -1155,8 +1155,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .att-banner-info{background:#EAF2FB;color:#2C5A8C;border-color:#c7ddf2}
 .att-stat{font-size:24px;font-weight:600;font-family:Fraunces,serif;margin-top:2px}
 .att-daygrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
-.att-daycell{display:flex;flex-direction:column;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid var(--border-soft);border-radius:11px;background:#fff;min-height:64px;overflow:hidden}
-.att-daycell .dc-row2{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.att-daycell{display:flex;flex-direction:column;justify-content:space-between;gap:8px;padding:10px 12px;border:1px solid var(--border-soft);border-radius:11px;background:#fff;min-height:64px;min-width:0;overflow:hidden}
+.att-daycell .dc-row2{display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;flex-wrap:wrap}
 .att-daycell .dc-row2 .btn{flex:0 0 auto}
 /* Absences panels (dashboard home + attendance pages) */
 .abs-wrap{display:flex;flex-wrap:wrap;gap:6px}
@@ -1172,6 +1172,23 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .att-daycell.is-unlocked{background:#EAF2FB;border-color:#c7ddf2}
 .att-daycell .dc-date{font:600 12.5px Inter,sans-serif;color:var(--text)}
 .att-daycell .dc-wd{font:400 11px Inter,sans-serif;color:var(--text-3);margin-left:4px}
+
+/* Self-service "days off" calendar (My Attendance) */
+.offcal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.offcal-head{margin-bottom:4px}
+.offcal-wd{text-align:center;font:600 11px Inter,sans-serif;color:var(--text-3);padding:2px 0}
+.offcal-cell{aspect-ratio:1;display:flex;align-items:center;justify-content:center;border-radius:9px;font:600 12.5px Inter,sans-serif;border:1px solid var(--border-soft);background:#fff;color:var(--text);cursor:default;padding:0;transition:transform .1s,filter .1s}
+.offcal-blank{border-color:transparent;background:transparent;color:var(--text-3);font-weight:400}
+button.offcal-cell{cursor:pointer}
+.offcal-cell.offcal-disabled{cursor:default}
+.offcal-present{background:var(--green-50);border-color:var(--green-200);color:var(--green-900)}
+.offcal-absent{background:#FDECEA;border-color:#f3c9c2;color:#b3261e}
+.offcal-off{background:var(--cream);border-color:var(--border-soft);color:var(--text-3);text-decoration:line-through}
+.offcal-pending{background:#fff;border-color:var(--gold-400);color:#7a5e10}
+.offcal-locked{background:#EAF2FB;border-color:#c7ddf2;color:#2b5aa7}
+.offcal-today{box-shadow:0 0 0 2px var(--gold-600)}
+.offcal-cell:not(.offcal-disabled):not(.offcal-blank):hover{filter:brightness(0.97);transform:translateY(-1px)}
+.offcal-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle}
 
 /* dashboard bento mosaic — one grid, two stat tiles + panels, each pinned to
    a named area (instead of nested grids) so the home screen reads as a
@@ -6383,6 +6400,85 @@ function attMonthPhrase(month) {
   return month === attToday().slice(0, 7) ? 'this month' : `in ${attMonthLabel(month)}`;
 }
 
+const ATT_OFF_MAX = 5;
+
+// Self-service "days off" calendar for My Attendance. No company-set weekly
+// off anymore — every date is present/absent by default, and an employee
+// picks up to ATT_OFF_MAX of their own days off a month, either converting
+// an already-absent day or planning one ahead. `monthStatus` is a
+// /api/attendance/status response spanning the whole current month (not just
+// up to today, unlike the main `status` used elsewhere on this page) — dates
+// before the employee's join date are simply absent from `days` and render
+// as blank, unclickable cells, same as any padding day outside the month.
+function attOffCalendarHTML(monthStatus) {
+  if (!monthStatus) return `<div class="empty" style="padding:20px 0"><span class="spinner"></span></div>`;
+  const month = monthStatus.from.slice(0, 7);
+  const byDate = new Map((monthStatus.days || []).map(d => [d.date, d]));
+  const used = (monthStatus.days || []).filter(d => d.status === 'off').length;
+  const today = attToday();
+  const firstDow = new Date(`${month}-01T00:00:00Z`).getUTCDay();
+  const lastDay = Number(monthStatus.to.slice(8, 10));
+
+  let cells = '';
+  for (let i = 0; i < firstDow; i++) cells += `<div class="offcal-cell offcal-blank"></div>`;
+  for (let day = 1; day <= lastDay; day++) {
+    const date = `${month}-${String(day).padStart(2, '0')}`;
+    cells += attOffCellHTML(byDate.get(date), date, day, date === today);
+  }
+
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div class="text-sm text-muted" style="max-width:40ch">Tap an absent or upcoming day to take it off; tap an off day to undo it.</div>
+      <span class="badge ${used >= ATT_OFF_MAX ? 'badge-red' : 'badge-gray'}">${used}/${ATT_OFF_MAX} off days used</span>
+    </div>
+    <div class="offcal-grid offcal-head">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(w => `<div class="offcal-wd">${w}</div>`).join('')}</div>
+    <div class="offcal-grid" style="margin-top:6px">${cells}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:14px" class="text-sm text-muted">
+      <span><span class="offcal-dot" style="background:#b3261e"></span>Absent</span>
+      <span><span class="offcal-dot" style="background:var(--text-3)"></span>Off</span>
+      <span><span class="offcal-dot" style="background:var(--green-700)"></span>Present</span>
+      <span><span class="offcal-dot" style="background:var(--gold-600)"></span>Pending</span>
+    </div>`;
+}
+
+function attOffCellHTML(d, date, day, isToday) {
+  if (!d) return `<div class="offcal-cell offcal-blank">${day}</div>`;
+  let cls = 'offcal-cell';
+  let clickable = false;
+  let title = '';
+  if (d.status === 'present' || d.status === 'reopened') {
+    cls += ' offcal-present';
+  } else if (d.status === 'off') {
+    cls += ' offcal-off'; clickable = true; title = 'Tap to undo this day off';
+  } else if (d.status === 'absent') {
+    cls += ' offcal-absent'; clickable = true; title = 'Tap to mark as a day off';
+  } else if (d.status === 'pending') {
+    cls += ' offcal-pending'; clickable = true; title = 'Tap to plan this as a day off';
+  } else {
+    cls += ' offcal-locked';
+  }
+  if (isToday) cls += ' offcal-today';
+  if (!clickable) cls += ' offcal-disabled';
+  const tag = clickable ? 'button' : 'div';
+  const typeAttr = clickable ? ' type="button"' : '';
+  const onclick = clickable ? ` onclick="attToggleOff('${date}', ${d.status === 'off'})"` : '';
+  return `<${tag} class="${cls}"${typeAttr}${onclick} title="${esc(title)}">${day}</${tag}>`;
+}
+
+// Marks `date` off, or undoes it if it already is. Capped server-side at
+// ATT_OFF_MAX/month; a day with logged entries can't be marked off (undo the
+// entry first) — the server is the source of truth for both, this just
+// surfaces whatever it says.
+async function attToggleOff(date, isOff) {
+  try {
+    if (isOff) await apiDelete(`/api/attendance/off/${date}`);
+    else await apiPost('/api/attendance/off', { date });
+    cacheClear('att:'); cacheClear('dash:'); cacheClear('team:');
+    showToast(isOff ? 'Off day undone' : 'Marked as a day off', 'success');
+    renderAttendance();
+  } catch (e) { showToast(attErrMsg(e), 'error'); }
+}
+
 // A wrapped row of red date "chips" for absent days; today's chip is filled.
 function attAbsChipsHTML(dates, today) {
   if (!dates || !dates.length) return '';
@@ -6554,7 +6650,7 @@ function attOpenDayDrawer(employeeId, date) {
         </div>
       </div>`).join('');
 
-  // Remarks belong to the day, not to any one task — "worked past 7:30" is
+  // Remarks belong to the day, not to any one task — "worked past 8:00 PM" is
   // about the evening, not about task three. They're edited here, in the space
   // under the tasks, and there can be as many as the day needs.
   const remarks = attDayRemarks(day);
@@ -6608,24 +6704,31 @@ function attOpenDayDrawer(employeeId, date) {
 // Day-status pill for the attendance sheet. 'unlocked' and 'reopened' are the
 // same reopening at two stages — nothing filled yet, and filled — and both stay
 // blue rather than turning green, because a day that only has entries in it
-// because an admin reopened it is not a day that was logged on time.
+// because an admin reopened it is not a day that was logged on time. Labels
+// are abbreviated (RO/RF, with the full word on hover) — this badge always
+// sits next to a Reopen/Lock action button inside a narrow day-grid cell, and
+// the full words ("Reopened", "Present · refilled") were wide enough to push
+// that button past the card's edge into the next cell.
 const ATT_DAY = {
-  present:  { label: 'Present',           badge: 'badge-green' },
-  pending:  { label: 'Pending',           badge: 'badge-gold' },
-  absent:   { label: 'Absent',            badge: 'badge-red' },
-  unlocked: { label: 'Reopened',          badge: 'badge-blue' },
-  reopened: { label: 'Reopened · filled', badge: 'badge-blue' },
-  off:      { label: 'Off',               badge: 'badge-gray' },
+  present:  { label: 'Present', title: null,      badge: 'badge-green' },
+  pending:  { label: 'Pending', title: null,       badge: 'badge-gold' },
+  absent:   { label: 'Absent',  title: null,       badge: 'badge-red' },
+  unlocked: { label: 'RO',      title: 'Reopened', badge: 'badge-blue' },
+  reopened: { label: 'RO',      title: 'Reopened · filled', badge: 'badge-blue' },
+  off:      { label: 'Off',     title: null,       badge: 'badge-gray' },
 };
 // Takes the whole day, not just its status: a closed day that was filled after
 // its deadline is present — the work is logged and it counts as present — but
 // it did not happen on the day, and locking it deletes the unlock row that was
-// the only other trace of that. "Present · refilled" is what is left saying so.
+// the only other trace of that. "RF" (hover: "Present · refilled") is what is
+// left saying so.
 function attDayBadge(day) {
   const d = typeof day === 'string' ? { status: day } : (day || {});
-  const m = ATT_DAY[d.status] || { label: d.status, badge: 'badge-gray' };
-  const label = d.status === 'present' && d.refilled ? 'Present · refilled' : m.label;
-  return `<span class="badge ${m.badge}">${esc(label)}</span>`;
+  const m = ATT_DAY[d.status] || { label: d.status, title: null, badge: 'badge-gray' };
+  const refilled = d.status === 'present' && d.refilled;
+  const label = refilled ? 'RF' : m.label;
+  const title = refilled ? 'Present · refilled' : m.title;
+  return `<span class="badge ${m.badge}"${title ? ` title="${esc(title)}"` : ''}>${esc(label)}</span>`;
 }
 
 // Which dates are closed to the employee, from the server-computed status.
@@ -6641,29 +6744,35 @@ function attLockedDates(status) {
 async function renderAttendance() {
   // Cached entries paint instantly; only newly created/edited rows trigger a
   // repaint after the background refresh (mutations clear this cache). The
-  // status call carries the live 7:30 PM lock state and absent days.
+  // status call carries the live 8:00 PM lock state and absent days.
   if (!cacheGet('att:mine')) setContent('<div class="empty" style="padding:60px 0"><span class="spinner"></span></div>');
   // Returned, not fired and forgotten: callers that mutate and then redraw
   // (a save, a delete) await this to mean "the new list has landed and
   // painted". Without the return they carried on against the old one.
   return swr('att:mine', 60000, async () => {
-    const [entries, status] = await Promise.all([
+    // The whole current month, not just up to today — the off-days calendar
+    // needs the rest of the month too, so someone can plan an upcoming day
+    // off rather than only converting one already marked absent.
+    const { from: mFrom, to: mTo } = attMonthRange(attToday().slice(0, 7));
+    const [entries, status, monthStatus] = await Promise.all([
       api('/api/attendance').then(r => r.data),
       api('/api/attendance/status').then(r => r.data),
+      api(`/api/attendance/status?from=${mFrom}&to=${mTo}`).then(r => r.data),
     ]);
-    return { entries, status };
+    return { entries, status, monthStatus };
   }, (d) => {
     if (S.screen !== 'attendance') return;
-    paintAttendance(d.entries, d.status);
+    paintAttendance(d.entries, d.status, d.monthStatus);
   }, (e) => {
     if (S.screen !== 'attendance') return;
     setContent(`<div class="empty" style="padding:60px 0">Could not load attendance — ${esc(attErrMsg(e))}</div>`);
   });
 }
 
-function paintAttendance(entries, status) {
+function paintAttendance(entries, status, monthStatus) {
   S.attEntries = entries;
   S.attStatus = status;
+  S.attMonthStatus = monthStatus || status;
 
   // Kept on S so the day drawer can tell a closed day from an open one without
   // recomputing the window.
@@ -6677,15 +6786,15 @@ function paintAttendance(entries, status) {
   let banner = '';
   if (todayDay) {
     if (todayDay.status === 'present') {
-      banner = `<div class="att-banner att-banner-ok">${ICO_CHECK} Today's attendance is logged. Days lock at <strong>7:30 PM</strong>.</div>`;
+      banner = `<div class="att-banner att-banner-ok">${ICO_CHECK} Today's attendance is logged. Days lock at <strong>8:00 PM</strong>.</div>`;
     } else if (todayDay.status === 'pending') {
-      banner = `<div class="att-banner att-banner-warn">You haven't logged today yet — attendance locks at <strong>7:30 PM</strong>, after which the day is marked absent.</div>`;
+      banner = `<div class="att-banner att-banner-warn">You haven't logged today yet — attendance locks at <strong>8:00 PM</strong>, after which the day is marked absent.</div>`;
     } else if (todayDay.status === 'absent') {
-      banner = `<div class="att-banner att-banner-bad">Today closed at 7:30 PM with no entry — marked <strong>absent</strong>. Ask an admin to reopen it.</div>`;
+      banner = `<div class="att-banner att-banner-bad">Today closed at 8:00 PM with no entry — marked <strong>absent</strong>. Ask an admin to reopen it.</div>`;
     } else if (todayDay.status === 'unlocked') {
-      banner = `<div class="att-banner att-banner-ok">An admin reopened today — log your attendance now before it closes again.</div>`;
+      banner = `<div class="att-banner att-banner-ok">An admin reopened today — log your attendance now, it closes again automatically <strong>1 hour</strong> after being reopened.</div>`;
     } else if (todayDay.status === 'reopened') {
-      banner = `<div class="att-banner att-banner-ok">${ICO_CHECK} Today was reopened and your entry is saved. It stays editable until an admin locks the day.</div>`;
+      banner = `<div class="att-banner att-banner-ok">${ICO_CHECK} Today was reopened and your entry is saved. It stays editable for <strong>1 hour</strong> after being reopened, or until an admin locks it sooner.</div>`;
     }
   }
 
@@ -6693,7 +6802,7 @@ function paintAttendance(entries, status) {
   const reopened = (status?.days || []).filter(d => d.status === 'unlocked');
   const reopenedHTML = reopened.length ? `
     <div class="att-banner att-banner-info">
-      <div style="font-weight:600;margin-bottom:6px">Reopened for you — fill these before they close again:</div>
+      <div style="font-weight:600;margin-bottom:6px">Reopened for you — fill these within the hour, before they close again:</div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         ${reopened.map(d => `<button class="btn btn-ghost btn-sm" onclick="attOpenEntryModal(null, '${d.date}')">${esc(attFmtDate(d.date))} +</button>`).join('')}
       </div>
@@ -6703,7 +6812,7 @@ function paintAttendance(entries, status) {
     <div class="page-header mb-6">
       <div>
         <div class="page-title">My Attendance</div>
-        <div class="page-sub">Log what you worked on, day by day · closes 7:30 PM</div>
+        <div class="page-sub">Log what you worked on, day by day · closes 8:00 PM</div>
       </div>
       <button class="btn btn-primary" onclick="attOpenEntryModal()">+ New entry</button>
     </div>
@@ -6723,17 +6832,12 @@ function paintAttendance(entries, status) {
         <div><div class="stat-value" style="font-size:30px">${(summary.unlocked || 0) + (summary.reopened || 0)}</div><div class="stat-label" style="margin-top:5px">Reopened — still open</div></div>
       </div>
     </div>
-    ${(() => {
-      const absentDates = (status?.days || []).filter(d => d.status === 'absent').map(d => d.date);
-      return `<div class="dash-panel" style="margin:0 0 24px;max-width:640px">
-        <div class="dash-panel-head">
-          <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#FDECEA;--ph-accent:#B0311F"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>Your absent days this month</span>
-        </div>
-        <div style="padding:16px 20px">
-          ${absentDates.length ? attAbsChipsHTML(absentDates, today) : `<div class="abs-empty">${ICO_SPARK} No absences this month.</div>`}
-        </div>
-      </div>`;
-    })()}
+    <div class="dash-panel" style="margin:0 0 24px;max-width:640px">
+      <div class="dash-panel-head">
+        <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:var(--cream);--ph-accent:var(--text-3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>Your days off</span>
+      </div>
+      <div style="padding:16px 20px">${attOffCalendarHTML(monthStatus)}</div>
+    </div>
     <div class="dash-panel">
       <div class="dash-panel-head">
         <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance Log</span>
@@ -6922,7 +7026,7 @@ function attSaveSummary({ updated, added, deleted }) {
 }
 
 // Each task is its own attendance row — same shape the log has always stored,
-// so the table, totals and the 7:30 lock all keep working untouched. The form
+// so the table, totals and the 8:00 PM lock all keep working untouched. The form
 // edits a whole day at once, so saving it is a diff: rows that came from a task
 // are PATCHed (and skipped entirely when nothing about them changed), new rows
 // are POSTed, and rows the user removed are DELETEd last, so a failure part-way
@@ -7008,7 +7112,7 @@ async function attSubmitEntry() {
   }
 }
 
-// Multi-remark editing — e.g. logging that work continued past 7:30. Reuses the
+// Multi-remark editing — e.g. logging that work continued past 8:00 PM. Reuses the
 // numbered add/remove row pattern from the New Client modal and stores the
 // result in the entry's existing `comment` field (numbered + newline-joined
 // when there's more than one).
@@ -7170,7 +7274,7 @@ function absMonthOptionsHtml(current) {
 function paintTeam(employees, att, status, absences, absMonth) {
   S.teamEmployees = employees;
   S.teamAtt = att;
-  // Admins bypass the 7:30 lock, so nothing is closed to them in this view.
+  // Admins bypass the 8:00 PM lock, so nothing is closed to them in this view.
   S.attLockedDates = null;
   S.teamStatus = status;
   S.teamAbsences = absences;
@@ -7303,7 +7407,7 @@ function teamAttSheetHTML(emp, status) {
         </div>
       </div>
       <div style="padding:16px 20px">
-        <div class="text-sm text-muted" style="margin-bottom:10px">This month · days lock at 7:30 PM. Reopen an absent or closed day to let ${esc((emp.name || 'the employee').split(' ')[0])} fill it — it stays open, and stays marked reopened, until you lock it again. A day filled after 7:30 PM stays marked <strong>refilled</strong> once locked.</div>
+        <div class="text-sm text-muted" style="margin-bottom:10px">This month · days lock at 8:00 PM. Reopen an absent or closed day to let ${esc((emp.name || 'the employee').split(' ')[0])} fill it — it stays open for <strong>1 hour</strong>, then closes again on its own (or lock it sooner yourself). A day filled after 8:00 PM stays marked <strong>refilled</strong> once locked.</div>
         <div class="att-daygrid">${cells}</div>
       </div>
     </div>`;
