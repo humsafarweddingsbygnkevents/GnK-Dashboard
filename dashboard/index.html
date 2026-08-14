@@ -2665,6 +2665,9 @@ async function renderDashboard() {
   const dayName = now.toLocaleDateString('en-US',{weekday:'long'});
   const dateRest = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const isEmployee = S.admin?.role === 'employee';
+  // Employees are looking at their own account, not the shared team view —
+  // greet them by (first) name instead of the generic "Team".
+  const greetName = isEmployee ? (S.admin?.name?.trim().split(/\s+/)[0] || 'there') : 'Team';
   const stats = [
     {key:'venues',   label:'Venues',         accent:'var(--green-700)', bg:'var(--green-50)',
       icon:'<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/>'},
@@ -2677,7 +2680,7 @@ async function renderDashboard() {
       <div class="dash-hero-inner">
         <div>
           <div class="dash-eyebrow"><span class="dot"></span>Humsafar Weddings by GnK Events · Workspace</div>
-          <div class="dash-greeting">${greet}, Team <span class="spark">${ICO_SPARK}</span></div>
+          <div class="dash-greeting">${greet}, ${esc(greetName)} <span class="spark">${ICO_SPARK}</span></div>
           <div class="dash-subline dash-quote" id="dash-quote">${esc(dashQuoteForDate(attToday()))}</div>
         </div>
         <div class="dash-hero-date">
