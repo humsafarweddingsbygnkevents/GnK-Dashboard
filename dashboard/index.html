@@ -2372,7 +2372,18 @@ function closeReplyMenus(exceptId) {
 // "Name <a@b.com>, Name2 <c@d.com>" and plain "a@b.com, c@d.com".
 function extractEmails(str) {
   if (!str) return [];
-  return str.split(',').map(s => (s.match(/<([^>]+)>/)?.[1] || s).trim()).filter(Boolean);
+  // Splits on top-level commas only — a naive str.split(',') breaks on
+  // display names like "Kachru, Karan" <karan.kachru@hyatt.com>, which
+  // corporate mail (Outlook/Exchange "Last, First" format) uses constantly.
+  const parts = [];
+  let cur = '', inQuotes = false;
+  for (const ch of str) {
+    if (ch === '"') inQuotes = !inQuotes;
+    if (ch === ',' && !inQuotes) { parts.push(cur); cur = ''; }
+    else cur += ch;
+  }
+  if (cur.trim()) parts.push(cur);
+  return parts.map(s => (s.match(/<([^>]+)>/)?.[1] || s).trim()).filter(Boolean);
 }
 
 // Builds the Reply button as a small dropdown offering Reply / Reply All.
