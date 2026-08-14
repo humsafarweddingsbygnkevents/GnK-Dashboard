@@ -16,6 +16,9 @@ const {
 
 const STATUSES = ['in_progress', 'completed', 'blocked', 'on_leave'];
 
+// Self-service days-off cap — must match ATT_OFF_MAX in dashboard/index.html.
+const ATT_OFF_MAX = 5;
+
 // Accounts on a Mon–Fri week instead of the company default Mon–Sat —
 // Saturday counts as a day off for them (never "absent"). Add employee ids
 // here as needed.
@@ -194,9 +197,10 @@ router.get('/status', async (req, res) => {
       return res.status(400).json({ error: 'from/to must be YYYY-MM-DD with from <= to' });
     }
 
-    const [entries, unlocks] = await Promise.all([
+    const [entries, unlocks, offs] = await Promise.all([
       prisma.attendanceEntry.findMany({ where: { employeeId, date: { gte: from, lte: to } } }),
       prisma.attendanceUnlock.findMany({ where: { employeeId, date: { gte: from, lte: to } } }),
+      prisma.attendanceOff.findMany({ where: { employeeId, date: { gte: from, lte: to } } }),
     ]);
 
     const entriesByDate = new Map();
@@ -216,6 +220,7 @@ router.get('/status', async (req, res) => {
     }
     const unlockedDates = new Set(unlocks.map((u) => u.date));
     const reopenedAt = new Map(unlocks.map((u) => [u.date, u.createdAt]));
+    const offDates = new Set(offs.map((o) => o.date));
 
     // The employee isn't "absent" before they existed — clamp expectations to
     // their account creation date (in IST).
@@ -228,6 +233,7 @@ router.get('/status', async (req, res) => {
       reopenedAt,
       entryUpdatedAt,
       entryCreatedAt,
+      offDates,
       joinDate,
       workWeekdays: workWeekdaysFor(employeeId),
     });
@@ -270,7 +276,7 @@ router.get('/absences', async (req, res) => {
       : await prisma.admin.findMany({ where: { id: req.admin.sub } });
 
     const ids = employees.map((e) => e.id);
-    const [entries, unlocks] = await Promise.all([
+    const [entries, unlocks, offs] = await Promise.all([
       prisma.attendanceEntry.findMany({
         where: { employeeId: { in: ids }, date: { gte: from, lte: to } },
         select: { employeeId: true, date: true },
@@ -278,6 +284,10 @@ router.get('/absences', async (req, res) => {
       prisma.attendanceUnlock.findMany({
         where: { employeeId: { in: ids }, date: { gte: from, lte: to } },
         select: { employeeId: true, date: true, createdAt: true },
+      }),
+      prisma.attendanceOff.findMany({
+        where: { employeeId: { in: ids }, date: { gte: from, lte: to } },
+        select: { employeeId: true, date: true },
       }),
     ]);
 
@@ -299,6 +309,11 @@ router.get('/absences', async (req, res) => {
       if (!reopenedAtByEmp.has(u.employeeId)) reopenedAtByEmp.set(u.employeeId, new Map());
       reopenedAtByEmp.get(u.employeeId).set(u.date, u.createdAt);
     }
+    const offsByEmp = new Map();
+    for (const o of offs) {
+      if (!offsByEmp.has(o.employeeId)) offsByEmp.set(o.employeeId, new Set());
+      offsByEmp.get(o.employeeId).add(o.date);
+    }
 
     const perEmployee = employees.map((emp) => {
       const days = computeDayStatuses({
@@ -306,6 +321,7 @@ router.get('/absences', async (req, res) => {
         entriesByDate: entriesByEmp.get(emp.id) || new Map(),
         unlockedDates: unlocksByEmp.get(emp.id) || new Set(),
         reopenedAt: reopenedAtByEmp.get(emp.id) || new Map(),
+        offDates: offsByEmp.get(emp.id) || new Set(),
         joinDate: istNow(new Date(emp.createdAt)).date,
         workWeekdays: workWeekdaysFor(emp.id),
       });
@@ -397,6 +413,59 @@ router.post('/relock', async (req, res) => {
     if (error) return res.status(400).json({ error });
 
     await prisma.attendanceUnlock.deleteMany({ where: { employeeId, date } });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /api/attendance/off — self-service: mark `date` as a day off, either
+// converting an already-absent/pending day or planning one ahead. Always the
+// caller's own attendance, capped at ATT_OFF_MAX per calendar month; a day
+// that already has logged entries can't be marked off (undo the entry first).
+router.post('/off', async (req, res) => {
+  try {
+    const date = req.body?.date;
+    if (typeof date !== 'string' || !DATE_RE.test(date) || !validDate(date)) {
+      return res.status(400).json({ error: 'date must be a valid YYYY-MM-DD date' });
+    }
+    const employeeId = req.admin.sub;
+
+    const entryCount = await prisma.attendanceEntry.count({ where: { employeeId, date } });
+    if (entryCount > 0) {
+      return res.status(400).json({ error: 'This day already has logged attendance — remove it first' });
+    }
+
+    const existing = await prisma.attendanceOff.findUnique({
+      where: { employeeId_date: { employeeId, date } },
+    });
+    if (existing) return res.json({ ok: true, off: existing });
+
+    const monthPrefix = date.slice(0, 7);
+    const usedThisMonth = await prisma.attendanceOff.count({
+      where: { employeeId, date: { startsWith: monthPrefix } },
+    });
+    if (usedThisMonth >= ATT_OFF_MAX) {
+      return res.status(400).json({ error: `Only ${ATT_OFF_MAX} days off are allowed per month` });
+    }
+
+    const off = await prisma.attendanceOff.create({ data: { employeeId, date } });
+    res.status(201).json({ ok: true, off });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /api/attendance/off/:date — undo a self-marked day off.
+router.delete('/off/:date', async (req, res) => {
+  try {
+    const date = req.params.date;
+    if (typeof date !== 'string' || !DATE_RE.test(date) || !validDate(date)) {
+      return res.status(400).json({ error: 'date must be a valid YYYY-MM-DD date' });
+    }
+    await prisma.attendanceOff.deleteMany({ where: { employeeId: req.admin.sub, date } });
     res.json({ ok: true });
   } catch (err) {
     console.error(err);

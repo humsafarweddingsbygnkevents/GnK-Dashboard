@@ -103,6 +103,7 @@ model Admin {
 
   attendance        AttendanceEntry[]
   attendanceUnlocks AttendanceUnlock[]
+  attendanceOffs    AttendanceOff[]
   feedback          Feedback[]
 }
 
@@ -132,6 +133,23 @@ model AttendanceUnlock {
   employee   Admin    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   date       String // "YYYY-MM-DD"
   unlockedBy Int? // admin id who reopened it (loose ref, no FK)
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([employeeId, date])
+}
+
+// A day an employee has chosen as a day off (self-service, capped at
+// ATT_OFF_MAX/month client- and server-side). Converts an already-absent day
+// or plans an upcoming one; a day with logged entries can't be marked off.
+// Presence of a row is all that matters — computeDayStatuses reads it as an
+// override to 'off', the same way AttendanceUnlock is read as an override to
+// 'unlocked'/'reopened'.
+model AttendanceOff {
+  id         Int      @id @default(autoincrement())
+  employeeId Int
+  employee   Admin    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       String // "YYYY-MM-DD"
   createdAt  DateTime @default(now())
 
   @@unique([employeeId, date])

@@ -106,7 +106,8 @@ function weekdayLabel(dateStr) {
 //   pending  — working day, deadline not yet passed, nothing logged
 //   unlocked — deadline passed but an admin reopened it; awaiting a fresh entry
 //   absent   — working day, deadline passed, nothing logged, not reopened
-//   off      — non-working day for this account (e.g. a Sunday), on or after they joined
+//   off      — non-working day (e.g. a Sunday), or a working day the employee
+//              chose as a day off (see `offDates`), on or after they joined
 //
 // `reopenedAt` (date -> when the unlock was created) drives two things: it is
 // how a day's `unlocked` flag itself is derived — a raw AttendanceUnlock row
@@ -138,7 +139,7 @@ function weekdayLabel(dateStr) {
 // added a note afterward." createdAt is set once and never moves, so it can.
 function computeDayStatuses({
   dates, entriesByDate, unlockedDates, joinDate, workWeekdays,
-  reopenedAt, entryUpdatedAt, entryCreatedAt, now = new Date(),
+  reopenedAt, entryUpdatedAt, entryCreatedAt, offDates, now = new Date(),
 }) {
   return dates
     .filter((date) => !(joinDate && date < joinDate))
@@ -161,7 +162,7 @@ function computeDayStatuses({
 
       let status;
       if (count > 0) status = reopened ? 'reopened' : 'present';
-      else if (!working) status = 'off';
+      else if (!working || (offDates && offDates.has(date))) status = 'off';
       else if (!passed) status = 'pending';
       else if (unlocked) status = 'unlocked';
       else status = 'absent';

@@ -6507,7 +6507,7 @@ function attOffCalendarHTML(monthStatus) {
   if (!monthStatus) return `<div class="empty" style="padding:20px 0"><span class="spinner"></span></div>`;
   const month = monthStatus.from.slice(0, 7);
   const byDate = new Map((monthStatus.days || []).map(d => [d.date, d]));
-  const used = (monthStatus.days || []).filter(d => d.status === 'off').length;
+  const used = (monthStatus.days || []).filter(d => d.status === 'off' && d.working).length;
   const today = attToday();
   const firstDow = new Date(`${month}-01T00:00:00Z`).getUTCDay();
   const lastDay = Number(monthStatus.to.slice(8, 10));
@@ -6541,8 +6541,10 @@ function attOffCellHTML(d, date, day, isToday) {
   let title = '';
   if (d.status === 'present' || d.status === 'reopened') {
     cls += ' offcal-present';
-  } else if (d.status === 'off') {
+  } else if (d.status === 'off' && d.working) {
     cls += ' offcal-off'; clickable = true; title = 'Tap to undo this day off';
+  } else if (d.status === 'off') {
+    cls += ' offcal-off'; title = 'Weekly off';
   } else if (d.status === 'absent') {
     cls += ' offcal-absent'; clickable = true; title = 'Tap to mark as a day off';
   } else if (d.status === 'pending') {
@@ -6911,25 +6913,27 @@ function paintAttendance(entries, status, monthStatus) {
     </div>
     ${banner}
     ${reopenedHTML}
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin:20px 0 24px;max-width:640px">
-      <div class="stat-card" style="--accent:var(--green-700);--accent-bg:var(--green-50);padding:18px 20px">
-        <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></div></div>
-        <div><div class="stat-value" style="font-size:30px">${(summary.present || 0) + (summary.reopened || 0)}</div><div class="stat-label" style="margin-top:5px">Present this month</div></div>
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start;margin:20px 0 24px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px">
+        <div class="stat-card" style="--accent:var(--green-700);--accent-bg:var(--green-50);padding:18px 20px">
+          <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></div></div>
+          <div><div class="stat-value" style="font-size:30px">${(summary.present || 0) + (summary.reopened || 0)}</div><div class="stat-label" style="margin-top:5px">Present this month</div></div>
+        </div>
+        <div class="stat-card" style="--accent:#B0311F;--accent-bg:#FDECEA;padding:18px 20px">
+          <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></div></div>
+          <div><div class="stat-value" style="font-size:30px">${summary.absent || 0}</div><div class="stat-label" style="margin-top:5px">Absent this month</div></div>
+        </div>
+        <div class="stat-card" style="--accent:#2C5A8C;--accent-bg:#EAF2FB;padding:18px 20px">
+          <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div>
+          <div><div class="stat-value" style="font-size:30px">${(summary.unlocked || 0) + (summary.reopened || 0)}</div><div class="stat-label" style="margin-top:5px">Reopened — still open</div></div>
+        </div>
       </div>
-      <div class="stat-card" style="--accent:#B0311F;--accent-bg:#FDECEA;padding:18px 20px">
-        <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></div></div>
-        <div><div class="stat-value" style="font-size:30px">${summary.absent || 0}</div><div class="stat-label" style="margin-top:5px">Absent this month</div></div>
+      <div class="dash-panel" style="margin:0">
+        <div class="dash-panel-head">
+          <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:var(--cream);--ph-accent:var(--text-3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>Your days off</span>
+        </div>
+        <div style="padding:16px 20px">${attOffCalendarHTML(monthStatus)}</div>
       </div>
-      <div class="stat-card" style="--accent:#2C5A8C;--accent-bg:#EAF2FB;padding:18px 20px">
-        <div class="stat-top"><div class="stat-icon" style="width:36px;height:36px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div></div>
-        <div><div class="stat-value" style="font-size:30px">${(summary.unlocked || 0) + (summary.reopened || 0)}</div><div class="stat-label" style="margin-top:5px">Reopened — still open</div></div>
-      </div>
-    </div>
-    <div class="dash-panel" style="margin:0 0 24px;max-width:640px">
-      <div class="dash-panel-head">
-        <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:var(--cream);--ph-accent:var(--text-3)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>Your days off</span>
-      </div>
-      <div style="padding:16px 20px">${attOffCalendarHTML(monthStatus)}</div>
     </div>
     <div class="dash-panel">
       <div class="dash-panel-head">
