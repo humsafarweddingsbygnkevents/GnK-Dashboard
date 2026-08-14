@@ -88,6 +88,26 @@ the recovery window is finite and shrinking.
   of truth is `backend/data/corbett-hotel-sheet.xlsx` (100 hotels, Jim
   Corbett), loaded by `prisma/seed.js`. This is the only table that can be
   rebuilt from the repo; nothing else can.
+- **`JWT_SECRET` and `MAIL_ENC_KEY` in `backend/.env` must byte-for-byte match
+  Vercel Production's values**, because local dev reads/writes the same prod
+  DB (see "The database is production" above). `JWT_SECRET` hashes login
+  codes (`backend/src/lib/loginCode.js`) and `MAIL_ENC_KEY` encrypts mailbox
+  passwords (`backend/src/lib/crypto.js`) — if local's value differs from
+  prod's, anything hashed/encrypted in one environment fails to verify/decrypt
+  in the other ("Incorrect code" on every code, or "Saved password can't be
+  unlocked", depending on which side you're testing from). On 2026-08-14 this
+  happened because local `.env` had a stale/placeholder `JWT_SECRET` and an
+  empty `MAIL_ENC_KEY`.
+  - Vercel marks both **write-only/sensitive** — `vercel env pull` and the
+    dashboard both return them blank once set, so there is no way to
+    programmatically re-sync local from prod. If they ever go out of sync
+    again, get the current value from whoever set it (or from wherever it was
+    first generated) and paste it into `backend/.env` by hand; there's no
+    automated fix for this.
+  - Never run `backend/scripts/bootstrapAdmin.js` or any other script that
+    writes login-code/mailbox-password hashes against the prod DB from a
+    machine whose `.env` might not match Vercel — the hash it writes is only
+    verifiable by whichever `JWT_SECRET` computed it.
 
 ## Code search
 

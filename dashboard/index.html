@@ -2692,22 +2692,29 @@ function paintDashAttendance(attRes) {
     if (attRes) {
       const isEmployee = S.admin?.role === 'employee';
       const target = isEmployee ? 'attendance' : 'team';
-      const rows = (attRes.data || []).slice(0, 5);
-      ab.innerHTML = rows.length ? rows.map(e => {
-        const dt = new Date(`${e.date}T00:00:00`);
+      // Fold same-person-same-day tasks into one row, same as the full
+      // Attendance Log table — otherwise one person logging several tasks
+      // in a day pushes other people's days off this top-5 preview.
+      const days = attGroupEntries(attRes.data || []).slice(0, 5);
+      ab.innerHTML = days.length ? days.map(d => {
+        const dt = new Date(`${d.date}T00:00:00`);
         const bad = Number.isNaN(dt.getTime());
-        const who = !isEmployee && e.employee ? `<div class="att-sub">${esc(e.employee.name || e.employee.email)}</div>` : '';
+        const who = !isEmployee && d.employee ? `<div class="att-sub">${esc(d.employee.name || d.employee.email)}</div>` : '';
         const clock = '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>';
+        const total = d.tasks.reduce((sum, t) => sum + t.timeSpentMinutes, 0);
+        const summary = d.tasks.map(t => t.taskDescription).join(' · ');
+        const statuses = [...new Set(d.tasks.map(t => t.status))];
         return `
         <div class="att-row" onclick="navigate('${target}')">
           <div class="att-date"><span class="d">${bad ? '—' : dt.getDate()}</span><span class="m">${bad ? '' : dt.toLocaleDateString('en-IN',{month:'short'})}</span></div>
           <div class="att-main">
-            <div class="att-task">${esc(e.taskDescription)}</div>
+            <div class="att-task">${esc(summary)}</div>
+            ${d.tasks.length > 1 ? `<div class="att-task-count">${d.tasks.length} tasks</div>` : ''}
             ${who}
           </div>
           <div class="att-right">
-            ${attBadge(e.status)}
-            <span class="att-time">${clock}${attFmtMins(e.timeSpentMinutes)}</span>
+            ${statuses.map(s => attBadge(s)).join(' ')}
+            <span class="att-time">${clock}${attFmtMins(total)}</span>
           </div>
         </div>`;
       }).join('') : emptyPanel('attendance', 'No attendance entries yet');
