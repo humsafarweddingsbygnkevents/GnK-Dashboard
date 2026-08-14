@@ -3185,7 +3185,7 @@ function renderHotelResults(data) {
         <div class="flex gap-2" style="flex-wrap:wrap">
           ${h.roomCount!=null?`<span class="hotel-pill"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green-500)" stroke-width="1.8"><path d="M2 4v16M2 8h18a2 2 0 0 1 2 2v10M2 17h20"/></svg>${h.roomCount} rooms</span>`:''}
           ${hasVal(h.guestCapacity)?`<span class="hotel-pill"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--green-500)" stroke-width="1.8"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${esc(h.guestCapacity)} guests</span>`:''}
-          ${hasVal(h.buyoutPrice)?`<span class="hotel-pill"><span class="pill-accent">₹</span>${esc(h.buyoutPrice)} buyout</span>`:''}
+          ${hasVal(h.buyoutPrice)?`<span class="hotel-pill"><span class="pill-accent">₹</span>${esc(h.buyoutPrice)}</span>`:''}
         </div>
         ${line('Contact', h.contactPerson, h.contactDesignation?' ('+esc(h.contactDesignation)+')':'')}
         ${line('RM', h.relationshipManager)}
