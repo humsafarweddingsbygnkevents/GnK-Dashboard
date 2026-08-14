@@ -1024,6 +1024,10 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .dash-greeting{font-family:Fraunces,serif;font-weight:600;font-size:32px;line-height:1.1;letter-spacing:-.01em;color:#fff}
 .dash-greeting .spark{color:var(--rose-400)}
 .dash-subline{font:400 14px Inter,sans-serif;color:rgba(247,243,233,.78);margin-top:8px}
+.dash-quote{color:#fff;font-size:18px;font-weight:600;transition:opacity .5s ease,transform .5s ease;opacity:1;transform:translateY(0)}
+.dash-quote.dash-quote-out{opacity:0;transform:translateY(-6px)}
+.dash-quote.dash-quote-in{animation:dash-quote-in .6s ease}
+@keyframes dash-quote-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .dash-hero-date{text-align:right;flex:none}
 .dash-hero-date .d-day{font-family:Fraunces,serif;font-weight:600;font-size:18px;color:#fff;line-height:1}
 .dash-hero-date .d-rest{font:500 12.5px Inter,sans-serif;color:rgba(247,243,233,.7);margin-top:5px}
@@ -1670,6 +1674,94 @@ const ICO_CHECK = ico('<path d="M20 6 9 17l-5-5"/>', 14, 2.2);
 const ICO_PLUS  = ico('<path d="M12 5v14M5 12h14"/>', 14, 2.2);
 const ICO_LOCK  = ico('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>', 13);
 const ICO_SPARK = ico('<path d="m12 3 1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3L12 3z"/>');
+
+// Rotates on the dashboard hero every 60s in place of a static subline.
+const DASH_QUOTES = [
+  "Behind every perfect wedding is a planner who didn't sleep and won't admit it.",
+  "Coffee in one hand, seating chart in the other — this is fine.",
+  "We don't do drama. We just fix everyone else's, professionally.",
+  "Your calm is fake, but it's also load-bearing. Keep holding it up.",
+  "Nobody claps for the vendor emails, but they should.",
+  "Panic is optional. The spreadsheet is not.",
+  "We turn 'the caterer cancelled' into a plot twist nobody notices.",
+  "Today's chaos is tomorrow's highlight reel — you're welcome.",
+  "Be the reason the bride is calm and not the reason she isn't.",
+  "Great weddings run on love, logistics, and slightly too much caffeine.",
+  "You can't spell 'seating chart' without a small cry in the bathroom.",
+  "Fix it, smile, repeat. That's the job. That's the whole job.",
+  "The florist is late. Act natural.",
+  "We don't chase perfect. We chase 'nobody will ever know that broke.'",
+  "Stay graceful. Scream internally. Send the follow-up email.",
+  "Every checklist item you finish is one less reason for a 2am phone call.",
+  "You're not stressed, you're just extremely detail-oriented at high speed.",
+  "The guests will remember the flowers. We'll remember the group chat.",
+  "Small crisis averted. Nobody will ever know. Onward.",
+  "We plan weddings, not miracles — but honestly, close enough.",
+  "Reply to the email before it turns into a phone call.",
+  "Confidence is 10% skill, 90% pretending the vendor call went great.",
+  "The venue changed the timeline again. We changed nothing about our face.",
+  "Weddings are chaos with a dress code. We're just really good at both.",
+  "You handled that hotel mix-up like it was Tuesday. Because it was.",
+  "Today's unglamorous task is tomorrow's flawless entrance.",
+  "Nobody sees the 40 messages it took. They just see the smile at the altar.",
+  "Stay organized enough that the chaos looks intentional.",
+  "The best compliment is a client who never had to worry.",
+  "We didn't lose it. We just misplaced our calm for a second. It's back.",
+  "Every 'sorted!' text you send is a tiny miracle in disguise.",
+  "Do the boring admin now so future-you doesn't want to scream later.",
+  "Precision by day, mild chaos by 6pm, still nailed it.",
+  "You are one follow-up email away from being everyone's favorite person.",
+  "The couple thinks it's magic. It's actually just us, very tired, very thorough.",
+  "Somewhere a hotel is double-booked and we are already three steps ahead of it.",
+  "Keep your notes tidy — future you is not in the mood for this mess either.",
+  "We don't panic, we 'urgently problem-solve with enthusiasm.'",
+  "Every great wedding has a spreadsheet nobody will ever see. Respect it.",
+  "You survived the vendor call. Reward yourself with a snack, not a nap.",
+  "Details are just love letters nobody reads until something goes wrong.",
+  "Trust the process. Double-check the process. Then trust it.",
+  "A calm inbox is basically a personality trait at this point.",
+  "The seating chart is a battlefield and you are undefeated.",
+  "Show up prepared so the chaos has nothing to work with.",
+  "We are professionally unbothered. It takes years of practice.",
+  "One more email today means one less fire tomorrow.",
+  "The wedding day is the encore. Today is the actual concert.",
+  "Handled it, filed it, moved on — main character energy.",
+  "Nobody said 'romantic' about a hotel spreadsheet, but here we are, in love with it.",
+  "Great planners don't avoid stress, they just outrun it in heels.",
+  "Today's small win: nobody found out about today's small disaster.",
+  "You are the reason the chaos stayed backstage.",
+  "Client said 'perfect' — you know what that actually cost you. Wear it proudly.",
+  "Keep calm and pretend you weren't just mildly panicking about the caterer.",
+  "The follow-up email you send today is the crisis you don't have tomorrow.",
+  "We don't do miracles. We do very well-organized panic, on time.",
+  "Every checklist ticked is a tiny victory lap nobody's watching. Take it anyway.",
+  "You're not behind, you're just building suspense.",
+  "Stay sharp, stay kind, and for the love of everything, confirm the hotel booking.",
+];
+let dashQuoteIdx = -1;
+let dashQuoteTimer = null;
+function nextDashQuote() {
+  let i;
+  do { i = Math.floor(Math.random() * DASH_QUOTES.length); } while (i === dashQuoteIdx && DASH_QUOTES.length > 1);
+  dashQuoteIdx = i;
+  return DASH_QUOTES[i];
+}
+function startDashQuoteRotator() {
+  if (dashQuoteTimer) clearInterval(dashQuoteTimer);
+  const el = document.getElementById('dash-quote');
+  if (!el) return;
+  dashQuoteTimer = setInterval(() => {
+    const target = document.getElementById('dash-quote');
+    if (!target) { clearInterval(dashQuoteTimer); dashQuoteTimer = null; return; }
+    target.classList.add('dash-quote-out');
+    setTimeout(() => {
+      target.textContent = nextDashQuote();
+      target.classList.remove('dash-quote-out');
+      target.classList.add('dash-quote-in');
+      setTimeout(() => target.classList.remove('dash-quote-in'), 600);
+    }, 500);
+  }, 60000);
+}
 
 // The iOS raster set in /icons, drawn as a mask over currentColor — see .pico.
 // Used for the topbar buttons and the Settings panel badges; the sidebar keeps
@@ -2577,7 +2669,7 @@ async function renderDashboard() {
         <div>
           <div class="dash-eyebrow"><span class="dot"></span>Humsafar Weddings by GnK Events · Workspace</div>
           <div class="dash-greeting">${greet}, Team <span class="spark">${ICO_SPARK}</span></div>
-          <div class="dash-subline">Here's everything happening across your venues, clients, and inbox today.</div>
+          <div class="dash-subline dash-quote" id="dash-quote">${esc(nextDashQuote())}</div>
         </div>
         <div class="dash-hero-date">
           <div class="d-day">${dayName}</div>
@@ -2644,6 +2736,7 @@ async function renderDashboard() {
     () => paintDashReminders(null));
   swr('dash:att:' + scope, 60000, () => api('/api/attendance'), paintDashAttendance, () => paintDashAttendance(null));
   swr('dash:absences:' + scope, 60000, () => api('/api/attendance/absences'), paintDashAbsences, () => paintDashAbsences(null));
+  startDashQuoteRotator();
 }
 
 // Icon-matched empty/error state for a dashboard home panel — mirrors that
