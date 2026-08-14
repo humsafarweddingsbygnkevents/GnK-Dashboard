@@ -85,7 +85,7 @@ async function searchHotels(args = {}, ctx) {
   }
 
   const search = toStr(args.search);
-  if (search) where.name = { contains: search };
+  if (search) where.name = { contains: search, mode: 'insensitive' };
 
   const limit = clamp(toInt(args.limit) || 5, 1, 10);
 
@@ -149,9 +149,9 @@ async function searchClientHistory(args = {}, ctx) {
       where: {
         id: { not: ctx.clientId },
         OR: [
-          { name: { contains: search } },
+          { name: { contains: search, mode: 'insensitive' } },
           { phone: { contains: search } },
-          { email: { contains: search } },
+          { email: { contains: search, mode: 'insensitive' } },
         ],
       },
       take: 5,

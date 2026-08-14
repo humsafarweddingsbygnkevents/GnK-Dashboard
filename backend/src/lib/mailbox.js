@@ -272,9 +272,9 @@ async function fetchAttachment({ imapHost, imapPort, email, password }, uid, fil
         parsed = await simpleParser(msg.source);
         break;
       }
-      if (!parsed) throw new Error('Message not found');
+      if (!parsed) throw Object.assign(new Error('Message not found'), { status: 404 });
       const att = (parsed.attachments || []).find((a) => (a.filename || 'attachment') === filename);
-      if (!att) throw new Error('Attachment not found');
+      if (!att) throw Object.assign(new Error('Attachment not found'), { status: 404 });
       return { content: att.content, contentType: att.contentType || 'application/octet-stream', filename: att.filename || 'attachment' };
     } finally {
       lock.release();
@@ -297,7 +297,7 @@ async function fetchRawMessage({ imapHost, imapPort, email, password }, uid, vie
       for await (const msg of client.fetch(String(uid), { source: true }, { uid: true })) {
         return msg.source;
       }
-      throw new Error('Message not found');
+      throw Object.assign(new Error('Message not found'), { status: 404 });
     } finally {
       lock.release();
     }

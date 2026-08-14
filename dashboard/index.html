@@ -1635,14 +1635,12 @@ const pico = (name, size = 16) =>
 // FEATURE FLAGS
 // ============================================================
 // Hwoli AI is paused, not deleted. Everything it needs is still here — the
-// chat screen (renderHwoli), the /hwoli route, the backend /api/hwoli chat
-// route, and the Settings card for the OpenRouter key. Flipping this to true
-// is the only change needed to bring the whole feature back; nothing else
-// reads the key or the screen. While it is false:
-//   · the OpenRouter API Key card is hidden from Settings
+// chat screen (renderHwoli), the /hwoli route, and the backend /api/hwoli
+// chat route (which uses the server's own OPENROUTER_API_KEY — there is no
+// client-side key to manage). Flipping this to true is the only change
+// needed to bring the whole feature back. While it is false:
+//   · the OpenRouter settings card is hidden from Settings
 //   · /hwoli redirects to the dashboard instead of opening the chat
-// Any key already saved stays in localStorage under 'openrouter_key' and is
-// picked up again as soon as this is switched on.
 const HWOLI_ENABLED = false;
 
 // ============================================================
@@ -1719,7 +1717,7 @@ const el = (tag, attrs={}, ...children) => {
 
 function esc(s) {
   if (s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // Renders a field's line/row only when the sheet actually has data for it —
@@ -5334,7 +5332,7 @@ function infoRow(label, value, showEmpty) {
 
 function clientDrawerHtml(c, editing) {
   const isDM = (c.source==='instagram'||c.source==='facebook') && c.channelUserId;
-  const safeName = esc(c.name).replace(/'/g,'&#39;');
+  const safeName = esc(c.name);
   // Deleting a client profile is admin-only — the API rejects it for employees.
   const canDelete = S.admin?.role !== 'employee';
   const deleteBtn = canDelete ? `
@@ -5995,13 +5993,8 @@ async function viewClientForSender(platform, senderId) {
 // HWOLI AI SCREEN
 // ============================================================
 async function renderHwoli() {
-  const apiKey = localStorage.getItem('openrouter_key') || '';
   setContent(`
     <div class="hwoli-page">
-      ${!apiKey ? `<div class="hwoli-notice">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--gold-600)" stroke-width="2" style="flex:none"><path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/></svg>
-        <span><strong>OpenRouter key not set.</strong> Go to <button class="btn btn-ghost btn-sm" onclick="navigate('settings')" style="display:inline-flex;padding:2px 8px;margin:0 2px">Settings</button> to add your key.</span>
-      </div>` : ''}
       <div class="hwoli-card-head">
         <div class="hwoli-avatar">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M12 6v6l4 2"/></svg>
@@ -6085,7 +6078,7 @@ function setHwoliTyping(on) {
   if (t) t.classList.toggle('hidden', !on);
 }
 
-// Draft card with one-click Send (reuses /api/gmail/send) + Edit in compose.
+// Draft card with one-click Send (reuses /api/mail/send) + Edit in compose.
 function hwoliDraftCardHTML(a, i, sent) {
   return `<div class="chat-bubble ai" style="align-self:flex-start;max-width:94%;background:var(--cream);border:1px solid var(--border)">
     <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:7px">${ICO_MAIL} Email draft</div>
@@ -6187,8 +6180,6 @@ async function sendHwoli() {
   const inp = $('hwoli-input');
   const msg = inp?.value?.trim();
   if (!msg || S.hwolLoading) return;
-  const apiKey = localStorage.getItem('openrouter_key') || '';
-  if (!apiKey) { showToast('Add your OpenRouter key in Settings first','error'); navigate('settings'); return; }
   inp.value = '';
   // State-driven: push the message, mark loading, render from state. This
   // survives navigating away mid-request — the reply lands in S.hwolMessages
@@ -6198,7 +6189,9 @@ async function sendHwoli() {
   renderHwoliMessages();
   const payload = S.hwolMessages.map(m => ({ role: m.role, content: m.content }));
   try {
-    const res = await apiPost('/api/hwoli/chat', { messages: payload, apiKey, systemContext: S.hwolContext || '' });
+    // No client-supplied API key — the server always uses its own
+    // OPENROUTER_API_KEY, so a billable key never lives in the browser.
+    const res = await apiPost('/api/hwoli/chat', { messages: payload, systemContext: S.hwolContext || '' });
     const { text, action } = parseHwoliReply(res.reply || 'No response.');
     S.hwolMessages.push({ role:'assistant', content: text, action });
   } catch(e) {
@@ -7068,7 +7061,7 @@ function paintTeam(employees, att, status, absences, absMonth) {
               <td style="white-space:nowrap;text-align:right">
                 <button class="btn btn-ghost btn-sm" onclick="teamResetCode(${e.id})">Reset code</button>
                 ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="${e.active ? 'color:var(--red)' : ''}" onclick="teamToggleActive(${e.id}, ${e.active ? 'false' : 'true'})">${e.active ? 'Deactivate' : 'Activate'}</button>`}
-                ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="teamOpenDeleteModal(${e.id}, '${esc(e.name || e.email || 'this account').replace(/'/g,"&#39;")}')">Delete</button>`}
+                ${e.self ? '' : `<button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="teamOpenDeleteModal(${e.id}, '${esc(e.name || e.email || 'this account')}')">Delete</button>`}
               </td>
             </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-3)">No accounts yet — add the first one to hand out a login code.</td></tr>'}
           </tbody>
@@ -7766,7 +7759,6 @@ function updateNotifDot() {
 // SETTINGS SCREEN
 // ============================================================
 function renderSettings() {
-  const savedKey = localStorage.getItem('openrouter_key') || '';
   setContent(`
     <div class="page-header mb-6">
       <div>
@@ -7805,23 +7797,18 @@ function renderSettings() {
           </div>`}
         </div>
       </div>
-      <!-- OpenRouter — hidden while Hwoli AI is paused (see HWOLI_ENABLED) -->
+      <!-- OpenRouter — hidden while Hwoli AI is paused (see HWOLI_ENABLED).
+           No per-user key entry: a billable key living in browser storage is
+           one XSS bug away from being stolen and run up, so Hwoli always
+           uses the server's own OPENROUTER_API_KEY instead. -->
       ${!HWOLI_ENABLED ? '' : `
       <div class="settings-panel" style="--stagger:120ms">
         <div class="settings-panel-head">
           <span class="ph-icon">${pico('key', 15)}</span>
           <div class="settings-panel-head-text">
             <div class="settings-panel-title">OpenRouter API Key</div>
-            <div class="settings-panel-sub">Used by Hwoli AI (stored locally in browser, never sent to server)</div>
+            <div class="settings-panel-sub">Configured on the server — set OPENROUTER_API_KEY in the deploy environment</div>
           </div>
-        </div>
-        <div class="settings-panel-body has-head-border">
-          <label class="label">API Key</label>
-          <div class="flex gap-2">
-            <input class="input" type="password" id="or-key-input" placeholder="sk-or-…" value="${esc(savedKey)}">
-            <button class="btn btn-primary" onclick="saveOpenRouterKey()">Save</button>
-          </div>
-          ${savedKey ? `<div class="text-xs text-muted mt-2">${ICO_CHECK} Key saved · Hwoli is ready</div>` : `<div class="text-xs" style="color:var(--gold-600);margin-top:8px">⚠ No key set — Hwoli AI will not work</div>`}
         </div>
       </div>`}
       <!-- DB stats -->
@@ -7991,14 +7978,6 @@ async function submitAddMailbox() {
     show(e.message);
     if (btn) { btn.disabled = false; btn.textContent = 'Connect mailbox'; }
   }
-}
-
-function saveOpenRouterKey() {
-  const val = $('or-key-input')?.value?.trim();
-  if (!val) { showToast('Enter a valid key','error'); return; }
-  localStorage.setItem('openrouter_key', val);
-  showToast('API key saved!','success');
-  renderSettings();
 }
 
 // ============================================================

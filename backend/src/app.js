@@ -130,12 +130,17 @@ app.use('/api/messages', messagesRouter);
 // URL can't link a stranger's Google account to the shared company inbox.
 app.use('/auth', requireAuth, requireAdmin, authRouter);
 
-// Hwoli AI chat — proxies to OpenRouter
+// Hwoli AI chat — proxies to OpenRouter. Always uses the server's own key —
+// never a client-supplied one: a billable key living in the browser (even in
+// localStorage) is one XSS bug away from being exfiltrated and run up by
+// someone else, and there's no per-admin key storage to isolate the blast
+// radius of that. One shared, server-side key is the safer default until
+// there's an actual need for staff to bring their own.
 app.post('/api/hwoli/chat', async (req, res) => {
-  const { messages, apiKey, systemContext } = req.body;
-  const key = apiKey || process.env.OPENROUTER_API_KEY;
+  const { messages, systemContext } = req.body;
+  const key = process.env.OPENROUTER_API_KEY;
   if (!key) {
-    return res.status(400).json({ error: 'OpenRouter API key not set. Add it in Settings.' });
+    return res.status(400).json({ error: 'OpenRouter API key not configured on the server. Ask an admin to set OPENROUTER_API_KEY.' });
   }
   if (!messages || !Array.isArray(messages)) {
     return res.status(400).json({ error: 'messages array required' });

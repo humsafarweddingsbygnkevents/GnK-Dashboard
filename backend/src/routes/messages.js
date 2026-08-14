@@ -121,6 +121,11 @@ async function importPlatform(platform) {
       const isOwn = (fromId && ownIds.has(fromId)) || (ownUsername && fromUsername === ownUsername);
       if (isOwn || !m.id || !fromId || !m.message) continue;
 
+      // A create/upsert failure here (transient DB error, one bad row) used
+      // to throw straight out of this loop, aborting every remaining
+      // message across every remaining conversation for this platform and
+      // discarding the stats already accumulated. Log and move on instead —
+      // one bad message shouldn't sink the whole import.
       try {
         await prisma.message.create({
           data: {
@@ -134,19 +139,20 @@ async function importPlatform(platform) {
           },
         });
         stats.imported++;
+
+        // Keep the IG @handle on the contact record (never clobbers a
+        // staff-set displayName — update only touches username).
+        if (isIG && fromUsername) {
+          await prisma.messageContact.upsert({
+            where: { platform_senderId: { platform, senderId: fromId } },
+            create: { platform, senderId: fromId, username: fromUsername },
+            update: { username: fromUsername },
+          });
+        }
       } catch (err) {
         if (err.code === 'P2002') { stats.skipped++; continue; } // already stored (webhook or prior import)
-        throw err;
-      }
-
-      // Keep the IG @handle on the contact record (never clobbers a staff-set
-      // displayName — update only touches username).
-      if (isIG && fromUsername) {
-        await prisma.messageContact.upsert({
-          where: { platform_senderId: { platform, senderId: fromId } },
-          create: { platform, senderId: fromId, username: fromUsername },
-          update: { username: fromUsername },
-        });
+        console.error(`[import-recent] ${platform} message ${m.id} failed:`, err.message);
+        continue;
       }
     }
   }
@@ -173,7 +179,8 @@ router.post('/import-recent', async (_req, res) => {
 // Needed because Facebook Messenger's real name/photo lookup is gated behind
 // pages_messaging App Review, so raw PSIDs are all we get until that clears.
 router.patch('/contact', async (req, res) => {
-  const { platform, senderId, displayName } = req.body || {};
+  const { platform, senderId } = req.body || {};
+  const displayName = typeof req.body?.displayName === 'string' ? req.body.displayName.trim().slice(0, 200) : '';
   if (!platform || !['instagram', 'facebook'].includes(platform) || !senderId || !displayName) {
     return res.status(400).json({ error: 'platform, senderId, and displayName are required' });
   }

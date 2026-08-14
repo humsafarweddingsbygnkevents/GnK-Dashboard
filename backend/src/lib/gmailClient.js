@@ -11,6 +11,7 @@ const { google } = require('googleapis');
 // only emit text/plain, which is what turned a forwarded photo mail into a
 // wall of links.
 const MailComposer = require('nodemailer/lib/mail-composer');
+const prisma = require('./prisma');
 
 function makeAuthClient(account) {
   const auth = new google.auth.OAuth2(
@@ -22,6 +23,21 @@ function makeAuthClient(account) {
     access_token: account.accessToken,
     refresh_token: account.refreshToken,
     expiry_date: account.expiryDate ? account.expiryDate.getTime() : undefined,
+  });
+  // Without this, the DB's expiry_date freezes at connect time — every
+  // client built from the stale row sees an already-"expired" token and
+  // re-refreshes against Google before it can do anything, on every request.
+  // Persisting what googleapis actually refreshed to keeps the stored token
+  // valid so most requests don't pay that extra round-trip.
+  auth.on('tokens', (tokens) => {
+    prisma.googleAccount.update({
+      where: { id: account.id },
+      data: {
+        accessToken: tokens.access_token,
+        ...(tokens.refresh_token ? { refreshToken: tokens.refresh_token } : {}),
+        ...(tokens.expiry_date ? { expiryDate: new Date(tokens.expiry_date) } : {}),
+      },
+    }).catch((err) => console.error('Failed to persist refreshed Gmail token:', err.message));
   });
   return auth;
 }
@@ -126,7 +142,10 @@ async function fetchRecent(account, { maxResults = 15, pageToken, labelIds } = {
 
   const listRes = await gmail.users.messages.list({ userId: 'me', maxResults, pageToken, labelIds });
   const messages = listRes.data.messages ?? [];
-  const emails = await Promise.all(
+  // Each message is fetched independently — one flaky/deleted-mid-poll
+  // `messages.get` used to reject the shared Promise.all and empty this
+  // account's entire pane instead of just omitting that one row.
+  const settled = await Promise.allSettled(
     messages.map(async ({ id }) => {
       const msg = await gmail.users.messages.get({ userId: 'me', id, format: 'full' });
       const headers = msg.data.payload.headers;
@@ -152,6 +171,12 @@ async function fetchRecent(account, { maxResults = 15, pageToken, labelIds } = {
       };
     }),
   );
+  const emails = [];
+  for (let i = 0; i < settled.length; i++) {
+    const s = settled[i];
+    if (s.status === 'fulfilled') emails.push(s.value);
+    else console.error(`Gmail message fetch failed for ${messages[i].id}:`, s.reason?.message || s.reason);
+  }
   return { emails, nextPageToken: listRes.data.nextPageToken || null };
 }
 

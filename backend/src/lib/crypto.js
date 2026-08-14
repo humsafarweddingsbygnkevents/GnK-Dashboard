@@ -7,12 +7,19 @@ const crypto = require('crypto');
 // MAIL_ENC_KEY, falling back to JWT_SECRET so no new env var is strictly
 // required — but setting a dedicated MAIL_ENC_KEY is recommended so rotating
 // the JWT secret doesn't lock you out of stored mailbox passwords.
+// scryptSync is deliberately slow and synchronous (it blocks Node's single
+// event loop thread) — fine once, not on every encrypt/decrypt call. The env
+// vars it derives from are fixed for the life of a process (serverless cold
+// start or local run), so deriving once and caching is safe.
+let cachedKey = null;
 function key() {
+  if (cachedKey) return cachedKey;
   const secret = process.env.MAIL_ENC_KEY || process.env.JWT_SECRET;
   if (!secret) throw new Error('MAIL_ENC_KEY or JWT_SECRET must be set to encrypt mailbox passwords');
   // Fixed salt: this is a key-stretch, not password storage — the secret is
   // already high-entropy, and a stable salt keeps decryption deterministic.
-  return crypto.scryptSync(secret, 'humsafar-gnk-mail-enc-v1', 32);
+  cachedKey = crypto.scryptSync(secret, 'humsafar-gnk-mail-enc-v1', 32);
+  return cachedKey;
 }
 
 // Returns "iv.tag.ciphertext", all base64 — self-describing and easy to store

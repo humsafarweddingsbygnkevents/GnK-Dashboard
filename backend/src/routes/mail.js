@@ -534,7 +534,7 @@ router.get('/attachment', async (req, res) => {
     return sendFile(att.content, att.filename, att.contentType);
   } catch (err) {
     console.error('Attachment download error:', err);
-    return res.status(500).json({ error: 'Could not download attachment' });
+    return res.status(err.status || 500).json({ error: err.status === 404 ? err.message : 'Could not download attachment' });
   }
 });
 

@@ -101,11 +101,13 @@ function normalizePhoneDigits(raw) {
 }
 
 // Throws a 409 if another client (excluding excludeId, on edits) already
-// has a phone number that normalizes to the same digits.
-async function assertNoDuplicatePhone(phone, excludeId) {
+// has a phone number that normalizes to the same digits. `db` is a Prisma
+// client or transaction handle — see withPhoneLock below for why this needs
+// to run inside a transaction rather than against `prisma` directly.
+async function assertNoDuplicatePhone(db, phone, excludeId) {
   const digits = normalizePhoneDigits(phone);
   if (!digits) return;
-  const existing = await prisma.client.findMany({
+  const existing = await db.client.findMany({
     where: { phone: { not: null }, ...(excludeId ? { id: { not: excludeId } } : {}) },
     select: { id: true, name: true, phone: true },
   });
@@ -118,8 +120,32 @@ async function assertNoDuplicatePhone(phone, excludeId) {
   }
 }
 
-// Validate and coerce body fields shared by POST and PATCH
-function parseClientBody(body, requireCore = false) {
+// assertNoDuplicatePhone on its own is read-then-write: two requests for the
+// same phone number can both pass the check before either has written its
+// row, producing two clients for the same person. There's no DB-level unique
+// constraint to fall back on either — phone numbers are deduped on normalized
+// digits (see normalizePhoneDigits), not the raw stored string, so a plain
+// column constraint wouldn't catch e.g. "+91 98765 43210" vs "9876543210".
+// A Postgres advisory lock scoped to the transaction and keyed on the
+// normalized digits closes the race without a schema change: two concurrent
+// requests for the same number serialize on this lock, so the second one's
+// duplicate check runs only after the first's write has committed. Requests
+// for different numbers (or with no phone at all) never contend.
+async function withPhoneLock(phone, fn) {
+  const digits = phone ? normalizePhoneDigits(phone) : null;
+  if (!digits) return prisma.$transaction((tx) => fn(tx));
+  return prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${digits}))`;
+    return fn(tx);
+  });
+}
+
+// Validate and coerce body fields shared by POST and PATCH. `existing` is the
+// client's current DB row on a PATCH (null on POST, where there is none yet)
+// — used to validate fields against their current stored value when a
+// partial update only supplies one side of a pair (status/nextFollowUpAt,
+// checkInDate/checkOutDate).
+function parseClientBody(body, requireCore = false, existing = null) {
   const result = {};
 
   if (requireCore) {
@@ -175,6 +201,12 @@ function parseClientBody(body, requireCore = false) {
     }
   } else if ('nextFollowUpAt' in body) {
     result.nextFollowUpAt = parseDateField(body.nextFollowUpAt, 'Next follow-up date');
+    // status isn't part of this update, so the invariant above didn't run —
+    // re-check it here against the client's current (unchanged) status so a
+    // follow-up-only PATCH can't null it out on an active/no-response lead.
+    if (!result.nextFollowUpAt && existing?.status && STATUSES_REQUIRING_FOLLOWUP.includes(existing.status)) {
+      throw Object.assign(new Error('Next follow-up date is required when status is Active or No Response'), { status: 400 });
+    }
   }
 
   if (body.category !== undefined) {
@@ -239,7 +271,12 @@ function parseClientBody(body, requireCore = false) {
   if ('checkOutDate' in body)
     result.checkOutDate = parseDateField(body.checkOutDate, 'Check-out date');
 
-  if (result.checkInDate && result.checkOutDate && result.checkOutDate < result.checkInDate) {
+  // A PATCH updating only one of the pair still has to respect the other's
+  // already-stored value, or e.g. moving checkOutDate earlier alone can
+  // invert the stay against an unchanged checkInDate.
+  const effectiveCheckIn = 'checkInDate' in body ? result.checkInDate : existing?.checkInDate ?? null;
+  const effectiveCheckOut = 'checkOutDate' in body ? result.checkOutDate : existing?.checkOutDate ?? null;
+  if (effectiveCheckIn && effectiveCheckOut && effectiveCheckOut < effectiveCheckIn) {
     throw Object.assign(new Error('Check-out date must be on or after the check-in date'), { status: 400 });
   }
 
@@ -252,15 +289,17 @@ router.post('/', async (req, res) => {
     const data = parseClientBody(req.body, true);
     data.source = 'manual'; // always override — never trust the caller
 
-    await assertNoDuplicatePhone(data.phone);
+    const client = await withPhoneLock(data.phone, async (tx) => {
+      await assertNoDuplicatePhone(tx, data.phone);
 
-    // Record which logged-in employee created this profile.
-    if (req.admin?.sub) {
-      const employee = await prisma.admin.findUnique({ where: { id: req.admin.sub }, select: { name: true, email: true } });
-      data.createdByName = employee?.name || employee?.email || null;
-    }
+      // Record which logged-in employee created this profile.
+      if (req.admin?.sub) {
+        const employee = await tx.admin.findUnique({ where: { id: req.admin.sub }, select: { name: true, email: true } });
+        data.createdByName = employee?.name || employee?.email || null;
+      }
 
-    const client = await prisma.client.create({ data });
+      return tx.client.create({ data });
+    });
     return res.status(201).json(client);
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: err.message });
@@ -656,16 +695,28 @@ router.patch('/:id', async (req, res) => {
       if (key in req.body) allowed[key] = req.body[key];
     }
 
-    const data = parseClientBody(allowed, false);
+    // Fetch the current row only when a partial update needs it to validate
+    // a field against its already-stored counterpart (see parseClientBody).
+    let existing = null;
+    const needsExisting =
+      (allowed.status === undefined && 'nextFollowUpAt' in allowed) ||
+      (('checkInDate' in allowed) !== ('checkOutDate' in allowed));
+    if (needsExisting) {
+      existing = await prisma.client.findUnique({
+        where: { id },
+        select: { status: true, checkInDate: true, checkOutDate: true },
+      });
+      if (!existing) return res.status(404).json({ error: `Client with id ${id} not found` });
+    }
+
+    const data = parseClientBody(allowed, false, existing);
     if (Object.keys(data).length === 0) {
       return res.status(400).json({ error: 'No updatable fields provided' });
     }
 
-    if (data.phone) await assertNoDuplicatePhone(data.phone, id);
-
-    const client = await prisma.client.update({
-      where: { id },
-      data,
+    const client = await withPhoneLock(data.phone, async (tx) => {
+      if (data.phone) await assertNoDuplicatePhone(tx, data.phone, id);
+      return tx.client.update({ where: { id }, data });
     });
     return res.json(client);
   } catch (err) {
