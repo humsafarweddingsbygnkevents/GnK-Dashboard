@@ -906,11 +906,29 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .hd-thread-head .btn-primary:active,.compose-foot .btn-primary:active{transform:translateY(0) scale(.97);box-shadow:var(--hd-shadow-xs)}
 .hd-thread-head .btn-ghost{border-color:var(--hd-border);color:var(--text-2)}
 .hd-thread-head .btn-ghost:hover{background:var(--green-50);border-color:var(--green-200);color:var(--green-700)}
+/* Back to the list — only ever visible in the one-pane (narrow) layout. */
+.hd-back{display:none;flex:none;width:32px;height:32px;align-items:center;justify-content:center;
+  border:none;background:transparent;color:var(--text-2);border-radius:8px;cursor:pointer;margin-left:-6px}
+.hd-back:hover{background:var(--green-50);color:var(--green-700)}
+.hd-back:active{transform:scale(.94)}
+/* ---- Narrow viewports: one pane at a time, like a phone mail app ----
+   The list fills the shell and scrolls on its own; opening a conversation
+   swaps the whole pane for the reader, and .hd-back returns to the list.
+   This replaces a rule that stacked the two panes with `flex-direction:column`
+   while .hd-list kept `flex:none`. In a column that means "height = content",
+   so the list grew to the full natural height of every row at once — and since
+   .hd-main clips (overflow:hidden), the list had no scrollbar of its own and
+   everything past the fold, the entire thread pane included, was unreachable.
+   That is why nothing appeared to open and the list froze mid-scroll. */
 @media(max-width:980px){
-  .hd-shell{height:auto}
   .hd-rail{flex-wrap:wrap}
-  .hd-main{flex-direction:column}
-  .hd-list{width:100%;border-right:none;border-bottom:1px solid var(--border)}
+  .hd-list{width:auto;flex:1 1 auto;min-width:0;border-right:none}
+  .hd-thread{display:none}
+  .hd-main.hd-reading .hd-list{display:none}
+  .hd-main.hd-reading .hd-thread{display:flex}
+  .hd-back{display:inline-flex}
+  .hd-thread-head{padding:12px 14px;gap:6px}
+  .hd-thread-body{padding:18px 16px 56px}
 }
 
 /* ============ INBOX — monochrome refresh ============
@@ -4129,11 +4147,25 @@ function selectInboxItem(i) {
   // The toolbar (reply, forward, star, trash, save-as-client) acts on one
   // message, not the whole thread — the newest, which is the one that opens
   // expanded. Expanding an older message re-points it; see expandThreadMessage.
-  S.selectedEmail = c ? c.latest : null;
-  S.expandedMessageIds = c ? new Set([c.latest.id]) : new Set();
+  S.selectedEmail = (c && c.latest) ? c.latest : null;
+  S.expandedMessageIds = (c && c.latest) ? new Set([c.latest.id]) : new Set();
   document.querySelectorAll('#hd-list-rows .mail-row').forEach((r,j) => r.classList.toggle('active', j===i));
+  // One conversation's bad data (or a message body that fails to render)
+  // used to throw here and leave the pane stuck — nothing opened for that
+  // click, and because the throw skipped past this point the row's own
+  // read-state never updated either. Painting and read-marking are now each
+  // wrapped so a single broken message can't block every email after it.
+  try { renderThreadPane(); } catch (err) { console.error('renderThreadPane failed', err); }
+  if (c) { try { markConversationRead(c, i); } catch (err) { console.error('markConversationRead failed', err); } }
+}
+
+// The narrow layout's back arrow: drops the selection so the shell shows the
+// list again. The list itself is untouched in the DOM, so its scroll position
+// and the row you came from are exactly where you left them.
+function closeThreadPane() {
+  clearMailSelection();
+  document.querySelectorAll('#hd-list-rows .mail-row').forEach(r => r.classList.remove('active'));
   renderThreadPane();
-  if (c) markConversationRead(c, i);
 }
 
 // Opening a conversation marks every unread message in it read, as Gmail does.
@@ -4442,6 +4474,9 @@ function hdThreadHtml() {
     `<button class="gmail-toolbar-btn tip ${extra}"${id ? ` id="${id}"` : ''} data-tip="${esc(label)}" aria-label="${esc(label)}" onclick="${onclick}">${svg}</button>`;
   return `
     <div class="hd-thread-head">
+      <button class="hd-back" aria-label="Back to conversations" onclick="closeThreadPane()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
       <span class="subj">${esc(c.subject||'(no subject)')}</span>
       ${c.count > 1 ? `<span class="hd-thread-count">${c.count}</span>` : ''}
       <div class="hd-thread-actions">
@@ -4549,7 +4584,7 @@ function toggleThreadMessage(idx) {
     S.expandedMessageIds.add(m.id);
     S.selectedEmail = m;
     syncToolbarStar(m);
-    paintMailFrame(idx, m);
+    safelyPaintMailFrame(idx, m);
   } else {
     S.expandedMessageIds.delete(m.id);
   }
@@ -4670,13 +4705,34 @@ function renderThreadPane() {
   if (!t) return;
   t.innerHTML = hdThreadHtml();
   const c = S.selectedConversation;
+  // Narrow layouts show one pane at a time (see the max-width:980px block):
+  // this class is what swaps the list out for the reader. Derived from state
+  // here rather than set at the click site so every path that changes the
+  // selection — open, delete, mark-unread, a background refresh that rebuilds
+  // the shell — lands on the right pane without its own bookkeeping.
+  const main = t.closest('.hd-main');
+  if (main) main.classList.toggle('hd-reading', !!c);
   if (!c) return;
   // Only the expanded messages get their bodies written. A collapsed one is
   // painted lazily the first time it is opened — see toggleThreadMessage —
   // so opening a long thread does not fetch every message's remote images.
   c.messages.forEach((m, idx) => {
-    if (S.expandedMessageIds && S.expandedMessageIds.has(m.id)) paintMailFrame(idx, m);
+    if (S.expandedMessageIds && S.expandedMessageIds.has(m.id)) safelyPaintMailFrame(idx, m);
   });
+}
+
+// paintMailFrame wrapped so a message whose body can't be written (huge or
+// malformed HTML, a sandboxed-iframe quirk, whatever) leaves that one email
+// showing a plain error instead of an indefinite blank/loading pane — and,
+// critically, doesn't throw out of the caller and strand every email opened
+// after it.
+function safelyPaintMailFrame(idx, m) {
+  try { paintMailFrame(idx, m); }
+  catch (err) {
+    console.error('paintMailFrame failed', err);
+    const frame = $('mail-frame-' + idx);
+    if (frame) frame.outerHTML = `<div style="padding:14px 0;font-size:13px;color:var(--text-2)">This email couldn't be displayed.</div>`;
+  }
 }
 
 // Writes one message's HTML into its own iframe, once. Split out of
@@ -5463,7 +5519,7 @@ function clientDrawerHtml(c, editing) {
           ${infoRow('No. of rooms', c.roomCount ?? '', true)}
           ${infoRow('Check-in', c.checkInDate ? fmtDate(c.checkInDate) : (c.weddingDate ? fmtDate(c.weddingDate) : ''), true)}
           ${infoRow('Check-out', c.checkOutDate ? fmtDate(c.checkOutDate) : '', true)}
-          ${infoRow('Date Finalised', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
+          ${infoRow('Dates Finalised', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
           ${STATUSES_REQUIRING_FOLLOWUP.includes(c.status) ? infoRow('Next follow-up', c.nextFollowUpAt ? fmtDate(c.nextFollowUpAt) : '', true) : ''}
         </div>
 
@@ -5515,10 +5571,10 @@ function clientDrawerHtml(c, editing) {
             <div><label class="cx-lab" for="cd-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-hotel" value="${esc(preferredPlace(c)||'')}"></div>
             <div><label class="cx-lab" for="cd-guests">Guest count</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-guests" type="number" min="1" max="1000000" step="1" value="${c.guestCount??''}"></div>
             <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}"></div>
-            <div><label class="cx-lab" for="cd-rm">Relationship Manager</label>${rmSelectHtml('cd-rm', c.relationshipManager)}</div>
+            <div><label class="cx-lab" for="cd-rm">Relationship Manager <span class="req">*</span></label>${rmSelectHtml('cd-rm', c.relationshipManager)}</div>
             <div>
               <label class="cx-lab" for="cd-enquirysource">Source</label>
-              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}" placeholder="Source name & ref">
+              <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-enquirysource" value="${esc(enquirySourceLabel(c)||'')}" placeholder="Source name & reference">
             </div>
             <div><label class="cx-lab">Added by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(c.createdByName||'—')}" disabled></div>
           </div>
@@ -5546,7 +5602,7 @@ function clientDrawerHtml(c, editing) {
               </div>
             </div>
             <div>
-              <label class="cx-lab" for="cd-datestatus">Date Finalised</label>
+              <label class="cx-lab" for="cd-datestatus">Dates Finalised</label>
               <select class="input cx-in" id="cd-datestatus">${dateStatusOptionsHtml(c.dateStatus||'')}</select>
             </div>
             <div id="cd-followup-wrap" style="display:${STATUSES_REQUIRING_FOLLOWUP.includes(c.status)?'block':'none'}">
@@ -5596,8 +5652,8 @@ async function deleteClient(id, name) {
 // Upper bound for event/wedding date inputs (today + 10 years), as YYYY-MM-DD.
 // Accounts a client can be assigned to. Fetched once per session — the list
 // only changes when someone joins the team — and never fatal: if the call
-// fails the picker still offers Unassigned plus whatever the client already
-// has, so the form stays usable.
+// fails the picker still offers whatever the client already has, so the
+// form stays usable.
 async function loadManagers() {
   if (S.managers) return S.managers;
   try { S.managers = (await api('/api/clients/managers')).data || []; }
@@ -5608,7 +5664,8 @@ async function loadManagers() {
 // The Relationship Manager control, shared by the New Client modal and the
 // edit drawer. A value that doesn't match any account — every client filed
 // before this was a picker — is kept as its own option and marked, so opening
-// a form can't silently reassign the client to whoever sorts first.
+// a form can't silently reassign the client to whoever sorts first. Required:
+// no "Unassigned" option, just a disabled placeholder until one is picked.
 function rmSelectHtml(id, current) {
   const names = S.managers || [];
   const cur = String(current || '').trim();
@@ -5616,8 +5673,9 @@ function rmSelectHtml(id, current) {
   const legacy = cur && !known ? cur : null;
   const opt = (n, label) =>
     `<option value="${esc(n)}"${cur && n.toLowerCase() === cur.toLowerCase() ? ' selected' : ''}>${esc(label || n)}</option>`;
-  return `<select class="input cx-in" id="${id}">
-    <option value="">— Unassigned —</option>
+  const placeholder = cur ? '' : `<option value="" selected disabled>Select relationship manager</option>`;
+  return `<select class="input cx-in" id="${id}" required>
+    ${placeholder}
     ${legacy ? opt(legacy, `${legacy} (not an account)`) : ''}
     ${names.map((n) => opt(n)).join('')}
   </select>`;
@@ -5635,11 +5693,13 @@ function maxEventDate() {
 function validateClientForm(prefix) {
   const f = suffix => $(prefix + suffix);
   const errors = [];
-  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-hotel','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource','-followup']
+  ['-name','-phone','-email','-hotel','-eventtype','-status','-budget-hotel','-budget-eventdecor','-budget-events','-guests','-rooms','-checkin','-checkout','-status-other','-eventtype-other','-enquirysource','-followup','-rm']
     .forEach(s => f(s)?.classList.remove('input-invalid'));
 
   const name = f('-name')?.value.trim();
   if (!name) errors.push([f('-name'), 'Name is required']);
+
+  if (!f('-rm')?.value.trim()) errors.push([f('-rm'), 'Relationship Manager is required']);
 
   // Beyond check-in (below), nothing else in the event block is compulsory —
   // on a first call the team often only has a name and a number. Whatever
@@ -5817,7 +5877,7 @@ function eventTypeOptionsHtml(current) {
 }
 
 function dateStatusOptionsHtml(current) {
-  const placeholder = current ? '' : `<option value="" selected disabled>Select date finalised</option>`;
+  const placeholder = current ? '' : `<option value="" selected disabled>Select dates finalised</option>`;
   const opts = DATE_STATUS_OPTIONS.some(([k]) => k === current) || !current
     ? DATE_STATUS_OPTIONS
     : [[current, current], ...DATE_STATUS_OPTIONS];
@@ -5846,7 +5906,7 @@ async function openNewClientModal() {
               <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-email" type="email"></div>
               <div>
                 <label class="cx-lab" for="nc-enquirysource">Source <span class="req">*</span></label>
-                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-enquirysource" placeholder="Source name & ref">
+                <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-enquirysource" placeholder="Source name & reference">
               </div>
             </div>
           </div>
@@ -5877,8 +5937,8 @@ async function openNewClientModal() {
                 </div>
               </div>
               <div>
-                <label class="cx-lab" for="nc-datestatus">Date Finalised</label>
-                <select class="input cx-in" id="nc-datestatus">${dateStatusOptionsHtml('')}</select>
+                <label class="cx-lab" for="nc-datestatus">Dates Finalised</label>
+                <select class="input cx-in" id="nc-datestatus">${dateStatusOptionsHtml('tentative')}</select>
               </div>
               <div id="nc-followup-wrap" style="display:none">
                 <label class="cx-lab" for="nc-followup">Next follow-up date <span class="req">*</span></label>
@@ -5902,7 +5962,7 @@ async function openNewClientModal() {
           <div class="cx-sec">
             <div class="cx-sec-t">Ownership</div>
             <div class="cx-grid">
-              <div><label class="cx-lab" for="nc-rm">Relationship Manager</label>${rmSelectHtml('nc-rm', '')}</div>
+              <div><label class="cx-lab" for="nc-rm">Relationship Manager <span class="req">*</span></label>${rmSelectHtml('nc-rm', '')}</div>
               <div><label class="cx-lab">Filled by</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" value="${esc(S.admin?.name||S.admin?.email||'—')}" disabled></div>
             </div>
           </div>
@@ -7083,8 +7143,28 @@ async function renderTeam() {
 }
 
 function teamSetAbsMonth(month) {
-  S.teamAbsMonth = month;
+  const currentMonth = attToday().slice(0, 7);
+  // Guard against anything that isn't a real "YYYY-MM" in this year, or a
+  // future month — the dropdown itself only offers valid past/current
+  // months, this is just a backstop.
+  S.teamAbsMonth = /^\d{4}-\d{2}$/.test(month) && month <= currentMonth ? month : currentMonth;
   renderTeam();
+}
+
+// Month options for the Absences filter: fixed to the current year (no year
+// picker — a native <input type="month"> let people type a bare year with
+// no month, which produced a malformed value and blanked the whole panel),
+// capped at the current month so a future one can never be selected.
+function absMonthOptionsHtml(current) {
+  const year = attToday().slice(0, 4);
+  const maxMonth = Number(attToday().slice(5, 7));
+  const names = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  let out = '';
+  for (let m = 1; m <= maxMonth; m++) {
+    const val = `${year}-${String(m).padStart(2, '0')}`;
+    out += `<option value="${val}"${val === current ? ' selected' : ''}>${names[m - 1]}</option>`;
+  }
+  return out;
 }
 
 function paintTeam(employees, att, status, absences, absMonth) {
@@ -7101,7 +7181,10 @@ function paintTeam(employees, att, status, absences, absMonth) {
       <div class="dash-panel-head" style="flex-wrap:wrap;gap:10px">
         <span class="dash-panel-title"><span class="ph-icon" style="--ph-bg:#FDECEA;--ph-accent:#B0311F"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></svg></span>Absences · ${esc(attMonthLabel(absMonth))}</span>
         <div style="display:flex;align-items:center;gap:10px;margin-left:auto">
-          <input class="input" style="width:auto" type="month" id="team-abs-month" value="${absMonth}" max="${attToday().slice(0,7)}" onchange="teamSetAbsMonth(this.value)" title="Filter absences by month">
+          <div style="display:flex;align-items:center;gap:6px">
+            <select class="input" style="width:auto" id="team-abs-month" onchange="teamSetAbsMonth(this.value)" title="Filter absences by month">${absMonthOptionsHtml(absMonth)}</select>
+            <span class="text-sm text-muted">${esc(absMonth.slice(0, 4))}</span>
+          </div>
           ${absMonth === attToday().slice(0,7) ? `<span class="badge badge-red">${absences.absentTodayCount || 0} absent today</span>` : ''}
           <span class="badge badge-gray">${absences.totalAbsences || 0} total</span>
         </div>
