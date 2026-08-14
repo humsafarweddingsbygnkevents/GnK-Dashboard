@@ -47,7 +47,6 @@ model Hotel {
   // so the guests filter can do a numeric range query on the free-text field above.
   guestCapacityMax       Int?
   relationshipManager    String?
-  calling                String?
   notes                  String?
   source                 String   @default("rate-sheet")
   createdAt              DateTime @default(now())

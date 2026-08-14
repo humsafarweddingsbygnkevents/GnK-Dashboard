@@ -21,7 +21,7 @@ const COLS = [
   'contactNumber', 'contactEmail', 'contactPerson2', 'contactDesignation2',
   'contactNumber2', 'apPlanSeasonRate', 'apPlanOffSeasonRate',
   'extraPersonRate', 'buyoutPrice', 'guestCapacity', 'guestCapacityMax',
-  'relationshipManager', 'calling',
+  'relationshipManager',
 ];
 
 // The sheet uses " " (non-breaking space) for empty cells, plus the
@@ -62,7 +62,6 @@ function rowToHotel(cells) {
     guestCapacity: row.guestCapacity,
     guestCapacityMax: toInt(row.guestCapacityMax),
     relationshipManager: row.relationshipManager,
-    calling: row.calling,
     source: 'rate-sheet',
   };
 }
