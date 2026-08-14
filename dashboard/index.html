@@ -5588,6 +5588,11 @@ function validateClientForm(prefix) {
   if (prefix === 'nc' && !f('-checkin')?.value)
     errors.push([f('-checkin'), 'Check-in date is required']);
 
+  // Status has no sensible default — the old auto-selected "No Response"
+  // made every fresh lead look like a follow-up someone already ignored.
+  if (prefix === 'nc' && !f('-status')?.value)
+    errors.push([f('-status'), 'Status is required']);
+
   const phone = f('-phone')?.value.trim();
   if (!phone) errors.push([f('-phone'), 'Phone number is required']);
   else if (!/^[+()\-\s\d]+$/.test(phone)) errors.push([f('-phone'), 'Phone can only contain digits and + - ( )']);
@@ -5724,10 +5729,14 @@ function onStatusSelectChange(selectEl, prefix) {
 }
 
 function statusOptionsHtml(prefix, current) {
+  // No current value (new client, nothing picked yet) → lead with a
+  // disabled placeholder so the select opens blank instead of defaulting
+  // to whichever option happens to be first in the list.
+  const placeholder = current ? '' : `<option value="" selected disabled>Select status</option>`;
   const opts = STATUS_OPTIONS.some(([k]) => k === current) || !current
     ? STATUS_OPTIONS
     : [[current, STATUS_META[current]?.l || current], ...STATUS_OPTIONS];
-  return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+  return placeholder + opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }
 
 function eventTypeOptionsHtml(current) {
@@ -5784,7 +5793,7 @@ async function openNewClientModal() {
               <div><label class="cx-lab" for="nc-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-rooms" type="number" min="1" max="100000" step="1"></div>
               <div>
                 <label class="cx-lab" for="nc-status">Status</label>
-                <select class="input cx-in" id="nc-status" onchange="onStatusSelectChange(this,'nc')">${statusOptionsHtml('nc', 'no-response')}</select>
+                <select class="input cx-in" id="nc-status" onchange="onStatusSelectChange(this,'nc')">${statusOptionsHtml('nc', '')}</select>
                 <div id="nc-status-other-wrap" style="display:none;margin-top:8px">
                   <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-status-other">
                 </div>
@@ -5905,7 +5914,7 @@ async function createClient(btn) {
   if (btn?.disabled) return;
   if (btn) btn.disabled = true;
   const name = $('nc-name').value.trim();
-  const status = $('nc-status')?.value || 'no-response';
+  const status = $('nc-status')?.value;
   const eventType = $('nc-eventtype')?.value || undefined;
   const src = parseEnquirySource($('nc-enquirysource')?.value);
   const body = {
@@ -6848,18 +6857,24 @@ async function attSubmitEntry() {
   };
   const done = { updated: 0, added: 0, deleted: 0 };
 
+  // Each task/delete is an independent request against a different row — firing
+  // them one at a time (awaiting each before starting the next) was paying the
+  // full network round trip N times over for an N-task day. They don't depend
+  // on each other, so run them together instead.
   try {
-    for (const t of edits) {
-      await apiPatch(`/api/attendance/${t.id}`, { date, taskDescription: t.text, timeSpentMinutes: t.minutes, status: t.status });
-      done.updated++;
-    }
-    for (const t of creates) {
-      const body = { date, taskDescription: t.text, timeSpentMinutes: t.minutes, status: t.status };
-      if (employeeId) body.employeeId = employeeId;
-      await apiPost('/api/attendance', body);
-      done.added++;
-    }
-    for (const delId of deleteIds) { await apiDelete(`/api/attendance/${delId}`); done.deleted++; }
+    const ops = [
+      ...edits.map(t => ({ kind: 'updated', p: apiPatch(`/api/attendance/${t.id}`, { date, taskDescription: t.text, timeSpentMinutes: t.minutes, status: t.status }) })),
+      ...creates.map(t => {
+        const body = { date, taskDescription: t.text, timeSpentMinutes: t.minutes, status: t.status };
+        if (employeeId) body.employeeId = employeeId;
+        return { kind: 'added', p: apiPost('/api/attendance', body) };
+      }),
+      ...deleteIds.map(delId => ({ kind: 'deleted', p: apiDelete(`/api/attendance/${delId}`) })),
+    ];
+    const results = await Promise.allSettled(ops.map(o => o.p));
+    results.forEach((r, i) => { if (r.status === 'fulfilled') done[ops[i].kind]++; });
+    const failed = results.find(r => r.status === 'rejected');
+    if (failed) throw failed.reason;
     closeModal();
     showToast(attSaveSummary(done), 'success');
     await reopenDay();
@@ -6941,8 +6956,12 @@ async function attSaveDayRemarks() {
   const stale = day.tasks.filter(t => t.id !== anchor.id && t.remarks);
   if ((anchor.remarks || null) === remarks && !stale.length) return showToast('No changes to save');
   try {
-    await apiPatch(`/api/attendance/${anchor.id}`, { remarks });
-    for (const t of stale) await apiPatch(`/api/attendance/${t.id}`, { remarks: null });
+    // Anchor + stale rows are independent updates — send them together
+    // instead of one round trip at a time.
+    await Promise.all([
+      apiPatch(`/api/attendance/${anchor.id}`, { remarks }),
+      ...stale.map(t => apiPatch(`/api/attendance/${t.id}`, { remarks: null })),
+    ]);
     showToast('Remarks saved', 'success');
     cacheClear('att:'); cacheClear('team:'); cacheClear('dash:');
     // Awaited so the drawer redraws from the reloaded list, not the stale one.
