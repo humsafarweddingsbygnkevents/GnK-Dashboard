@@ -1738,24 +1738,33 @@ const DASH_QUOTES = [
   "You're not behind, you're just building suspense.",
   "Stay sharp, stay kind, and for the love of everything, confirm the hotel booking.",
 ];
-let dashQuoteIdx = -1;
-let dashQuoteTimer = null;
-function nextDashQuote() {
-  let i;
-  do { i = Math.floor(Math.random() * DASH_QUOTES.length); } while (i === dashQuoteIdx && DASH_QUOTES.length > 1);
-  dashQuoteIdx = i;
-  return DASH_QUOTES[i];
+// One quote per calendar day, picked deterministically from the date so it's
+// stable across reloads and only changes when the date itself changes — not
+// on a fixed timer (that used to reshuffle every 60s, which read as random
+// flicker rather than a daily greeting).
+function dashQuoteForDate(dateStr) {
+  let hash = 0;
+  for (let i = 0; i < dateStr.length; i++) hash = (hash * 31 + dateStr.charCodeAt(i)) >>> 0;
+  return DASH_QUOTES[hash % DASH_QUOTES.length];
 }
+let dashQuoteDate = null;
+let dashQuoteTimer = null;
 function startDashQuoteRotator() {
   if (dashQuoteTimer) clearInterval(dashQuoteTimer);
   const el = document.getElementById('dash-quote');
   if (!el) return;
+  dashQuoteDate = attToday();
+  // Just watches for the date to roll over while the dashboard is left open;
+  // the visible quote doesn't change on every tick.
   dashQuoteTimer = setInterval(() => {
+    const today = attToday();
+    if (today === dashQuoteDate) return;
+    dashQuoteDate = today;
     const target = document.getElementById('dash-quote');
     if (!target) { clearInterval(dashQuoteTimer); dashQuoteTimer = null; return; }
     target.classList.add('dash-quote-out');
     setTimeout(() => {
-      target.textContent = nextDashQuote();
+      target.textContent = dashQuoteForDate(dashQuoteDate);
       target.classList.remove('dash-quote-out');
       target.classList.add('dash-quote-in');
       setTimeout(() => target.classList.remove('dash-quote-in'), 600);
@@ -2669,7 +2678,7 @@ async function renderDashboard() {
         <div>
           <div class="dash-eyebrow"><span class="dot"></span>Humsafar Weddings by GnK Events · Workspace</div>
           <div class="dash-greeting">${greet}, Team <span class="spark">${ICO_SPARK}</span></div>
-          <div class="dash-subline dash-quote" id="dash-quote">${esc(nextDashQuote())}</div>
+          <div class="dash-subline dash-quote" id="dash-quote">${esc(dashQuoteForDate(attToday()))}</div>
         </div>
         <div class="dash-hero-date">
           <div class="d-day">${dayName}</div>
