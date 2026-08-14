@@ -1834,6 +1834,7 @@ const STATUS_META = {
 const STATUS_OPTIONS = [['active','Active'],['no-response','No Response'],['confirmed','Confirmed'],['lost','Lost']];
 const STATUSES_REQUIRING_FOLLOWUP = ['active','no-response'];
 const EVENT_TYPE_OPTIONS = [['wedding','Wedding'],['birthday','Birthday'],['anniversary','Anniversary'],['other','Other']];
+const DATE_STATUS_OPTIONS = [['tentative','Tentative'],['definite','Definite']];
 // Source is a free-text box now. These stay because older records still hold
 // one of the fixed keys, and because typing a name that matches one keeps
 // storing it as that key rather than churning it to free text.
@@ -5406,6 +5407,7 @@ function clientDrawerHtml(c, editing) {
           ${infoRow('No. of rooms', c.roomCount ?? '', true)}
           ${infoRow('Check-in', c.checkInDate ? fmtDate(c.checkInDate) : (c.weddingDate ? fmtDate(c.weddingDate) : ''), true)}
           ${infoRow('Check-out', c.checkOutDate ? fmtDate(c.checkOutDate) : '', true)}
+          ${infoRow('Date status', esc(DATE_STATUS_OPTIONS.find(([k])=>k===c.dateStatus)?.[1] || ''), true)}
           ${STATUSES_REQUIRING_FOLLOWUP.includes(c.status) ? infoRow('Next follow-up', c.nextFollowUpAt ? fmtDate(c.nextFollowUpAt) : '', true) : ''}
         </div>
 
@@ -5486,6 +5488,10 @@ function clientDrawerHtml(c, editing) {
               <div id="cd-status-other-wrap" style="display:${c.status==='other'?'block':'none'};margin-top:8px">
                 <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-status-other" value="${esc(c.statusOther||'')}">
               </div>
+            </div>
+            <div>
+              <label class="cx-lab" for="cd-datestatus">Date status</label>
+              <select class="input cx-in" id="cd-datestatus">${dateStatusOptionsHtml(c.dateStatus||'')}</select>
             </div>
             <div id="cd-followup-wrap" style="display:${STATUSES_REQUIRING_FOLLOWUP.includes(c.status)?'block':'none'}">
               <label class="cx-lab" for="cd-followup">Next follow-up date <span class="req">*</span></label>
@@ -5693,6 +5699,7 @@ async function saveClientDrawer(id, btn) {
     budgetEventsLakhs: $('cd-budget-events')?.value ? Number($('cd-budget-events').value) : null,
     checkInDate: $('cd-checkin').value || null,
     checkOutDate: $('cd-checkout').value || null,
+    dateStatus: $('cd-datestatus')?.value || null,
     status,
     statusOther: status === 'other' ? $('cd-status-other')?.value.trim() : null,
     nextFollowUpAt: STATUSES_REQUIRING_FOLLOWUP.includes(status) ? $('cd-followup')?.value : null,
@@ -5753,6 +5760,14 @@ function eventTypeOptionsHtml(current) {
   return opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
 }
 
+function dateStatusOptionsHtml(current) {
+  const placeholder = current ? '' : `<option value="" selected disabled>Select date status</option>`;
+  const opts = DATE_STATUS_OPTIONS.some(([k]) => k === current) || !current
+    ? DATE_STATUS_OPTIONS
+    : [[current, current], ...DATE_STATUS_OPTIONS];
+  return placeholder + opts.map(([k, l]) => `<option value="${k}" ${current === k ? 'selected' : ''}>${esc(l)}</option>`).join('');
+}
+
 async function openNewClientModal() {
   // The Relationship Manager picker is built into the markup below, so its
   // options have to be in hand before the form is written.
@@ -5804,6 +5819,10 @@ async function openNewClientModal() {
                 <div id="nc-status-other-wrap" style="display:none;margin-top:8px">
                   <input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-status-other">
                 </div>
+              </div>
+              <div>
+                <label class="cx-lab" for="nc-datestatus">Date status</label>
+                <select class="input cx-in" id="nc-datestatus">${dateStatusOptionsHtml('')}</select>
               </div>
               <div id="nc-followup-wrap" style="display:none">
                 <label class="cx-lab" for="nc-followup">Next follow-up date <span class="req">*</span></label>
@@ -5943,6 +5962,7 @@ async function createClient(btn) {
     budgetDecorLakhs: $('nc-budget-eventdecor')?.value ? Number($('nc-budget-eventdecor').value) : undefined,
     checkInDate: $('nc-checkin')?.value || undefined,
     checkOutDate: $('nc-checkout')?.value || undefined,
+    dateStatus: $('nc-datestatus')?.value || undefined,
     status,
     statusOther: status === 'other' ? ($('nc-status-other')?.value || '').trim() : undefined,
     nextFollowUpAt: STATUSES_REQUIRING_FOLLOWUP.includes(status) ? $('nc-followup')?.value : undefined,

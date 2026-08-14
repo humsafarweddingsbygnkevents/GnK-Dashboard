@@ -189,6 +189,8 @@ model Client {
   // 'wedding' | 'birthday' | 'anniversary' | 'other'
   eventType      String?
   eventTypeOther String? // free-text detail when eventType = 'other'
+  // Firmness of the check-in/check-out dates above: 'tentative' | 'definite'.
+  dateStatus     String?
   // Staff-facing fields (New Client form / client drawer).
   preferredHotel      String?
   roomCount           Int?    // hotel rooms the party needs

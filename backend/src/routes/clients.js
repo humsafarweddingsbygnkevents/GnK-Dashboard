@@ -12,7 +12,7 @@ const { CATEGORIES, classifyMessage, upsertClientFromMessage } = require('../lib
 const PATCHABLE = ['name', 'phone', 'email', 'weddingDate', 'preferredCity',
                    'guestCount', 'roomCount', 'budgetLakhs', 'notes', 'status', 'statusOther', 'category',
                    'preferredHotel', 'budgetHotelLakhs', 'budgetDecorLakhs', 'budgetEventsLakhs',
-                   'checkInDate', 'checkOutDate', 'eventType', 'eventTypeOther', 'relationshipManager',
+                   'checkInDate', 'checkOutDate', 'eventType', 'eventTypeOther', 'dateStatus', 'relationshipManager',
                    'enquirySource', 'enquirySourceOther', 'nextFollowUpAt'];
 
 const SOURCES = ['gmail', 'instagram', 'facebook', 'manual', 'whatsapp', 'test'];
@@ -32,6 +32,8 @@ const STATUSES_REQUIRING_FOLLOWUP = ['active', 'no-response'];
 const LEGACY_STATUSES = ['new', 'closed', 'other', 'contacted', 'site-visit-scheduled', 'booked'];
 const WRITABLE_STATUSES = [...STATUSES, ...LEGACY_STATUSES];
 const EVENT_TYPES = ['wedding', 'birthday', 'anniversary', 'other'];
+// Firmness of the check-in/check-out dates.
+const DATE_STATUSES = ['tentative', 'definite'];
 // How a manually-entered enquiry reached us.
 // 'hotel' and 'other' both carry a free-text detail in enquirySourceOther —
 // which hotel sent them, or where else the enquiry came from.
@@ -231,6 +233,14 @@ function parseClientBody(body, requireCore = false, existing = null) {
     } else {
       result.eventTypeOther = null;
     }
+  }
+
+  if (body.dateStatus !== undefined) {
+    const ds = body.dateStatus ? String(body.dateStatus).trim() : null;
+    if (ds !== null && !DATE_STATUSES.includes(ds)) {
+      throw Object.assign(new Error(`dateStatus must be one of: ${DATE_STATUSES.join(', ')}`), { status: 400 });
+    }
+    result.dateStatus = ds;
   }
 
   if (body.enquirySource !== undefined) {
