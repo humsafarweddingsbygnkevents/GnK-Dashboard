@@ -2665,9 +2665,9 @@ async function renderDashboard() {
   const dayName = now.toLocaleDateString('en-US',{weekday:'long'});
   const dateRest = now.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});
   const isEmployee = S.admin?.role === 'employee';
-  // Employees are looking at their own account, not the shared team view —
-  // greet them by (first) name instead of the generic "Team".
-  const greetName = isEmployee ? (S.admin?.name?.trim().split(/\s+/)[0] || 'there') : 'Team';
+  // Whoever's logged in is looking at their own account, not a shared team
+  // view — greet them by (first) name instead of the generic "Team".
+  const greetName = S.admin?.name?.trim().split(/\s+/)[0] || 'Team';
   const stats = [
     {key:'venues',   label:'Venues',         accent:'var(--green-700)', bg:'var(--green-50)',
       icon:'<path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/>'},
@@ -5676,7 +5676,7 @@ function clientDrawerHtml(c, editing) {
           <div class="cx-dsec-t">Profile</div>
           <div class="cx-grid">
             <div><label class="cx-lab" for="cd-name">Name <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-name" value="${esc(c.name)}"></div>
-            <div><label class="cx-lab" for="cd-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-phone" value="${esc(c.phone||'')}"></div>
+            <div><label class="cx-lab" for="cd-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-phone" type="tel" oninput="sanitizePhoneInput(this)" value="${esc(c.phone||'')}"></div>
             <div><label class="cx-lab" for="cd-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-email" value="${esc(c.email||'')}"></div>
             <div><label class="cx-lab" for="cd-hotel">Preferred hotels</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-hotel" value="${esc(preferredPlace(c)||'')}"></div>
             <div><label class="cx-lab" for="cd-rooms">No. of rooms</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="cd-rooms" type="number" min="1" max="100000" step="1" value="${c.roomCount??''}"></div>
@@ -5794,6 +5794,15 @@ function maxEventDate() {
   const d = new Date();
   d.setFullYear(d.getFullYear() + 10);
   return d.toISOString().slice(0, 10);
+}
+
+// Strips anything that isn't a digit or phone punctuation as the user types,
+// so letters can't get into the field at all — mirrors the charset
+// validateClientForm accepts below (+, (), -, spaces alongside digits, for
+// international/extension formatting).
+function sanitizePhoneInput(el) {
+  const cleaned = el.value.replace(/[^0-9+()\-\s]/g, '');
+  if (cleaned !== el.value) el.value = cleaned;
 }
 
 // Shared client-form validation used by both the edit drawer ('cd') and the
@@ -6021,7 +6030,7 @@ async function openNewClientModal() {
           <div class="cx-sec">
             <div class="cx-grid">
               <div><label class="cx-lab" for="nc-name">Full name <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-name"></div>
-              <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-phone"></div>
+              <div><label class="cx-lab" for="nc-phone">Phone <span class="req">*</span></label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-phone" type="tel" oninput="sanitizePhoneInput(this)"></div>
               <div><label class="cx-lab" for="nc-email">Email</label><input class="input cx-in" autocomplete="off" data-1p-ignore data-lpignore="true" id="nc-email" type="email"></div>
               <div>
                 <label class="cx-lab" for="nc-enquirysource">Source <span class="req">*</span></label>
