@@ -91,17 +91,17 @@ function extractHtml(payload) {
 // used by Settings (also admin-only: it names the connected Gmail address,
 // which employees shouldn't see either).
 router.get('/recent', requireAdmin, async (req, res) => {
-  const account = await prisma.googleAccount.findFirst();
-  if (!account) {
-    return res.status(400).json({
-      error: 'No Gmail account connected. Visit /auth/google to connect one.',
-    });
-  }
-
   const pageToken = req.query.pageToken || undefined;
   const maxResults = Math.min(Number(req.query.maxResults) || 15, 50);
 
   try {
+    const account = await prisma.googleAccount.findFirst();
+    if (!account) {
+      return res.status(400).json({
+        error: 'No Gmail account connected. Visit /auth/google to connect one.',
+      });
+    }
+
     const auth = makeAuthClient(account);
     const gmail = google.gmail({ version: 'v1', auth });
 
@@ -139,20 +139,36 @@ router.get('/recent', requireAdmin, async (req, res) => {
   }
 });
 
+// RFC 5322 header values may not contain a bare CR or LF at all — any header
+// built by hand from user input (to, subject, filenames) has to strip them
+// before use, or a value like "x\r\nBcc: attacker@example.com" gets injected
+// as a literal extra header (Bcc insertion, spoofed From, MIME boundary
+// confusion). Collapse any run of CR/LF to a single space rather than
+// deleting it outright, so a legitimate multi-line paste still reads fine on
+// one line instead of words running together.
+function sanitizeHeaderValue(str) {
+  return String(str == null ? '' : str).replace(/[\r\n]+/g, ' ');
+}
+
 // Encode a header value containing non-ASCII chars (RFC 2047), e.g. filenames.
+// Always sanitizes first, so both the ASCII-passthrough and the
+// base64-encoded path are covered — not just whichever branch a given input
+// happens to take.
 function encodeHeader(str) {
+  const clean = sanitizeHeaderValue(str);
   // eslint-disable-next-line no-control-regex
-  if (/^[\x00-\x7F]*$/.test(str)) return str;
-  return `=?utf-8?B?${Buffer.from(str, 'utf8').toString('base64')}?=`;
+  if (/^[\x00-\x7F]*$/.test(clean)) return clean;
+  return `=?utf-8?B?${Buffer.from(clean, 'utf8').toString('base64')}?=`;
 }
 
 function buildRawMessage({ to, subject, body, attachments }) {
   const list = Array.isArray(attachments) ? attachments : [];
+  const headerTo = sanitizeHeaderValue(to);
   const headerSubject = encodeHeader(subject);
 
   if (list.length === 0) {
     return Buffer.from(
-      `To: ${to}\r\n` +
+      `To: ${headerTo}\r\n` +
       `Subject: ${headerSubject}\r\n` +
       `MIME-Version: 1.0\r\n` +
       `Content-Type: text/plain; charset=utf-8\r\n\r\n` +
@@ -162,7 +178,7 @@ function buildRawMessage({ to, subject, body, attachments }) {
 
   const boundary = 'humsafargnk_' + Math.random().toString(36).slice(2);
   let msg =
-    `To: ${to}\r\n` +
+    `To: ${headerTo}\r\n` +
     `Subject: ${headerSubject}\r\n` +
     `MIME-Version: 1.0\r\n` +
     `Content-Type: multipart/mixed; boundary="${boundary}"\r\n\r\n` +
@@ -173,7 +189,7 @@ function buildRawMessage({ to, subject, body, attachments }) {
 
   for (const att of list) {
     const filename = encodeHeader(att.filename || 'attachment');
-    const mimeType = att.mimeType || 'application/octet-stream';
+    const mimeType = sanitizeHeaderValue(att.mimeType || 'application/octet-stream');
     // att.data is already base64; re-wrap to 76-char lines per RFC 2045.
     const wrapped = (att.data || '').replace(/[\r\n]/g, '').replace(/(.{76})/g, '$1\r\n');
     msg +=
@@ -193,14 +209,14 @@ router.post('/send', requireAdmin, async (req, res) => {
     return res.status(400).json({ error: 'to, subject, and body are required' });
   }
 
-  const account = await prisma.googleAccount.findFirst();
-  if (!account) {
-    return res.status(400).json({
-      error: 'No Gmail account connected. Visit /auth/google to connect one.',
-    });
-  }
-
   try {
+    const account = await prisma.googleAccount.findFirst();
+    if (!account) {
+      return res.status(400).json({
+        error: 'No Gmail account connected. Visit /auth/google to connect one.',
+      });
+    }
+
     const auth = makeAuthClient(account);
     const gmail = google.gmail({ version: 'v1', auth });
 
@@ -221,33 +237,43 @@ router.post('/send', requireAdmin, async (req, res) => {
 // GET /api/gmail/account — lightweight connection status (which inbox, if any)
 // without fetching messages. Used by the Settings page.
 router.get('/account', requireAdmin, async (_req, res) => {
-  const account = await prisma.googleAccount.findFirst();
-  if (!account) return res.json({ connected: false });
-  res.json({ connected: true, email: account.email });
+  try {
+    const account = await prisma.googleAccount.findFirst();
+    if (!account) return res.json({ connected: false });
+    res.json({ connected: true, email: account.email });
+  } catch (err) {
+    console.error('Gmail account status error:', err);
+    res.status(500).json({ error: 'Could not check Gmail connection status' });
+  }
 });
 
 // DELETE /api/gmail/account — disconnect the connected Gmail account. Best-effort
 // revokes the OAuth token with Google, then deletes the stored credentials so the
 // inbox, Hwoli email, and signup access-code emails stop using it until reconnected.
 router.delete('/account', requireAdmin, async (_req, res) => {
-  const account = await prisma.googleAccount.findFirst();
-  if (!account) return res.status(404).json({ error: 'No Gmail account connected' });
+  try {
+    const account = await prisma.googleAccount.findFirst();
+    if (!account) return res.status(404).json({ error: 'No Gmail account connected' });
 
-  const token = account.refreshToken || account.accessToken;
-  if (token) {
-    try {
-      await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
-    } catch (err) {
-      // Don't block disconnect on a revoke failure — the local record is what matters.
-      console.warn('Gmail token revoke failed (continuing):', err.message);
+    const token = account.refreshToken || account.accessToken;
+    if (token) {
+      try {
+        await fetch('https://oauth2.googleapis.com/revoke?token=' + encodeURIComponent(token), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        });
+      } catch (err) {
+        // Don't block disconnect on a revoke failure — the local record is what matters.
+        console.warn('Gmail token revoke failed (continuing):', err.message);
+      }
     }
-  }
 
-  await prisma.googleAccount.delete({ where: { id: account.id } });
-  res.json({ disconnected: true, email: account.email });
+    await prisma.googleAccount.delete({ where: { id: account.id } });
+    res.json({ disconnected: true, email: account.email });
+  } catch (err) {
+    console.error('Gmail disconnect error:', err);
+    res.status(500).json({ error: 'Could not disconnect the Gmail account' });
+  }
 });
 
 module.exports = router;

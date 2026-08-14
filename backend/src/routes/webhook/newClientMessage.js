@@ -7,6 +7,7 @@
 // client's status moves past "new", staff take over — Hwoli does not run
 // ongoing conversations (CLAUDE.md scope rule).
 
+const crypto = require('crypto');
 const { Router } = require('express');
 const prisma = require('../../lib/prisma');
 const { runAgentTurn } = require('../../lib/agent/orchestrator');
@@ -16,6 +17,31 @@ const router = Router();
 // Channels we accept first-messages from. Provenance (Client.source) is forced
 // from this value server-side — never trusted from the request body.
 const ALLOWED_CHANNELS = ['gmail', 'whatsapp', 'instagram', 'facebook', 'test'];
+
+// Unlike Meta's webhook, nothing signs this endpoint's payloads for us — it's
+// this app's own internal ingestion point (future Gmail/WhatsApp pollers call
+// it once wired up), not a third-party webhook with its own signature scheme.
+// Without a check here it was reachable by anyone on the internet: they could
+// flip any client's status to "contacted" (silently killing follow-up on a
+// real enquiry, since deliverReply below is still a stub that sends nothing),
+// enumerate client IDs via the 404/not_first_message/handled response
+// differences, and trigger unmetered LLM calls. Require a shared-secret
+// bearer token, compared in constant time, and fail closed if it isn't set.
+function requireWebhookSecret(req, res, next) {
+  const secret = process.env.HWOLI_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('[hwoli] HWOLI_WEBHOOK_SECRET not set — rejecting (cannot verify caller)');
+    return res.sendStatus(401);
+  }
+  const header = req.get('Authorization') || '';
+  const provided = header.startsWith('Bearer ') ? header.slice(7) : '';
+  const providedBuf = Buffer.from(provided);
+  const secretBuf = Buffer.from(secret);
+  if (providedBuf.length !== secretBuf.length || !crypto.timingSafeEqual(providedBuf, secretBuf)) {
+    return res.sendStatus(401);
+  }
+  next();
+}
 
 // Outbound delivery placeholder. Real channel sends (Gmail / Meta Graph API)
 // are wired in later build stages (4–6); for now we log what WOULD be sent so
@@ -27,7 +53,7 @@ async function deliverReply(channel, to, content) {
 
 // POST /api/webhook/new-client-message
 // Body: { channel, from?: { name?, phone?, email? }, message, clientId? }
-router.post('/new-client-message', async (req, res) => {
+router.post('/new-client-message', requireWebhookSecret, async (req, res) => {
   try {
     const { channel, from = {}, message, clientId } = req.body || {};
 

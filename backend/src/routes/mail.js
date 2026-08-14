@@ -162,6 +162,13 @@ router.post('/accounts', requireAdmin, async (req, res) => {
     });
     res.status(201).json(publicMailAccount(account));
   } catch (err) {
+    // The findUnique check above isn't atomic with the create() below — two
+    // concurrent submits for the same address can both pass it, and the
+    // loser hits this unique-constraint violation instead. Same outcome as
+    // the early check, just report it the same way (409, not a generic 500).
+    if (err.code === 'P2002') {
+      return res.status(409).json({ error: 'This mailbox is already connected' });
+    }
     console.error('Add mailbox error:', err);
     res.status(500).json({ error: 'Could not save the mailbox — try again' });
   }
@@ -486,10 +493,6 @@ router.get('/attachment', async (req, res) => {
   const { type, acctId, view, msgPart } = parsed;
   const admin = isAdmin(req);
   if (!admin && type === 'gmail') return res.status(403).json({ error: 'Not allowed' });
-  if (!admin && type === 'imap') {
-    const acct = await prisma.mailAccount.findUnique({ where: { id: acctId }, select: { email: true } });
-    if (!acct || !EMPLOYEE_VISIBLE_EMAILS.has(acct.email)) return res.status(403).json({ error: 'Not allowed' });
-  }
 
   // Images and PDFs render fine in-browser — show them inline unless the caller
   // explicitly wants a download. Anything else (docx, xlsx, zip…) still forces a
@@ -504,7 +507,16 @@ router.get('/attachment', async (req, res) => {
     res.send(buf);
   };
 
+  // Everything below is inside one try/catch, including the pre-check DB read
+  // just above the Gmail/IMAP branch — a transient Neon connection error on
+  // that read used to reject outside any try/catch and crash the invocation
+  // instead of returning a clean 500.
   try {
+    if (!admin && type === 'imap') {
+      const acct = await prisma.mailAccount.findUnique({ where: { id: acctId }, select: { email: true } });
+      if (!acct || !EMPLOYEE_VISIBLE_EMAILS.has(acct.email)) return res.status(403).json({ error: 'Not allowed' });
+    }
+
     if (type === 'gmail') {
       if (!attId) return res.status(400).json({ error: 'attId is required for Gmail attachments' });
       const gacct = await prisma.googleAccount.findUnique({ where: { id: acctId } });

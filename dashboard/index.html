@@ -7266,16 +7266,17 @@ async function teamResetCode(id) {
   } catch (e) { showToast(attErrMsg(e), 'error'); }
 }
 
-// Deleting an account is permanent (cascades their attendance history), so
-// it's gated behind the admin re-entering their own login code — same code
-// they sign in with — instead of a bare confirm() a stray click could pass.
+// Deleting an account is permanent (cascades their attendance history AND
+// their filed feedback reports), so it's gated behind the admin re-entering
+// their own login code — same code they sign in with — instead of a bare
+// confirm() a stray click could pass.
 function teamOpenDeleteModal(id, name) {
   $('modal-container').innerHTML = `
     <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
       <div class="modal" style="position:relative;max-width:420px">
         <button class="btn btn-ghost btn-icon modal-close" onclick="closeModal()">${ICO_CLOSE}</button>
         <div class="modal-title">Delete ${esc(name || 'this account')}?</div>
-        <p class="text-sm text-muted">This permanently removes their account and attendance history. This cannot be undone.</p>
+        <p class="text-sm text-muted">This permanently removes their account, attendance history, and any feedback reports they've filed. This cannot be undone.</p>
         <div class="auth-field" style="margin-top:12px"><label class="label">Enter your login code to confirm</label>
           <input class="input auth-code-input" type="text" id="team-delete-code" placeholder="8-CHAR CODE" autocomplete="off"></div>
         <div id="team-delete-error" class="text-sm" style="color:var(--red);display:none;margin-top:6px"></div>

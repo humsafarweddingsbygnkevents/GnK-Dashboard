@@ -4,7 +4,7 @@ const { Router } = require('express');
 
 const router = Router();
 const prisma = require('../lib/prisma');
-const { createCodeForAccount, normalizeLoginCode, hashLoginCode } = require('../lib/loginCode');
+const { createCodeForAccount, normalizeLoginCode, verifyAccountLoginCode } = require('../lib/loginCode');
 const { rateLimit } = require('../lib/rateLimit');
 
 // Deleting an account is destructive (cascades its attendance history), so
@@ -112,9 +112,10 @@ router.post('/:id/reset-code', async (req, res) => {
 });
 
 // DELETE /api/employees/:id — remove an account, linked or not. Destructive
-// (cascades the employee's attendance entries/unlocks), so the requesting
-// admin must confirm with their own permanent login code — same code they
-// sign in with — to guard against a stray click.
+// (cascades the employee's attendance entries/unlocks AND their filed
+// feedback reports — see the Admin relations in schema.prisma), so the
+// requesting admin must confirm with their own permanent login code — same
+// code they sign in with — to guard against a stray click.
 router.delete('/:id', deleteLimiter, async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -125,7 +126,7 @@ router.delete('/:id', deleteLimiter, async (req, res) => {
     if (code.length !== 8) return res.status(400).json({ error: 'Enter your 8-character code to confirm' });
 
     const requester = await prisma.admin.findUnique({ where: { id: req.admin.sub } });
-    if (!requester || requester.loginCodeHash !== hashLoginCode(code)) {
+    if (!requester || !(await verifyAccountLoginCode(requester, code))) {
       return res.status(401).json({ error: 'Incorrect code' });
     }
 

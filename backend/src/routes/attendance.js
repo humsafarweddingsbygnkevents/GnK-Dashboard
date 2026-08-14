@@ -199,10 +199,16 @@ router.get('/status', async (req, res) => {
     // Newest write per day, against the moment the day was reopened: that pair
     // is what tells an admin whether a day they opened has been filled in yet.
     const entryUpdatedAt = new Map();
+    // Separately, newest *creation* time per day — used for `refilled` so a
+    // later remarks-only edit or admin typo-fix doesn't get mistaken for the
+    // day itself having been filled in late (see attendanceLock.js).
+    const entryCreatedAt = new Map();
     for (const e of entries) {
       entriesByDate.set(e.date, (entriesByDate.get(e.date) || 0) + 1);
       const seen = entryUpdatedAt.get(e.date);
       if (!seen || e.updatedAt > seen) entryUpdatedAt.set(e.date, e.updatedAt);
+      const seenCreated = entryCreatedAt.get(e.date);
+      if (!seenCreated || e.createdAt > seenCreated) entryCreatedAt.set(e.date, e.createdAt);
     }
     const unlockedDates = new Set(unlocks.map((u) => u.date));
     const reopenedAt = new Map(unlocks.map((u) => [u.date, u.createdAt]));
@@ -217,6 +223,7 @@ router.get('/status', async (req, res) => {
       unlockedDates,
       reopenedAt,
       entryUpdatedAt,
+      entryCreatedAt,
       joinDate,
       workWeekdays: workWeekdaysFor(employeeId),
     });

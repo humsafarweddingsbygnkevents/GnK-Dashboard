@@ -99,8 +99,10 @@ app.use(express.static(path.join(__dirname, '../../dashboard')));
 // Admin login/signup — public, must come before the blanket /api auth gate below.
 app.use('/api/auth', adminAuthRouter);
 
-// Meta webhook deliveries aren't from a logged-in admin — they're verified
-// via X-Hub-Signature-256 inside the router itself, so they stay public too.
+// Neither webhook's caller is a logged-in admin, so both stay public at the
+// mount level — each verifies the request itself inside its own router: Meta
+// via X-Hub-Signature-256, new-client-message via a shared-secret bearer
+// token (HWOLI_WEBHOOK_SECRET).
 app.use('/api/webhook', newClientMessageRouter);
 app.use('/api/webhook', metaWebhookRouter);
 

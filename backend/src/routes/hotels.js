@@ -99,7 +99,7 @@ router.get('/', async (req, res) => {
       if (parsedMaxGuests !== undefined) where.guestCapacityMax.lte = parsedMaxGuests;
     }
     if (search) {
-      where.name = { contains: search };
+      where.name = { contains: search, mode: 'insensitive' };
     }
 
     const skip = (parsedPage - 1) * parsedLimit;

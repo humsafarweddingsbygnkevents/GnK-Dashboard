@@ -102,19 +102,28 @@ function weekdayLabel(dateStr) {
 // (date -> newest entry updatedAt) are optional; pass both and each day also
 // carries `changedSinceReopen`, i.e. the employee has written to it since the
 // admin opened it. That is the cue for the admin to lock it again, so callers
-// that only need absences can leave them out.
+// that only need absences can leave them out. `updatedAt` is deliberately used
+// here (not `createdAt`) — ANY touch since the reopening is the signal, remarks
+// included, since "has this reopened day been touched at all" is the question.
 //
-// `entryUpdatedAt` alone also gives `refilled`: the day holds entries written
-// after its own deadline, so it was filled late rather than on the day. Locking
-// a reopened day deletes the unlock row, which would otherwise leave a day that
-// had been absent looking identical to one logged on time — this is derived
-// from the entries themselves, so it survives the lock and needs no new column.
-// An admin writing an entry for a past day (they bypass the deadline, see
+// `entryCreatedAt` (date -> newest entry createdAt) separately gives
+// `refilled`: the day holds an entry that was first CREATED after its own
+// deadline, so it was filled late rather than on the day. Locking a reopened
+// day deletes the unlock row, which would otherwise leave a day that had been
+// absent looking identical to one logged on time — this is derived from the
+// entries themselves, so it survives the lock and needs no new column. An
+// admin writing an entry for a past day (they bypass the deadline, see
 // routes/attendance.js) counts too, which is right: the day was still filled
 // after it closed.
+//
+// This deliberately uses createdAt, not updatedAt: remarks can be added (or an
+// admin can fix a typo) on an already-on-time day without any of that being a
+// "late fill" — Prisma's `@updatedAt` bumps on every field touch regardless of
+// which field changed, so `updatedAt` can't tell "refilled" apart from "someone
+// added a note afterward." createdAt is set once and never moves, so it can.
 function computeDayStatuses({
   dates, entriesByDate, unlockedDates, joinDate, workWeekdays,
-  reopenedAt, entryUpdatedAt, now = new Date(),
+  reopenedAt, entryUpdatedAt, entryCreatedAt, now = new Date(),
 }) {
   return dates.map((date) => {
     const count = entriesByDate.get(date) || 0;
@@ -136,6 +145,7 @@ function computeDayStatuses({
 
     const openedAt = reopened && reopenedAt ? reopenedAt.get(date) : null;
     const touchedAt = entryUpdatedAt ? entryUpdatedAt.get(date) : null;
+    const createdLateAt = entryCreatedAt ? entryCreatedAt.get(date) : null;
 
     return {
       date,
@@ -150,9 +160,10 @@ function computeDayStatuses({
       // Written to since the reopening — false on a day reopened but not yet
       // touched, so "nothing has changed" and "they've filled it" read apart.
       changedSinceReopen: Boolean(openedAt && touchedAt && touchedAt > openedAt),
-      // Holds entries written after its own deadline. Outlives the unlock row,
+      // Holds an entry first CREATED after its own deadline (not merely edited
+      // late — see the note above computeDayStatuses). Outlives the unlock row,
       // so a day stays marked as filled late once it is locked again.
-      refilled: Boolean(count > 0 && touchedAt && touchedAt.getTime() > deadlineAt(date)),
+      refilled: Boolean(count > 0 && createdLateAt && createdLateAt.getTime() > deadlineAt(date)),
       entryCount: count,
     };
   });

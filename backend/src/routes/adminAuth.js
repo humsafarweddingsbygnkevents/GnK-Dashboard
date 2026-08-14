@@ -8,7 +8,7 @@ const prisma = require('../lib/prisma');
 const { COOKIE_NAME, signAdminToken, verifyAdminToken, cookieOpts } = require('../lib/session');
 const { rateLimit } = require('../lib/rateLimit');
 const { sendMail } = require('../lib/mailer');
-const { normalizeLoginCode, hashLoginCode, createCodeForAccount } = require('../lib/loginCode');
+const { normalizeLoginCode, createCodeForAccount, findAccountByLoginCode } = require('../lib/loginCode');
 
 const router = Router();
 const authLimiter = rateLimit({ max: 15, windowMs: 15 * 60 * 1000 });
@@ -143,7 +143,7 @@ router.post('/signup/verify', signupVerifyLimiter, async (req, res) => {
     const code = normalizeLoginCode(req.body?.code);
     if (code.length !== 8) return res.status(400).json({ error: 'Enter the 8-character code' });
 
-    const account = await prisma.admin.findUnique({ where: { loginCodeHash: hashLoginCode(code) } });
+    const account = await findAccountByLoginCode(code);
     if (!account) return res.status(401).json({ error: 'Incorrect code — check with the owner and try again' });
     if (!account.active) return res.status(403).json({ error: 'This account is disabled' });
     if (account.googleId) return res.status(409).json({ error: 'This code is already registered — log in instead' });
@@ -164,7 +164,7 @@ router.post('/login/verify', authLimiter, async (req, res) => {
     const code = normalizeLoginCode(req.body?.code);
     if (code.length !== 8) return res.status(400).json({ error: 'Enter your 8-character code' });
 
-    const account = await prisma.admin.findUnique({ where: { loginCodeHash: hashLoginCode(code) } });
+    const account = await findAccountByLoginCode(code);
     if (!account) return res.status(401).json({ error: 'Incorrect code' });
     if (!account.active) return res.status(403).json({ error: 'This account has been disabled — contact the admin' });
 
@@ -193,7 +193,7 @@ router.get('/google/start', (req, res) => {
     return res.redirect('/?authError=google_not_configured');
   }
 
-  const state = jwt.sign({ mode, sub: grant.sub }, process.env.JWT_SECRET, { expiresIn: '10m' });
+  const state = jwt.sign({ mode, sub: grant.sub, typ: 'oauth_state' }, process.env.JWT_SECRET, { expiresIn: '10m' });
   const auth = makeLoginOAuthClient();
   const url = auth.generateAuthUrl({
     access_type: 'online',
@@ -212,6 +212,9 @@ router.get('/google/callback', async (req, res) => {
   let statePayload;
   try {
     statePayload = jwt.verify(state, process.env.JWT_SECRET);
+    if (statePayload.typ !== 'oauth_state' || (statePayload.mode !== 'signup' && statePayload.mode !== 'login')) {
+      return res.redirect('/?authError=bad_state');
+    }
   } catch {
     return res.redirect('/?authError=bad_state');
   }

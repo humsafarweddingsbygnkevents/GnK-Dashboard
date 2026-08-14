@@ -14,16 +14,21 @@ function secret() {
 
 function signAdminToken(admin) {
   return jwt.sign(
-    { sub: admin.id, email: admin.email, role: admin.role || 'admin' },
+    { sub: admin.id, email: admin.email, role: admin.role || 'admin', typ: 'session' },
     secret(),
     { expiresIn: TOKEN_TTL }
   );
 }
 
+// The signup/login grant cookies and the OAuth `state` param are also JWTs
+// signed with this same secret, but they authorise a single narrow step of
+// the login handshake, not a full session. Without this check, one of those
+// short-lived tokens could be replayed as the `hw_session` cookie itself —
+// skipping the Google OAuth step entirely. Every real session token is
+// stamped `typ: 'session'` at mint time, so anything missing it is rejected.
 function verifyAdminToken(token) {
   const payload = jwt.verify(token, secret());
-  // Tokens issued before roles existed could only belong to admins.
-  if (!payload.role) payload.role = 'admin';
+  if (payload.typ !== 'session') throw new Error('Not a session token');
   return payload;
 }
 
