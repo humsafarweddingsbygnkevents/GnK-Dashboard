@@ -25,6 +25,13 @@ const ATT_OFF_MAX = 5;
 const MON_FRI_EMPLOYEE_IDS = new Set([]);
 const MON_FRI_WEEKDAYS = new Set([1, 2, 3, 4, 5]);
 
+// Internal test accounts — excluded from the team-wide absence views (dashboard
+// home + Team page) so a real employee's account used for QA doesn't show up
+// as chronically absent. They can still log/view their own attendance; this
+// only hides them from the admin-facing "who's absent" rollups. Id 6 is
+// Pratham's (endraode.7@gmail.com) testing account.
+const ABSENCE_EXEMPT_EMPLOYEE_IDS = new Set([6]);
+
 function workWeekdaysFor(employeeId) {
   return MON_FRI_EMPLOYEE_IDS.has(employeeId) ? MON_FRI_WEEKDAYS : undefined;
 }
@@ -272,7 +279,10 @@ router.get('/absences', async (req, res) => {
 
     const admin = isAdmin(req);
     const employees = admin
-      ? await prisma.admin.findMany({ where: { role: 'employee', active: true }, orderBy: { name: 'asc' } })
+      ? await prisma.admin.findMany({
+          where: { role: 'employee', active: true, id: { notIn: [...ABSENCE_EXEMPT_EMPLOYEE_IDS] } },
+          orderBy: { name: 'asc' },
+        })
       : await prisma.admin.findMany({ where: { id: req.admin.sub } });
 
     const ids = employees.map((e) => e.id);
