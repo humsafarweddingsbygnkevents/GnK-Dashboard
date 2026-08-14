@@ -103,6 +103,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 .topbar-brand-text .name{font-weight:600;font-size:15px;letter-spacing:.18em}
 .topbar-brand-text .sub{font-weight:500;font-size:15px;letter-spacing:.1em}
+/* Absolutely-centered text collides with the notif icon / admin menu once the
+   topbar gets narrow — drop it and keep just the logo + right-side controls. */
+@media(max-width:760px){.topbar-brand-text{display:none}}
 .topbar-search{
   flex:1;max-width:520px;display:flex;align-items:center;gap:9px;
   background:#fff;border:2px solid var(--nb-charcoal);border-radius:var(--radius);
@@ -152,6 +155,14 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .usermenu-item:hover svg{color:var(--green-700)}
 .usermenu-item-danger:hover{background:var(--red-bg);color:var(--red)}
 .usermenu-item-danger:hover svg{color:var(--red)}
+
+/* Reply / Reply All dropdown, same visual language as the user menu popover */
+.reply-dd{position:relative;display:inline-flex}
+.reply-dd-pop{position:absolute;top:calc(100% + 6px);left:0;min-width:140px;background:#fff;border:1px solid var(--border);
+  border-radius:12px;box-shadow:0 12px 32px -8px rgba(35,41,31,.28),0 2px 8px rgba(35,41,31,.06);
+  padding:6px;z-index:60;opacity:0;transform-origin:top left;transform:translateY(-6px) scale(.96);pointer-events:none;
+  transition:opacity .15s var(--ease-out),transform .15s var(--ease-out)}
+.reply-dd.open .reply-dd-pop{opacity:1;transform:none;pointer-events:auto}
 
 /* sidebar */
 #sidebar{
@@ -2347,6 +2358,40 @@ function closeNotifMenu() {
   if (menu) menu.classList.remove('open');
 }
 
+function toggleReplyMenu(e, id) {
+  if (e) e.stopPropagation();
+  closeReplyMenus(id);
+  $(id)?.classList.toggle('open');
+}
+
+function closeReplyMenus(exceptId) {
+  document.querySelectorAll('.reply-dd.open').forEach(m => { if (m.id !== exceptId) m.classList.remove('open'); });
+}
+
+// Splits a "To"/"Cc" header into bare addresses — handles both
+// "Name <a@b.com>, Name2 <c@d.com>" and plain "a@b.com, c@d.com".
+function extractEmails(str) {
+  if (!str) return [];
+  return str.split(',').map(s => (s.match(/<([^>]+)>/)?.[1] || s).trim()).filter(Boolean);
+}
+
+// Builds the Reply button as a small dropdown offering Reply / Reply All.
+// replyCall/replyAllCall are inline JS snippets (e.g. "openReplyModal(false)").
+function replyDropdownHtml(id, replyCall, replyAllCall) {
+  return `
+    <div class="reply-dd" id="${id}">
+      <button class="btn btn-ghost btn-sm" onclick="toggleReplyMenu(event,'${id}')" aria-haspopup="true">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
+        Reply
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:1px"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="reply-dd-pop" role="menu">
+        <button class="usermenu-item" role="menuitem" onclick="closeReplyMenus();${replyCall}">Reply</button>
+        <button class="usermenu-item" role="menuitem" onclick="closeReplyMenus();${replyAllCall}">Reply All</button>
+      </div>
+    </div>`;
+}
+
 // Close the user menu / notif popover / folder menu on any outside click or Escape.
 document.addEventListener('click', e => {
   const menu = $('topbar-usermenu');
@@ -2355,8 +2400,9 @@ document.addEventListener('click', e => {
   if (nmenu && nmenu.classList.contains('open') && !nmenu.contains(e.target)) closeNotifMenu();
   const rmenu = $('hd-rail-more-menu');
   if (rmenu && rmenu.classList.contains('open') && !rmenu.contains(e.target)) closeRailMore();
+  document.querySelectorAll('.reply-dd.open').forEach(m => { if (!m.contains(e.target)) m.classList.remove('open'); });
 });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeRailMore(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeUserMenu(); closeNotifMenu(); closeRailMore(); closeReplyMenus(); } });
 
 // Clicking the dd / mm / yyyy segments of a date field only moves the caret —
 // the browser opens the calendar from its own little icon and nowhere else, so
@@ -4399,15 +4445,7 @@ function hdThreadHtml() {
         ${act('Move to Trash', 'deleteSelectedEmail()',
           `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>`,
           'danger')}
-        ${S.admin?.role === 'employee' ? '' : `
-        <button class="btn btn-ghost btn-sm" id="save-client-btn" onclick="saveEmailAsClient()"
-                title="Classify this email and add the sender to your Clients list">
-          ${savedClientBtnLabel(false)}
-        </button>`}
-        <button class="btn btn-ghost btn-sm" onclick="openReplyModal()">
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
-          Reply
-        </button>
+        ${replyDropdownHtml('reply-dd-thread', 'openReplyModal(false)', 'openReplyModal(true)')}
       </div>
     </div>
     <div class="hd-thread-body" id="hd-thread-scroll">
@@ -4457,10 +4495,7 @@ function threadMessageHtml(m, idx, c) {
           ? `<iframe id="mail-frame-${idx}" sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox" style="width:100%;min-height:120px;border:none;background:#fff" referrerpolicy="no-referrer"></iframe>`
           : `<div style="font-size:14px;line-height:1.75;color:var(--text-2);white-space:pre-wrap">${esc(m.body||'(No body)')}</div>`}
         <div class="tm-actions">
-          <button class="btn btn-ghost btn-sm" onclick="replyToThreadMessage(${idx})">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5M4 12h12a4 4 0 0 1 4 4v2"/></svg>
-            Reply
-          </button>
+          ${replyDropdownHtml('reply-dd-msg-'+idx, 'replyToThreadMessage('+idx+',false)', 'replyToThreadMessage('+idx+',true)')}
           <button class="btn btn-ghost btn-sm" onclick="forwardThreadMessage(${idx})">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17l5-5-5-5"/><path d="M4 18v-2a4 4 0 0 1 4-4h12"/></svg>
             Forward
@@ -4475,7 +4510,7 @@ function threadMessageHtml(m, idx, c) {
 // matters: replying to the third message of a thread has to quote the third
 // message. Both modals read S.selectedEmail, so the pick is made by re-pointing
 // it — the same thing expanding a message does.
-function replyToThreadMessage(idx) { withThreadMessage(idx, openReplyModal); }
+function replyToThreadMessage(idx, replyAll) { withThreadMessage(idx, () => openReplyModal(replyAll)); }
 function forwardThreadMessage(idx) { withThreadMessage(idx, openForwardModal); }
 
 function withThreadMessage(idx, fn) {
@@ -4738,13 +4773,21 @@ function openComposeModal() {
 // image and link with a bare URL (and it cut off at 500 characters). The draft
 // now only references the original; /api/mail/send re-reads it and quotes its
 // real HTML, so the message being answered keeps its own formatting.
-function openReplyModal() {
+function openReplyModal(replyAll) {
   const e = S.selectedEmail;
   if (!e) return;
   const replyTo = (e.from || '').match(/<([^>]+)>/)?.[1] || e.from || '';
   const subj = /^re:/i.test(e.subject||'') ? e.subject : 'Re: ' + (e.subject||'');
+  // Reply All: original sender stays in To; everyone else who received the
+  // message (original To + Cc) moves to Cc, minus the sender and this mailbox.
+  let cc = '';
+  if (replyAll) {
+    const exclude = new Set([replyTo.toLowerCase(), (e.account||'').toLowerCase()].filter(Boolean));
+    const others = [...extractEmails(e.to), ...extractEmails(e.cc)].filter(a => !exclude.has(a.toLowerCase()));
+    cc = [...new Set(others)].join(', ');
+  }
   openCompose({
-    to: replyTo, subject: subj, body: '', from: e.accountId,
+    to: replyTo, cc, subject: subj, body: '', from: e.accountId,
     replyOf: e.id,
     quoteMeta: {
       from: e.from||'', date: e.date||'', subject: e.subject||'', to: e.to||'',
@@ -4782,7 +4825,7 @@ function openCompose(prefill) {
   // Save any in-progress draft fields before replacing
   captureComposeFields();
   S.compose = {
-    to: prefill.to||'', subject: prefill.subject||'', body: prefill.body||'',
+    to: prefill.to||'', cc: prefill.cc||'', subject: prefill.subject||'', body: prefill.body||'',
     from: prefill.from || (S.mailAccounts && S.mailAccounts[0] && S.mailAccounts[0].id) || null,
     // Starts empty every time: carrying the previous draft's files over meant
     // a reply could silently ship attachments from an unrelated message.
@@ -4812,6 +4855,7 @@ async function ensureMailAccounts() {
 function captureComposeFields() {
   if (!S.compose) return;
   if ($('cw-to')) S.compose.to = $('cw-to').value;
+  if ($('cw-cc')) S.compose.cc = $('cw-cc').value;
   if ($('cw-subject')) S.compose.subject = $('cw-subject').value;
   if ($('cw-body')) S.compose.body = $('cw-body').value;
   if ($('cw-from')) S.compose.from = $('cw-from').value;
@@ -4850,6 +4894,7 @@ function renderCompose() {
           </select>
         </div>` : ''}
         <div class="compose-field"><label>To</label><input id="cw-to" type="text" placeholder="recipient@email.com" value="${esc(c.to)}"></div>
+        <div class="compose-field"><label>Cc</label><input id="cw-cc" type="text" placeholder="cc@email.com, another@email.com" value="${esc(c.cc||'')}"></div>
         <div class="compose-field"><label>Subject</label><input id="cw-subject" type="text" placeholder="Subject" value="${esc(c.subject)}"></div>
         <textarea id="cw-body" class="compose-textarea" placeholder="${c.forwardOf?'Add a note (optional)…':c.replyOf?'Write your reply…':'Write your message…'}">${esc(c.body)}</textarea>
         ${renderForwardCard()}
@@ -5001,7 +5046,7 @@ async function sendComposeEmail() {
   c.sending = true; renderCompose();
   try {
     const res = await apiPost('/api/mail/send', {
-      accountId: c.from, to, subject, body, attachments: c.attachments,
+      accountId: c.from, to, cc: c.cc?.trim() || undefined, subject, body, attachments: c.attachments,
       forwardOf: c.forwardOf || undefined,
       replyOf: c.replyOf || undefined,
     }, { timeoutMs: SEND_TIMEOUT_MS });
@@ -5981,31 +6026,6 @@ async function createClient(btn) {
     afterClientChange();
   } catch(e) { flagDuplicatePhone('nc-phone', e.message); showToast('Error: '+e.message,'error'); }
   finally { if (btn) btn.disabled = false; }
-}
-
-// "Save as client" from a Gmail email — classifies the email server-side.
-async function saveEmailAsClient() {
-  const e = S.selectedEmail;
-  if (!e) return;
-  const btn = $('save-client-btn');
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner" style="width:12px;height:12px;border-width:2px"></span> Saving…'; }
-  try {
-    const res = await apiPost('/api/clients/from-email', {
-      from: e.from, subject: e.subject || '', body: (e.body || '').slice(0, 3500),
-    });
-    const cat = CATEGORY_META[res.client?.category]?.label || 'General';
-    showToast(res.created ? `Saved to Clients as ${cat}` : `Client profile updated (${cat})`, 'success');
-    if (btn) { btn.disabled = false; btn.innerHTML = savedClientBtnLabel(true); }
-  } catch(err) {
-    showToast('Could not save: ' + err.message, 'error');
-    if (btn) { btn.disabled = false; btn.innerHTML = savedClientBtnLabel(false); }
-  }
-}
-
-function savedClientBtnLabel(saved) {
-  return saved
-    ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Saved'
-    : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/></svg> Save as client';
 }
 
 // From the DM details panel: open (or auto-create) this sender's client profile.

@@ -116,9 +116,10 @@ function extractHtml(payload) {
 // Gmail send API wants. `attachments` are already in nodemailer's shape
 // ({ filename, content: Buffer, contentType, cid, contentDisposition }) —
 // see normalizeAttachments in lib/forward.js.
-async function buildRawMessage({ to, subject, body, html, attachments, inReplyTo, references }) {
+async function buildRawMessage({ to, cc, subject, body, html, attachments, inReplyTo, references }) {
   const mail = new MailComposer({
     to,
+    ...(cc ? { cc } : {}),
     subject: subject || '',
     text: body || '',
     ...(html ? { html } : {}),
@@ -162,6 +163,7 @@ async function fetchRecent(account, { maxResults = 15, pageToken, labelIds } = {
         subject: headerValue(headers, 'Subject'),
         from: headerValue(headers, 'From'),
         to: headerValue(headers, 'To'),
+        cc: headerValue(headers, 'Cc'),
         date: headerValue(headers, 'Date'),
         body: extractBody(msg.data.payload),
         bodyHtml: extractHtml(msg.data.payload),
@@ -229,10 +231,10 @@ async function getRawMessage(account, messageId) {
   return Buffer.from(res.data.raw, 'base64url');
 }
 
-async function sendMessage(account, { to, subject, body, html, attachments, inReplyTo, references }) {
+async function sendMessage(account, { to, cc, subject, body, html, attachments, inReplyTo, references }) {
   const auth = makeAuthClient(account);
   const gmail = google.gmail({ version: 'v1', auth });
-  const raw = await buildRawMessage({ to, subject, body, html, attachments, inReplyTo, references });
+  const raw = await buildRawMessage({ to, cc, subject, body, html, attachments, inReplyTo, references });
   const result = await gmail.users.messages.send({ userId: 'me', requestBody: { raw } });
   return result.data.id;
 }

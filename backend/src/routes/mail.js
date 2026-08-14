@@ -227,7 +227,7 @@ router.get('/recent', async (req, res) => {
         : await mailbox.fetchFolder(creds, view, perAccount);
       return emails.map((e) => ({
         id: `imap:${m.id}:${view}:${e.uid}`,
-        subject: e.subject, from: e.from, to: e.to, date: e.date,
+        subject: e.subject, from: e.from, to: e.to, cc: e.cc, date: e.date,
         body: e.body, bodyHtml: e.bodyHtml, unread: e.unread, starred: e.starred,
         attachments: e.attachments || [],
         // IMAP has no server-side conversation id, so the client threads these
@@ -295,7 +295,7 @@ async function loadOriginalMessage(req, id) {
 // `forwardOf` is a message id: the original is re-read here and sent as the
 // body, so its HTML, embedded photos and attachments all survive the forward.
 router.post('/send', async (req, res) => {
-  const { accountId, to, subject, body, attachments, forwardOf, replyOf } = req.body || {};
+  const { accountId, to, cc, subject, body, attachments, forwardOf, replyOf } = req.body || {};
   // A forward carries the original message as its content, so the typed note
   // is allowed to be empty — everything else still needs a body.
   if (!to || !subject || (!body && !forwardOf)) {
@@ -342,7 +342,7 @@ router.post('/send', async (req, res) => {
       const password = unlock(acct);
       const messageId = await mailbox.sendSmtp(
         { smtpHost: acct.smtpHost, smtpPort: acct.smtpPort, email: acct.email, password },
-        { to, subject, body: text, html, attachments: parts, ...threading },
+        { to, cc, subject, body: text, html, attachments: parts, ...threading },
       );
       return res.json({ message: 'Email sent', messageId, from: acct.email });
     }
@@ -351,7 +351,7 @@ router.post('/send', async (req, res) => {
     let gacct = type === 'gmail' ? await prisma.googleAccount.findUnique({ where: { id: numId } }) : null;
     if (!gacct) gacct = await prisma.googleAccount.findFirst();
     if (!gacct) return res.status(400).json({ error: 'No sending account available' });
-    const messageId = await gmailClient.sendMessage(gacct, { to, subject, body: text, html, attachments: parts, ...threading });
+    const messageId = await gmailClient.sendMessage(gacct, { to, cc, subject, body: text, html, attachments: parts, ...threading });
     return res.json({ message: 'Email sent', messageId, from: gacct.email });
   } catch (err) {
     console.error('Mail send error:', err);

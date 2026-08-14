@@ -167,6 +167,7 @@ async function parseMessage(msg) {
     subject: parsed.subject || '(no subject)',
     from: parsed.from?.text || '',
     to: parsed.to?.text || '',
+    cc: parsed.cc?.text || '',
     date: (parsed.date || new Date()).toISOString(),
     body: (parsed.text || '').trim(),
     bodyHtml: parsed.html || null,
@@ -368,7 +369,7 @@ async function moveToTrash({ imapHost, imapPort, email, password }, uid, view = 
 // already nodemailer-shaped ({ filename, content: Buffer, contentType, cid,
 // contentDisposition }) — see normalizeAttachments in lib/forward.js — so an
 // inline cid: image forwarded from an original still resolves in the HTML.
-async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, subject, body, html, attachments, inReplyTo, references }) {
+async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, cc, subject, body, html, attachments, inReplyTo, references }) {
   const port = Number(smtpPort) || 465;
   const transporter = nodemailer.createTransport({
     host: smtpHost,
@@ -385,6 +386,7 @@ async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, subject, 
   const info = await transporter.sendMail({
     from: email,
     to,
+    ...(cc ? { cc } : {}),
     subject,
     text: body,
     ...(html ? { html } : {}),

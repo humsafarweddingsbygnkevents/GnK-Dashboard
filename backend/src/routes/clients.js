@@ -623,35 +623,6 @@ router.post('/sync-inbox', async (req, res) => {
   }
 });
 
-// POST /api/clients/from-email — staff clicked "Save as client" on a Gmail
-// email. Classifies subject+body and upserts by the sender's email address.
-router.post('/from-email', async (req, res) => {
-  try {
-    const { from, subject, body } = req.body || {};
-    if (!from || typeof from !== 'string') {
-      return res.status(400).json({ error: 'from is required (e.g. "Name <a@b.com>" or "a@b.com")' });
-    }
-    const emailMatch = from.match(/<([^>]+)>/) || from.match(/([^\s<]+@[^\s>]+)/);
-    const email = emailMatch ? emailMatch[1].trim().toLowerCase() : null;
-    if (!email) return res.status(400).json({ error: 'Could not extract an email address from "from"' });
-    const senderName = from.match(/^([^<]+)</)?.[1]?.trim() || null;
-
-    const text = [subject ? `Subject: ${subject}` : '', body || ''].filter(Boolean).join('\n').slice(0, 4000);
-    const result = await upsertClientFromMessage({
-      source: 'gmail',
-      channelUserId: email,
-      senderName,
-      text,
-      timestamp: new Date(),
-    });
-    if (!result) return res.status(500).json({ error: 'Could not save client from email' });
-    return res.status(result.created ? 201 : 200).json({ client: result.client, created: result.created });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
 // GET /api/clients/:id
 router.get('/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
