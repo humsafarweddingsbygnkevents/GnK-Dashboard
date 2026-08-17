@@ -267,13 +267,15 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .filter-input:focus{border-color:var(--green-500);box-shadow:0 0 0 3px rgba(74,128,85,.1)}
 .filter-input[type=number]::-webkit-inner-spin-button,.filter-input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .filter-input[type=number]{-moz-appearance:textfield;appearance:textfield}
-.range-dual{display:flex;gap:16px}
-.range-dual-col{flex:1;min-width:0}
-.range-dual-val{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:10px}
-.range-dual-col input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:var(--border);outline:none;cursor:pointer;margin:4px 0}
-.range-dual-col input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer;margin-top:-6px}
-.range-dual-col input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--border)}
-.range-dual-col input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer}
+.range-slider-value{font-size:13px;font-weight:700;color:var(--text);margin-bottom:10px}
+.range-slider{position:relative;height:18px}
+.range-slider-track{position:absolute;left:0;right:0;top:6px;height:6px;border-radius:99px;background:var(--border)}
+.range-slider-fill{position:absolute;top:6px;height:6px;border-radius:99px;background:var(--gold-600)}
+.range-slider input[type=range]{position:absolute;left:0;top:0;width:100%;height:18px;margin:0;background:transparent;-webkit-appearance:none;appearance:none;pointer-events:none}
+.range-slider input[type=range]::-webkit-slider-runnable-track{-webkit-appearance:none;background:transparent;height:18px}
+.range-slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer;margin-top:0}
+.range-slider input[type=range]::-moz-range-track{background:transparent;height:18px;border:none}
+.range-slider input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer}
 .filter-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:9px;background:var(--cream-2)}
 
 /* input */
@@ -2937,6 +2939,13 @@ function paintDashAbsences(absencesRes) {
 const ROOMS_MIN = 0, ROOMS_MAX = 200, ROOMS_STEP = 10;
 const GUESTS_MIN = 0, GUESTS_MAX = 500, GUESTS_STEP = 10;
 
+// `left`/`width` (as a style string) for the filled bar between a dual-slider's
+// two thumbs, as percentages of the track.
+function rangeFillStyle(lo, hi, min, max) {
+  const pct = (v) => (v - min) / (max - min) * 100;
+  return `left:${pct(lo)}%;width:${pct(hi) - pct(lo)}%`;
+}
+
 async function renderHotels() {
   setContent(`
     <div class="page-header mb-5">
@@ -2970,28 +2979,22 @@ async function renderHotels() {
           </div>
           <div class="filter-section">
             <div class="filter-label">Guest Rooms</div>
-            <div class="range-dual">
-              <div class="range-dual-col">
-                <div class="range-dual-val" id="filter-rooms-min-value">Min ${S.hotelMinRooms}</div>
-                <input type="range" id="filter-rooms-min" min="${ROOMS_MIN}" max="${ROOMS_MAX}" step="${ROOMS_STEP}" value="${S.hotelMinRooms}" oninput="onRoomsMinSlider(this.value)">
-              </div>
-              <div class="range-dual-col">
-                <div class="range-dual-val" id="filter-rooms-max-value">Max ${S.hotelMaxRooms}</div>
-                <input type="range" id="filter-rooms-max" min="${ROOMS_MIN}" max="${ROOMS_MAX}" step="${ROOMS_STEP}" value="${S.hotelMaxRooms}" oninput="onRoomsMaxSlider(this.value)">
-              </div>
+            <div class="range-slider-value" id="filter-rooms-value">${S.hotelMinRooms} – ${S.hotelMaxRooms}</div>
+            <div class="range-slider">
+              <div class="range-slider-track"></div>
+              <div class="range-slider-fill" id="filter-rooms-fill" style="${rangeFillStyle(S.hotelMinRooms, S.hotelMaxRooms, ROOMS_MIN, ROOMS_MAX)}"></div>
+              <input type="range" id="filter-rooms-min" min="${ROOMS_MIN}" max="${ROOMS_MAX}" step="${ROOMS_STEP}" value="${S.hotelMinRooms}" oninput="onRoomsRangeSlider('min', this.value)">
+              <input type="range" id="filter-rooms-max" min="${ROOMS_MIN}" max="${ROOMS_MAX}" step="${ROOMS_STEP}" value="${S.hotelMaxRooms}" oninput="onRoomsRangeSlider('max', this.value)">
             </div>
           </div>
           <div class="filter-section">
             <div class="filter-label">No. of Guests</div>
-            <div class="range-dual">
-              <div class="range-dual-col">
-                <div class="range-dual-val" id="filter-guests-min-value">Min ${S.hotelMinGuests}</div>
-                <input type="range" id="filter-guests-min" min="${GUESTS_MIN}" max="${GUESTS_MAX}" step="${GUESTS_STEP}" value="${S.hotelMinGuests}" oninput="onGuestsMinSlider(this.value)">
-              </div>
-              <div class="range-dual-col">
-                <div class="range-dual-val" id="filter-guests-max-value">Max ${S.hotelMaxGuests}</div>
-                <input type="range" id="filter-guests-max" min="${GUESTS_MIN}" max="${GUESTS_MAX}" step="${GUESTS_STEP}" value="${S.hotelMaxGuests}" oninput="onGuestsMaxSlider(this.value)">
-              </div>
+            <div class="range-slider-value" id="filter-guests-value">${S.hotelMinGuests} – ${S.hotelMaxGuests}</div>
+            <div class="range-slider">
+              <div class="range-slider-track"></div>
+              <div class="range-slider-fill" id="filter-guests-fill" style="${rangeFillStyle(S.hotelMinGuests, S.hotelMaxGuests, GUESTS_MIN, GUESTS_MAX)}"></div>
+              <input type="range" id="filter-guests-min" min="${GUESTS_MIN}" max="${GUESTS_MAX}" step="${GUESTS_STEP}" value="${S.hotelMinGuests}" oninput="onGuestsRangeSlider('min', this.value)">
+              <input type="range" id="filter-guests-max" min="${GUESTS_MIN}" max="${GUESTS_MAX}" step="${GUESTS_STEP}" value="${S.hotelMaxGuests}" oninput="onGuestsRangeSlider('max', this.value)">
             </div>
           </div>
           <div class="filter-footer">
@@ -3080,26 +3083,33 @@ function clearHotelFilters() {
   S.hotelPage = 1;
   document.querySelectorAll('[data-city]').forEach(cb => cb.checked = false);
   document.querySelectorAll('[data-area]').forEach(cb => cb.checked = false);
-  setDualSliderUI('rooms', ROOMS_MIN, ROOMS_MAX);
-  setDualSliderUI('guests', GUESTS_MIN, GUESTS_MAX);
+  setRangeSliderUI('rooms', ROOMS_MIN, ROOMS_MAX, ROOMS_MIN, ROOMS_MAX);
+  setRangeSliderUI('guests', GUESTS_MIN, GUESTS_MAX, GUESTS_MIN, GUESTS_MAX);
   const si = $('hotel-search-input');
   if (si) si.value = '';
   loadHotels();
 }
 
-// Pushes `lo`/`hi` into a filter's independent min and max sliders and their
-// own value labels — shared by the initial slider drag (see the four
-// on*Slider handlers below) and programmatic resets like clearHotelFilters.
-function setDualSliderUI(prefix, lo, hi) {
+// Pushes `lo`/`hi` into a dual-slider's two <input type=range> thumbs, its
+// value label and its fill bar — shared by the initial slider drag (see
+// onRoomsRangeSlider/onGuestsRangeSlider below) and programmatic resets like
+// clearHotelFilters.
+function setRangeSliderUI(prefix, lo, hi, min, max) {
   const minEl = $(`filter-${prefix}-min`); if (minEl) minEl.value = lo;
   const maxEl = $(`filter-${prefix}-max`); if (maxEl) maxEl.value = hi;
-  const minVal = $(`filter-${prefix}-min-value`); if (minVal) minVal.textContent = `Min ${lo}`;
-  const maxVal = $(`filter-${prefix}-max-value`); if (maxVal) maxVal.textContent = `Max ${hi}`;
+  const valEl = $(`filter-${prefix}-value`); if (valEl) valEl.textContent = `${lo} – ${hi}`;
+  const fillEl = $(`filter-${prefix}-fill`);
+  if (fillEl) fillEl.setAttribute('style', rangeFillStyle(lo, hi, min, max));
 }
 
 let roomsRangeTimer;
-function commitRoomsRange(lo, hi) {
-  setDualSliderUI('rooms', lo, hi);
+function onRoomsRangeSlider(which, val) {
+  let lo = Number($('filter-rooms-min').value);
+  let hi = Number($('filter-rooms-max').value);
+  // The two thumbs share the same track and must never cross — pin the one
+  // being dragged to whatever the other is currently at.
+  if (lo > hi) { if (which === 'min') lo = hi; else hi = lo; }
+  setRangeSliderUI('rooms', lo, hi, ROOMS_MIN, ROOMS_MAX);
   clearTimeout(roomsRangeTimer);
   roomsRangeTimer = setTimeout(() => {
     S.hotelMinRooms = lo;
@@ -3108,24 +3118,13 @@ function commitRoomsRange(lo, hi) {
     loadHotels();
   }, 250);
 }
-// Two independent sliders sharing one range — dragging one past the other
-// pins the other to match, so min can never end up above max.
-function onRoomsMinSlider(val) {
-  let lo = Number(val);
-  let hi = Number($('filter-rooms-max').value);
-  if (lo > hi) hi = lo;
-  commitRoomsRange(lo, hi);
-}
-function onRoomsMaxSlider(val) {
-  let hi = Number(val);
-  let lo = Number($('filter-rooms-min').value);
-  if (hi < lo) lo = hi;
-  commitRoomsRange(lo, hi);
-}
 
 let guestsRangeTimer;
-function commitGuestsRange(lo, hi) {
-  setDualSliderUI('guests', lo, hi);
+function onGuestsRangeSlider(which, val) {
+  let lo = Number($('filter-guests-min').value);
+  let hi = Number($('filter-guests-max').value);
+  if (lo > hi) { if (which === 'min') lo = hi; else hi = lo; }
+  setRangeSliderUI('guests', lo, hi, GUESTS_MIN, GUESTS_MAX);
   clearTimeout(guestsRangeTimer);
   guestsRangeTimer = setTimeout(() => {
     S.hotelMinGuests = lo;
@@ -3133,18 +3132,6 @@ function commitGuestsRange(lo, hi) {
     S.hotelPage = 1;
     loadHotels();
   }, 250);
-}
-function onGuestsMinSlider(val) {
-  let lo = Number(val);
-  let hi = Number($('filter-guests-max').value);
-  if (lo > hi) hi = lo;
-  commitGuestsRange(lo, hi);
-}
-function onGuestsMaxSlider(val) {
-  let hi = Number(val);
-  let lo = Number($('filter-guests-min').value);
-  if (hi < lo) lo = hi;
-  commitGuestsRange(lo, hi);
 }
 
 function applyClientFilters(hotels) {
