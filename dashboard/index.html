@@ -267,12 +267,9 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .filter-input:focus{border-color:var(--green-500);box-shadow:0 0 0 3px rgba(74,128,85,.1)}
 .filter-input[type=number]::-webkit-inner-spin-button,.filter-input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .filter-input[type=number]{-moz-appearance:textfield;appearance:textfield}
-.filter-slider{display:flex;flex-direction:column;gap:10px}
-.filter-slider-value{font-size:13px;font-weight:700;color:var(--text)}
-.filter-slider input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:var(--border);outline:none;cursor:pointer;margin:4px 0}
-.filter-slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer;margin-top:-6px}
-.filter-slider input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--border)}
-.filter-slider input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer}
+.filter-range{display:flex;align-items:center;gap:8px}
+.filter-range .filter-input{text-align:center}
+.filter-range span{font-size:12.5px;color:#a9af9f;flex:none}
 .filter-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:9px;background:var(--cream-2)}
 
 /* input */
@@ -1807,10 +1804,12 @@ const S = {
   hotelSearch: '',
   hotelPage: 1,
   hotelMinGuests: 0,
+  hotelMaxGuests: 0,
   hotelData: null,
   hotelLoading: false,
   hotelView: 'card',
   hotelMinRooms: 0,
+  hotelMaxRooms: 0,
   // inbox
   emails: null,
   emailsNextToken: null,
@@ -2964,16 +2963,18 @@ async function renderHotels() {
           </div>
           <div class="filter-section">
             <div class="filter-label">Guest Rooms</div>
-            <div class="filter-slider">
-              <div class="filter-slider-value" id="filter-rooms-value">${S.hotelMinRooms>0?S.hotelMinRooms+'+ rooms':'Any'}</div>
-              <input type="range" id="filter-rooms-range" min="0" max="200" step="10" value="${S.hotelMinRooms||0}" oninput="onRoomsSlider(this.value)">
+            <div class="filter-range">
+              <input class="filter-input" type="number" min="0" step="1" placeholder="Min" id="filter-rooms-min" value="${S.hotelMinRooms||''}" oninput="onRoomsRangeInput()">
+              <span>–</span>
+              <input class="filter-input" type="number" min="0" step="1" placeholder="Max" id="filter-rooms-max" value="${S.hotelMaxRooms||''}" oninput="onRoomsRangeInput()">
             </div>
           </div>
           <div class="filter-section">
             <div class="filter-label">No. of Guests</div>
-            <div class="filter-slider">
-              <div class="filter-slider-value" id="filter-guests-value">${S.hotelMinGuests>0?S.hotelMinGuests+'+ guests':'Any'}</div>
-              <input type="range" id="filter-guests-range" min="0" max="500" step="50" value="${S.hotelMinGuests||0}" oninput="onGuestsSlider(this.value)">
+            <div class="filter-range">
+              <input class="filter-input" type="number" min="0" step="1" placeholder="Min" id="filter-guests-min" value="${S.hotelMinGuests||''}" oninput="onGuestsRangeInput()">
+              <span>–</span>
+              <input class="filter-input" type="number" min="0" step="1" placeholder="Max" id="filter-guests-max" value="${S.hotelMaxGuests||''}" oninput="onGuestsRangeInput()">
             </div>
           </div>
           <div class="filter-footer">
@@ -3056,40 +3057,38 @@ function clearHotelFilters() {
   S.hotelAreaFilter = [];
   S.hotelSearch = '';
   S.hotelMinRooms = 0;
+  S.hotelMaxRooms = 0;
   S.hotelMinGuests = 0;
+  S.hotelMaxGuests = 0;
   S.hotelPage = 1;
   document.querySelectorAll('[data-city]').forEach(cb => cb.checked = false);
   document.querySelectorAll('[data-area]').forEach(cb => cb.checked = false);
-  const rr = $('filter-rooms-range'); if (rr) rr.value = 0;
-  const rv = $('filter-rooms-value'); if (rv) rv.textContent = 'Any';
-  const gr = $('filter-guests-range'); if (gr) gr.value = 0;
-  const gv = $('filter-guests-value'); if (gv) gv.textContent = 'Any';
+  const rMin = $('filter-rooms-min'); if (rMin) rMin.value = '';
+  const rMax = $('filter-rooms-max'); if (rMax) rMax.value = '';
+  const gMin = $('filter-guests-min'); if (gMin) gMin.value = '';
+  const gMax = $('filter-guests-max'); if (gMax) gMax.value = '';
   const si = $('hotel-search-input');
   if (si) si.value = '';
   loadHotels();
 }
 
-let roomsSliderTimer;
-function onRoomsSlider(val) {
-  const r = Number(val);
-  const rv = $('filter-rooms-value');
-  if (rv) rv.textContent = r>0 ? (r>=200 ? '200+ rooms' : r+'+ rooms') : 'Any';
-  clearTimeout(roomsSliderTimer);
-  roomsSliderTimer = setTimeout(() => {
-    S.hotelMinRooms = r;
+let roomsRangeTimer;
+function onRoomsRangeInput() {
+  clearTimeout(roomsRangeTimer);
+  roomsRangeTimer = setTimeout(() => {
+    S.hotelMinRooms = Number($('filter-rooms-min')?.value) || 0;
+    S.hotelMaxRooms = Number($('filter-rooms-max')?.value) || 0;
     S.hotelPage = 1;
     loadHotels();
   }, 250);
 }
 
-let guestsSliderTimer;
-function onGuestsSlider(val) {
-  const g = Number(val);
-  const gv = $('filter-guests-value');
-  if (gv) gv.textContent = g>0 ? (g>=500 ? '500+ guests' : g+'+ guests') : 'Any';
-  clearTimeout(guestsSliderTimer);
-  guestsSliderTimer = setTimeout(() => {
-    S.hotelMinGuests = g;
+let guestsRangeTimer;
+function onGuestsRangeInput() {
+  clearTimeout(guestsRangeTimer);
+  guestsRangeTimer = setTimeout(() => {
+    S.hotelMinGuests = Number($('filter-guests-min')?.value) || 0;
+    S.hotelMaxGuests = Number($('filter-guests-max')?.value) || 0;
     S.hotelPage = 1;
     loadHotels();
   }, 250);
@@ -3098,7 +3097,9 @@ function onGuestsSlider(val) {
 function applyClientFilters(hotels) {
   return hotels.filter(h => {
     if (S.hotelMinRooms > 0 && (!h.roomCount || h.roomCount < S.hotelMinRooms)) return false;
+    if (S.hotelMaxRooms > 0 && (!h.roomCount || h.roomCount > S.hotelMaxRooms)) return false;
     if (S.hotelMinGuests > 0 && (!h.guestCapacityMax || h.guestCapacityMax < S.hotelMinGuests)) return false;
+    if (S.hotelMaxGuests > 0 && (!h.guestCapacityMax || h.guestCapacityMax > S.hotelMaxGuests)) return false;
     if (S.hotelAreaFilter.length > 0 && !S.hotelAreaFilter.includes(h.area)) return false;
     return true;
   });
@@ -3112,11 +3113,11 @@ async function loadHotels() {
   const el = $('hotel-results');
   if (!el) return;
   // For multi-city, area, room or guest filters (not all combinable server-side): fetch large batch and filter client-side
-  const needClientFilter = S.hotelCityFilter.length > 1 || S.hotelMinRooms > 0 || S.hotelAreaFilter.length > 0 || S.hotelMinGuests > 0;
+  const needClientFilter = S.hotelCityFilter.length > 1 || S.hotelMinRooms > 0 || S.hotelMaxRooms > 0 || S.hotelAreaFilter.length > 0 || S.hotelMinGuests > 0 || S.hotelMaxGuests > 0;
   if (!needClientFilter && S.hotelCityFilter.length === 1) params.set('city', S.hotelCityFilter[0]);
   // Hotel data is near-static: cache each filter combination for 5 minutes so
   // revisiting the screen (or re-applying a filter) paints instantly.
-  const key = 'hotels:' + JSON.stringify([params.toString(), S.hotelCityFilter, S.hotelAreaFilter, S.hotelMinRooms, S.hotelMinGuests]);
+  const key = 'hotels:' + JSON.stringify([params.toString(), S.hotelCityFilter, S.hotelAreaFilter, S.hotelMinRooms, S.hotelMaxRooms, S.hotelMinGuests, S.hotelMaxGuests]);
   if (!cacheGet(key)) el.innerHTML = `<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>`;
   const fetcher = needClientFilter
     ? async () => {
