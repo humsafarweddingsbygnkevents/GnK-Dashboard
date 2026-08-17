@@ -267,9 +267,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 .filter-input:focus{border-color:var(--green-500);box-shadow:0 0 0 3px rgba(74,128,85,.1)}
 .filter-input[type=number]::-webkit-inner-spin-button,.filter-input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .filter-input[type=number]{-moz-appearance:textfield;appearance:textfield}
-.filter-range{display:flex;align-items:center;gap:8px}
-.filter-range .filter-input{text-align:center}
-.filter-range span{font-size:12.5px;color:#a9af9f;flex:none}
+.range-dual{display:flex;gap:16px}
+.range-dual-col{flex:1;min-width:0}
+.range-dual-val{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:10px}
+.range-dual-col input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:99px;background:var(--border);outline:none;cursor:pointer;margin:4px 0}
+.range-dual-col input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer;margin-top:-6px}
+.range-dual-col input[type=range]::-moz-range-track{height:6px;border-radius:99px;background:var(--border)}
+.range-dual-col input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold-600);border:2px solid #000;box-shadow:2px 2px 0 0 #000;cursor:pointer}
 .filter-footer{padding:14px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:9px;background:var(--cream-2)}
 
 /* input */
@@ -1804,12 +1808,12 @@ const S = {
   hotelSearch: '',
   hotelPage: 1,
   hotelMinGuests: 0,
-  hotelMaxGuests: 0,
+  hotelMaxGuests: 500,
   hotelData: null,
   hotelLoading: false,
   hotelView: 'card',
   hotelMinRooms: 0,
-  hotelMaxRooms: 0,
+  hotelMaxRooms: 200,
   // inbox
   emails: null,
   emailsNextToken: null,
@@ -2930,6 +2934,9 @@ function paintDashAbsences(absencesRes) {
 // ============================================================
 // HOTELS SCREEN
 // ============================================================
+const ROOMS_MIN = 0, ROOMS_MAX = 200, ROOMS_STEP = 10;
+const GUESTS_MIN = 0, GUESTS_MAX = 500, GUESTS_STEP = 10;
+
 async function renderHotels() {
   setContent(`
     <div class="page-header mb-5">
@@ -2963,18 +2970,28 @@ async function renderHotels() {
           </div>
           <div class="filter-section">
             <div class="filter-label">Guest Rooms</div>
-            <div class="filter-range">
-              <input class="filter-input" type="number" min="0" step="1" placeholder="Min" id="filter-rooms-min" value="${S.hotelMinRooms||''}" oninput="onRoomsRangeInput()">
-              <span>–</span>
-              <input class="filter-input" type="number" min="0" step="1" placeholder="Max" id="filter-rooms-max" value="${S.hotelMaxRooms||''}" oninput="onRoomsRangeInput()">
+            <div class="range-dual">
+              <div class="range-dual-col">
+                <div class="range-dual-val" id="filter-rooms-min-value">Min ${S.hotelMinRooms}</div>
+                <input type="range" id="filter-rooms-min" min="${ROOMS_MIN}" max="${ROOMS_MAX}" step="${ROOMS_STEP}" value="${S.hotelMinRooms}" oninput="onRoomsMinSlider(this.value)">
+              </div>
+              <div class="range-dual-col">
+                <div class="range-dual-val" id="filter-rooms-max-value">Max ${S.hotelMaxRooms}</div>
+                <input type="range" id="filter-rooms-max" min="${ROOMS_MIN}" max="${ROOMS_MAX}" step="${ROOMS_STEP}" value="${S.hotelMaxRooms}" oninput="onRoomsMaxSlider(this.value)">
+              </div>
             </div>
           </div>
           <div class="filter-section">
             <div class="filter-label">No. of Guests</div>
-            <div class="filter-range">
-              <input class="filter-input" type="number" min="0" step="1" placeholder="Min" id="filter-guests-min" value="${S.hotelMinGuests||''}" oninput="onGuestsRangeInput()">
-              <span>–</span>
-              <input class="filter-input" type="number" min="0" step="1" placeholder="Max" id="filter-guests-max" value="${S.hotelMaxGuests||''}" oninput="onGuestsRangeInput()">
+            <div class="range-dual">
+              <div class="range-dual-col">
+                <div class="range-dual-val" id="filter-guests-min-value">Min ${S.hotelMinGuests}</div>
+                <input type="range" id="filter-guests-min" min="${GUESTS_MIN}" max="${GUESTS_MAX}" step="${GUESTS_STEP}" value="${S.hotelMinGuests}" oninput="onGuestsMinSlider(this.value)">
+              </div>
+              <div class="range-dual-col">
+                <div class="range-dual-val" id="filter-guests-max-value">Max ${S.hotelMaxGuests}</div>
+                <input type="range" id="filter-guests-max" min="${GUESTS_MIN}" max="${GUESTS_MAX}" step="${GUESTS_STEP}" value="${S.hotelMaxGuests}" oninput="onGuestsMaxSlider(this.value)">
+              </div>
             </div>
           </div>
           <div class="filter-footer">
@@ -3056,50 +3073,86 @@ function clearHotelFilters() {
   S.hotelCityFilter = [];
   S.hotelAreaFilter = [];
   S.hotelSearch = '';
-  S.hotelMinRooms = 0;
-  S.hotelMaxRooms = 0;
-  S.hotelMinGuests = 0;
-  S.hotelMaxGuests = 0;
+  S.hotelMinRooms = ROOMS_MIN;
+  S.hotelMaxRooms = ROOMS_MAX;
+  S.hotelMinGuests = GUESTS_MIN;
+  S.hotelMaxGuests = GUESTS_MAX;
   S.hotelPage = 1;
   document.querySelectorAll('[data-city]').forEach(cb => cb.checked = false);
   document.querySelectorAll('[data-area]').forEach(cb => cb.checked = false);
-  const rMin = $('filter-rooms-min'); if (rMin) rMin.value = '';
-  const rMax = $('filter-rooms-max'); if (rMax) rMax.value = '';
-  const gMin = $('filter-guests-min'); if (gMin) gMin.value = '';
-  const gMax = $('filter-guests-max'); if (gMax) gMax.value = '';
+  setDualSliderUI('rooms', ROOMS_MIN, ROOMS_MAX);
+  setDualSliderUI('guests', GUESTS_MIN, GUESTS_MAX);
   const si = $('hotel-search-input');
   if (si) si.value = '';
   loadHotels();
 }
 
+// Pushes `lo`/`hi` into a filter's independent min and max sliders and their
+// own value labels — shared by the initial slider drag (see the four
+// on*Slider handlers below) and programmatic resets like clearHotelFilters.
+function setDualSliderUI(prefix, lo, hi) {
+  const minEl = $(`filter-${prefix}-min`); if (minEl) minEl.value = lo;
+  const maxEl = $(`filter-${prefix}-max`); if (maxEl) maxEl.value = hi;
+  const minVal = $(`filter-${prefix}-min-value`); if (minVal) minVal.textContent = `Min ${lo}`;
+  const maxVal = $(`filter-${prefix}-max-value`); if (maxVal) maxVal.textContent = `Max ${hi}`;
+}
+
 let roomsRangeTimer;
-function onRoomsRangeInput() {
+function commitRoomsRange(lo, hi) {
+  setDualSliderUI('rooms', lo, hi);
   clearTimeout(roomsRangeTimer);
   roomsRangeTimer = setTimeout(() => {
-    S.hotelMinRooms = Number($('filter-rooms-min')?.value) || 0;
-    S.hotelMaxRooms = Number($('filter-rooms-max')?.value) || 0;
+    S.hotelMinRooms = lo;
+    S.hotelMaxRooms = hi;
     S.hotelPage = 1;
     loadHotels();
   }, 250);
 }
+// Two independent sliders sharing one range — dragging one past the other
+// pins the other to match, so min can never end up above max.
+function onRoomsMinSlider(val) {
+  let lo = Number(val);
+  let hi = Number($('filter-rooms-max').value);
+  if (lo > hi) hi = lo;
+  commitRoomsRange(lo, hi);
+}
+function onRoomsMaxSlider(val) {
+  let hi = Number(val);
+  let lo = Number($('filter-rooms-min').value);
+  if (hi < lo) lo = hi;
+  commitRoomsRange(lo, hi);
+}
 
 let guestsRangeTimer;
-function onGuestsRangeInput() {
+function commitGuestsRange(lo, hi) {
+  setDualSliderUI('guests', lo, hi);
   clearTimeout(guestsRangeTimer);
   guestsRangeTimer = setTimeout(() => {
-    S.hotelMinGuests = Number($('filter-guests-min')?.value) || 0;
-    S.hotelMaxGuests = Number($('filter-guests-max')?.value) || 0;
+    S.hotelMinGuests = lo;
+    S.hotelMaxGuests = hi;
     S.hotelPage = 1;
     loadHotels();
   }, 250);
+}
+function onGuestsMinSlider(val) {
+  let lo = Number(val);
+  let hi = Number($('filter-guests-max').value);
+  if (lo > hi) hi = lo;
+  commitGuestsRange(lo, hi);
+}
+function onGuestsMaxSlider(val) {
+  let hi = Number(val);
+  let lo = Number($('filter-guests-min').value);
+  if (hi < lo) lo = hi;
+  commitGuestsRange(lo, hi);
 }
 
 function applyClientFilters(hotels) {
   return hotels.filter(h => {
-    if (S.hotelMinRooms > 0 && (!h.roomCount || h.roomCount < S.hotelMinRooms)) return false;
-    if (S.hotelMaxRooms > 0 && (!h.roomCount || h.roomCount > S.hotelMaxRooms)) return false;
-    if (S.hotelMinGuests > 0 && (!h.guestCapacityMax || h.guestCapacityMax < S.hotelMinGuests)) return false;
-    if (S.hotelMaxGuests > 0 && (!h.guestCapacityMax || h.guestCapacityMax > S.hotelMaxGuests)) return false;
+    if (S.hotelMinRooms > ROOMS_MIN && (!h.roomCount || h.roomCount < S.hotelMinRooms)) return false;
+    if (S.hotelMaxRooms < ROOMS_MAX && (!h.roomCount || h.roomCount > S.hotelMaxRooms)) return false;
+    if (S.hotelMinGuests > GUESTS_MIN && (!h.guestCapacityMax || h.guestCapacityMax < S.hotelMinGuests)) return false;
+    if (S.hotelMaxGuests < GUESTS_MAX && (!h.guestCapacityMax || h.guestCapacityMax > S.hotelMaxGuests)) return false;
     if (S.hotelAreaFilter.length > 0 && !S.hotelAreaFilter.includes(h.area)) return false;
     return true;
   });
@@ -3113,7 +3166,8 @@ async function loadHotels() {
   const el = $('hotel-results');
   if (!el) return;
   // For multi-city, area, room or guest filters (not all combinable server-side): fetch large batch and filter client-side
-  const needClientFilter = S.hotelCityFilter.length > 1 || S.hotelMinRooms > 0 || S.hotelMaxRooms > 0 || S.hotelAreaFilter.length > 0 || S.hotelMinGuests > 0 || S.hotelMaxGuests > 0;
+  const needClientFilter = S.hotelCityFilter.length > 1 || S.hotelMinRooms > ROOMS_MIN || S.hotelMaxRooms < ROOMS_MAX ||
+    S.hotelAreaFilter.length > 0 || S.hotelMinGuests > GUESTS_MIN || S.hotelMaxGuests < GUESTS_MAX;
   if (!needClientFilter && S.hotelCityFilter.length === 1) params.set('city', S.hotelCityFilter[0]);
   // Hotel data is near-static: cache each filter combination for 5 minutes so
   // revisiting the screen (or re-applying a filter) paints instantly.
