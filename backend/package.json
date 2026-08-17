@@ -8,6 +8,8 @@
     "dev": "node --watch src/index.js",
     "db:migrate": "npx prisma migrate dev --name init",
     "db:seed": "node prisma/seed.js",
+    "db:seed:artists": "node prisma/seedArtists.js",
+    "db:seed:vendors": "node prisma/seedVendors.js",
     "db:reset": "npx prisma migrate reset --force && node prisma/seed.js",
     "db:studio": "npx prisma studio",
     "backup:refresh": "node scripts/refreshBackup.js"

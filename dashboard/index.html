@@ -1616,6 +1616,10 @@ select.cx-in{appearance:none;-webkit-appearance:none;cursor:pointer;padding-righ
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 13v.01M9 17v.01"/></svg>
           <span class="nav-label">Hotels</span>
         </button>
+        <button class="nav-btn" data-screen="wedding" onclick="navigate('wedding')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="5"/><circle cx="16" cy="15" r="5"/><path d="M9.5 11 12 5l2.5 6"/></svg>
+          <span class="nav-label">Wedding</span>
+        </button>
         <button class="nav-btn" data-screen="inbox" onclick="navigate('inbox')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.4 5.1 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.4-6.9A2 2 0 0 0 16.8 4H7.2a2 2 0 0 0-1.8 1.1z"/></svg>
           <span class="nav-label">Inbox</span>
@@ -1816,6 +1820,22 @@ const S = {
   hotelView: 'card',
   hotelMinRooms: 0,
   hotelMaxRooms: 200,
+  // wedding: vendors & artists
+  weddingTab: 'artists',
+  artistCategories: [],
+  artistCategoryFilter: [],
+  artistPlaces: [],
+  artistPlaceFilter: [],
+  artistSearch: '',
+  artistPage: 1,
+  artistData: null,
+  vendorCategories: [],
+  vendorCategoryFilter: [],
+  vendorCities: [],
+  vendorCityFilter: [],
+  vendorSearch: '',
+  vendorPage: 1,
+  vendorData: null,
   // inbox
   emails: null,
   emailsNextToken: null,
@@ -2601,6 +2621,7 @@ const AUTH_ERROR_MESSAGES = {
 const SCREEN_PATHS = {
   dashboard: '/dashboard',
   hotels: '/hotels',
+  wedding: '/wedding',
   inbox: '/inbox',
   clients: '/clients',
   team: '/attendance',
@@ -2643,7 +2664,7 @@ function navigate(screen, { push = true, replace = false } = {}) {
       b.insertBefore(bar, b.firstChild);
     } else if (!isActive && bar) bar.remove();
   });
-  const renders = { dashboard: renderDashboard, hotels: renderHotels, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance, reminders: renderReminders, feedback: renderFeedback };
+  const renders = { dashboard: renderDashboard, hotels: renderHotels, wedding: renderWedding, inbox: renderInbox, clients: renderClients, hwoli: renderHwoli, settings: renderSettings, team: renderTeam, attendance: renderAttendance, reminders: renderReminders, feedback: renderFeedback };
   (renders[screen] || (S.admin?.role === 'employee' ? renderAttendance : renderDashboard))();
 }
 
@@ -3320,6 +3341,471 @@ function closeDrawer() {
   if (overlay) overlay.classList.add('closing');
   if (panel) panel.classList.add('closing');
   (panel || overlay).addEventListener('animationend', () => { c.innerHTML = ''; }, { once: true });
+}
+
+// ============================================================
+// WEDDING SCREEN (Vendors & Artists)
+// ============================================================
+function setWeddingTab(tab) {
+  S.weddingTab = tab;
+  renderWedding();
+}
+
+async function renderWedding() {
+  setContent(`
+    <div class="page-header mb-5">
+      <div>
+        <div class="page-title">Wedding</div>
+        <div class="page-sub">Vendors and performers for every wedding, in one place</div>
+      </div>
+      <div class="tabs">
+        <button class="tab ${S.weddingTab==='vendors'?'active':''}" onclick="setWeddingTab('vendors')">Vendors</button>
+        <button class="tab ${S.weddingTab==='artists'?'active':''}" onclick="setWeddingTab('artists')">Artists</button>
+      </div>
+    </div>
+    <div id="wedding-tab-body"></div>
+  `);
+  if (S.weddingTab === 'artists') renderArtistsTab();
+  else renderVendorsTab();
+}
+
+async function renderVendorsTab() {
+  const el = $('wedding-tab-body');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="flex gap-4" style="min-height:0">
+      <!-- Filter panel -->
+      <div style="width:268px;flex:none">
+        <div class="filter-panel">
+          <div class="dash-panel-head" style="padding:16px 20px">
+            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>Filters</span>
+          </div>
+          <div class="filter-section">
+            <div class="filter-label">Vendor Category</div>
+            <div id="vendor-category-filters"><div class="spinner" style="margin:8px auto;display:block"></div></div>
+          </div>
+          <div class="filter-section">
+            <div class="filter-label">City</div>
+            <div id="vendor-city-filters"><div class="spinner" style="margin:8px auto;display:block"></div></div>
+          </div>
+          <div class="filter-footer">
+            <button class="btn btn-ghost w-full" onclick="clearVendorFilters()" style="font-size:12.5px;justify-content:center">Clear all filters</button>
+          </div>
+        </div>
+      </div>
+      <!-- Results -->
+      <div style="flex:1;min-width:0">
+        <div class="flex items-center gap-2 mb-4">
+          <label class="topbar-search" style="flex:1;max-width:none;height:38px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" placeholder="Search vendors or contacts…" id="vendor-search-input" oninput="onVendorSearch(this.value)" value="${esc(S.vendorSearch)}">
+          </label>
+        </div>
+        <div id="vendor-results"><div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div></div>
+        <div id="vendor-pagination" class="flex items-center justify-between mt-5" style="display:none!important"></div>
+      </div>
+    </div>
+  `;
+  // Load vendor categories + cities for filters (cached — both rarely change)
+  try {
+    const { data: categories } = await apiCached('/api/vendors/categories', 300000);
+    S.vendorCategories = categories || [];
+    const cf = $('vendor-category-filters');
+    if (cf) cf.innerHTML = categories.map(c=>`
+      <label class="filter-check">
+        <input type="checkbox" data-vendor-category="${esc(c.name)}" onchange="toggleVendorCategoryFilter('${esc(c.name)}')" ${S.vendorCategoryFilter.includes(c.name)?'checked':''}>
+        ${esc(c.name)} <span class="count">${c.vendorCount}</span>
+      </label>`).join('');
+  } catch(e) {
+    const cf = $('vendor-category-filters');
+    if (cf) cf.innerHTML = '<p class="text-sm text-muted">Could not load categories</p>';
+  }
+  try {
+    const { data: cities } = await apiCached('/api/vendors/cities', 300000);
+    S.vendorCities = cities || [];
+    const ctf = $('vendor-city-filters');
+    if (ctf) ctf.innerHTML = cities.map(c=>`
+      <label class="filter-check">
+        <input type="checkbox" data-vendor-city="${esc(c.name)}" onchange="toggleVendorCityFilter('${esc(c.name)}')" ${S.vendorCityFilter.includes(c.name)?'checked':''}>
+        ${esc(c.name)} <span class="count">${c.vendorCount}</span>
+      </label>`).join('');
+  } catch(e) {
+    const ctf = $('vendor-city-filters');
+    if (ctf) ctf.innerHTML = '<p class="text-sm text-muted">Could not load cities</p>';
+  }
+  loadVendors();
+}
+
+let vendorSearchTimer;
+function onVendorSearch(val) {
+  S.vendorSearch = val;
+  S.vendorPage = 1;
+  clearTimeout(vendorSearchTimer);
+  vendorSearchTimer = setTimeout(loadVendors, 350);
+}
+
+function toggleVendorCategoryFilter(cat) {
+  const idx = S.vendorCategoryFilter.indexOf(cat);
+  if (idx === -1) S.vendorCategoryFilter.push(cat); else S.vendorCategoryFilter.splice(idx,1);
+  S.vendorPage = 1;
+  loadVendors();
+}
+
+function toggleVendorCityFilter(city) {
+  const idx = S.vendorCityFilter.indexOf(city);
+  if (idx === -1) S.vendorCityFilter.push(city); else S.vendorCityFilter.splice(idx,1);
+  S.vendorPage = 1;
+  loadVendors();
+}
+
+function clearVendorFilters() {
+  S.vendorCategoryFilter = [];
+  S.vendorCityFilter = [];
+  S.vendorSearch = '';
+  S.vendorPage = 1;
+  document.querySelectorAll('[data-vendor-category]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('[data-vendor-city]').forEach(cb => cb.checked = false);
+  const si = $('vendor-search-input');
+  if (si) si.value = '';
+  loadVendors();
+}
+
+let loadVendorsSeq = 0;
+async function loadVendors() {
+  const seq = ++loadVendorsSeq; // rapid filter clicks: only the latest query may paint
+  const params = new URLSearchParams({ page: S.vendorPage, limit: 50 });
+  if (S.vendorSearch) params.set('search', S.vendorSearch);
+  S.vendorCategoryFilter.forEach(c => params.append('category', c));
+  S.vendorCityFilter.forEach(c => params.append('city', c));
+  const el = $('vendor-results');
+  if (!el) return;
+  const key = 'vendors:' + params.toString();
+  if (!cacheGet(key)) el.innerHTML = `<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>`;
+  swr(key, 300000, () => api('/api/vendors?' + params), (data) => {
+    if (seq !== loadVendorsSeq || S.screen !== 'wedding' || S.weddingTab !== 'vendors') return;
+    S.vendorData = data;
+    renderVendorResults(data);
+  }, (e) => {
+    if (seq !== loadVendorsSeq) return;
+    const el2 = $('vendor-results');
+    if (el2) el2.innerHTML = `<div class="empty"><p>Error: ${esc(e.message)}</p></div>`;
+  });
+}
+
+function renderVendorResults(data) {
+  const el = $('vendor-results');
+  if (!el) return;
+  const vendors = data?.data || [];
+  const meta = data?.meta || {};
+  if (!vendors.length) {
+    el.innerHTML = `<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M20 7h-3a2 2 0 0 1-2-2V2M9 22h6a2 2 0 0 0 2-2v-6.5a3.5 3.5 0 0 0-3.5-3.5h-3A3.5 3.5 0 0 0 7 13.5V20a2 2 0 0 0 2 2z"/><circle cx="12" cy="7" r="4"/></svg><p>No vendors found</p></div>`;
+    return;
+  }
+  // Card shows Company, Person Contacted Name, Primary/Secondary Phone and
+  // category tags — everything else (address, remark, service detail) lives
+  // in the drawer only.
+  el.innerHTML = `<div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start">${vendors.map(v=>`
+    <div class="hotel-card" onclick="openVendorDrawer(${v.id})">
+      <div class="hotel-name">${esc(v.company)}</div>
+      ${line('Contact Person', v.personContactedName)}
+      ${line('Primary Phone', v.primaryPhone)}
+      ${line('Secondary Phone', v.secondaryPhone)}
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        ${(v.categories||[]).map(c=>`<span class="hotel-pill">${esc(c)}</span>`).join('')}
+      </div>
+      <div class="hotel-divider"></div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-detail" style="flex:1;justify-content:center;padding:9px;font-size:12.5px" onclick="event.stopPropagation();openVendorDrawer(${v.id})">View details</button>
+        ${hasVal(v.primaryPhone||v.secondaryPhone)?`<a href="tel:${esc(v.primaryPhone||v.secondaryPhone)}" title="Call" class="btn-icon" style="border:1px solid var(--green-200);background:var(--green-50);color:var(--green-700);flex:none" onclick="event.stopPropagation()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:''}
+      </div>
+    </div>`).join('')}</div>`;
+  // pagination
+  const pg = $('vendor-pagination');
+  if (pg && meta.totalPages > 1) {
+    pg.style.display = 'flex';
+    pg.innerHTML = `
+      <span class="text-sm text-muted">${meta.total} vendors · Page ${meta.page} of ${meta.totalPages}</span>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm" onclick="vendorPage(${meta.page-1})" ${meta.page<=1?'disabled':''}>← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="vendorPage(${meta.page+1})" ${meta.page>=meta.totalPages?'disabled':''}>Next →</button>
+      </div>`;
+  } else if (pg) pg.style.display = 'none';
+}
+
+function vendorPage(p) { S.vendorPage = p; loadVendors(); }
+
+async function openVendorDrawer(id) {
+  const dc = $('drawer-container');
+  dc.innerHTML = `<div class="drawer-overlay" onclick="closeDrawer()"></div><div class="drawer" style="padding:28px"><div class="spinner" style="margin:40px auto;display:block"></div></div>`;
+  try {
+    const v = await api('/api/vendors/'+id);
+
+    const contactLines = [
+      hasVal(v.personContactedName) ? `<div class="text-sm mb-1">${esc(v.personContactedName)}</div>` : '',
+      hasVal(v.primaryPhone) ? `<div class="text-sm mb-1">${ICO_PHONE} ${esc(v.primaryPhone)}</div>` : '',
+      hasVal(v.secondaryPhone) ? `<div class="text-sm mb-1">${ICO_PHONE} ${esc(v.secondaryPhone)}</div>` : '',
+    ].join('');
+
+    const categoryPills = (v.categories||[]).map(c=>`<span class="hotel-pill">${esc(c)}</span>`).join('');
+
+    const textBlock = (label, value) => `<div class="mb-5"><div class="label mb-2">${label}</div><div style="background:var(--cream-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.65;color:var(--text-2);white-space:pre-wrap">${esc(value)}</div></div>`;
+
+    dc.querySelector('.drawer').innerHTML = `
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <div style="font-family:Fraunces,serif;font-size:22px;font-weight:600">${esc(v.company)}</div>
+          <div class="text-muted text-sm">${esc(v.city || '')}</div>
+        </div>
+        <button class="btn btn-ghost btn-icon" onclick="closeDrawer()">${ICO_CLOSE}</button>
+      </div>
+      ${categoryPills ? `<div class="flex gap-2 mb-5" style="flex-wrap:wrap">${categoryPills}</div>` : ''}
+      ${contactLines ? `<div class="mb-5"><div class="label mb-2">Contact</div>${contactLines}</div>` : ''}
+      ${hasVal(v.serviceDetail) ? textBlock('Services', v.serviceDetail) : ''}
+      ${hasVal(v.address) ? textBlock('Address', v.address) : ''}
+      ${hasVal(v.remark) ? textBlock('Remark', v.remark) : ''}
+    `;
+  } catch(e) {
+    dc.querySelector('.drawer').innerHTML = `<div class="empty"><p>Failed to load vendor: ${esc(e.message)}</p></div>`;
+  }
+}
+
+async function renderArtistsTab() {
+  const el = $('wedding-tab-body');
+  if (!el) return;
+  el.innerHTML = `
+    <div class="flex gap-4" style="min-height:0">
+      <!-- Filter panel -->
+      <div style="width:268px;flex:none">
+        <div class="filter-panel">
+          <div class="dash-panel-head" style="padding:16px 20px">
+            <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/></svg></span>Filters</span>
+          </div>
+          <div class="filter-section">
+            <div class="filter-label">Artist Type</div>
+            <div id="artist-category-filters"><div class="spinner" style="margin:8px auto;display:block"></div></div>
+          </div>
+          <div class="filter-section">
+            <div class="filter-label">City</div>
+            <div id="artist-place-filters"><div class="spinner" style="margin:8px auto;display:block"></div></div>
+          </div>
+          <div class="filter-footer">
+            <button class="btn btn-ghost w-full" onclick="clearArtistFilters()" style="font-size:12.5px;justify-content:center">Clear all filters</button>
+          </div>
+        </div>
+      </div>
+      <!-- Results -->
+      <div style="flex:1;min-width:0">
+        <div class="flex items-center gap-2 mb-4">
+          <label class="topbar-search" style="flex:1;max-width:none;height:38px">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" placeholder="Search artists or agencies…" id="artist-search-input" oninput="onArtistSearch(this.value)" value="${esc(S.artistSearch)}">
+          </label>
+        </div>
+        <div id="artist-results"><div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div></div>
+        <div id="artist-pagination" class="flex items-center justify-between mt-5" style="display:none!important"></div>
+      </div>
+    </div>
+  `;
+  // Load artist types + cities for filters (cached — both rarely change)
+  try {
+    const { data: categories } = await apiCached('/api/artists/categories', 300000);
+    S.artistCategories = categories || [];
+    const cf = $('artist-category-filters');
+    if (cf) cf.innerHTML = categories.map(c=>`
+      <label class="filter-check">
+        <input type="checkbox" data-artist-category="${esc(c.name)}" onchange="toggleArtistCategoryFilter('${esc(c.name)}')" ${S.artistCategoryFilter.includes(c.name)?'checked':''}>
+        ${esc(c.name)} <span class="count">${c.artistCount}</span>
+      </label>`).join('');
+  } catch(e) {
+    const cf = $('artist-category-filters');
+    if (cf) cf.innerHTML = '<p class="text-sm text-muted">Could not load artist types</p>';
+  }
+  try {
+    const { data: places } = await apiCached('/api/artists/places', 300000);
+    S.artistPlaces = places || [];
+    const pf = $('artist-place-filters');
+    if (pf) pf.innerHTML = places.map(p=>`
+      <label class="filter-check">
+        <input type="checkbox" data-artist-place="${esc(p.name)}" onchange="toggleArtistPlaceFilter('${esc(p.name)}')" ${S.artistPlaceFilter.includes(p.name)?'checked':''}>
+        ${esc(p.name)} <span class="count">${p.artistCount}</span>
+      </label>`).join('');
+  } catch(e) {
+    const pf = $('artist-place-filters');
+    if (pf) pf.innerHTML = '<p class="text-sm text-muted">Could not load cities</p>';
+  }
+  loadArtists();
+}
+
+let artistSearchTimer;
+function onArtistSearch(val) {
+  S.artistSearch = val;
+  S.artistPage = 1;
+  clearTimeout(artistSearchTimer);
+  artistSearchTimer = setTimeout(loadArtists, 350);
+}
+
+function toggleArtistCategoryFilter(cat) {
+  const idx = S.artistCategoryFilter.indexOf(cat);
+  if (idx === -1) S.artistCategoryFilter.push(cat); else S.artistCategoryFilter.splice(idx,1);
+  S.artistPage = 1;
+  loadArtists();
+}
+
+function toggleArtistPlaceFilter(place) {
+  const idx = S.artistPlaceFilter.indexOf(place);
+  if (idx === -1) S.artistPlaceFilter.push(place); else S.artistPlaceFilter.splice(idx,1);
+  S.artistPage = 1;
+  loadArtists();
+}
+
+function clearArtistFilters() {
+  S.artistCategoryFilter = [];
+  S.artistPlaceFilter = [];
+  S.artistSearch = '';
+  S.artistPage = 1;
+  document.querySelectorAll('[data-artist-category]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('[data-artist-place]').forEach(cb => cb.checked = false);
+  const si = $('artist-search-input');
+  if (si) si.value = '';
+  loadArtists();
+}
+
+let loadArtistsSeq = 0;
+async function loadArtists() {
+  const seq = ++loadArtistsSeq; // rapid filter clicks: only the latest query may paint
+  const params = new URLSearchParams({ page: S.artistPage, limit: 50 });
+  if (S.artistSearch) params.set('search', S.artistSearch);
+  S.artistCategoryFilter.forEach(c => params.append('category', c));
+  S.artistPlaceFilter.forEach(p => params.append('place', p));
+  const el = $('artist-results');
+  if (!el) return;
+  const key = 'artists:' + params.toString();
+  if (!cacheGet(key)) el.innerHTML = `<div style="display:flex;justify-content:center;padding:40px"><div class="spinner"></div></div>`;
+  swr(key, 300000, () => api('/api/artists?' + params), (data) => {
+    if (seq !== loadArtistsSeq || S.screen !== 'wedding' || S.weddingTab !== 'artists') return;
+    S.artistData = data;
+    renderArtistResults(data);
+  }, (e) => {
+    if (seq !== loadArtistsSeq) return;
+    const el2 = $('artist-results');
+    if (el2) el2.innerHTML = `<div class="empty"><p>Error: ${esc(e.message)}</p></div>`;
+  });
+}
+
+function renderArtistResults(data) {
+  const el = $('artist-results');
+  if (!el) return;
+  const artists = data?.data || [];
+  const meta = data?.meta || {};
+  if (!artists.length) {
+    el.innerHTML = `<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="15" r="5"/><circle cx="16" cy="15" r="5"/><path d="M9.5 11 12 5l2.5 6"/></svg><p>No artists found</p></div>`;
+    return;
+  }
+  // Card shows Name, Agency, Budget and the artist's own phone (when
+  // available) — every other field (category, place, gender, links, tech
+  // rider…) lives in the drawer only, since which fields exist at all
+  // varies by sheet/category.
+  el.innerHTML = `<div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start">${artists.map(a=>`
+    <div class="hotel-card" onclick="openArtistDrawer(${a.id})">
+      <div class="hotel-name">${esc(a.name)}</div>
+      ${line('Agency', a.agencyName)}
+      ${line('Contact', a.phone)}
+      <div class="flex gap-2" style="flex-wrap:wrap">
+        ${hasVal(a.budget)?`<span class="hotel-pill"><span class="pill-accent">₹</span>${esc(a.budget)}</span>`:''}
+      </div>
+      <div class="hotel-divider"></div>
+      <div class="flex items-center gap-2">
+        <button class="btn btn-detail" style="flex:1;justify-content:center;padding:9px;font-size:12.5px" onclick="event.stopPropagation();openArtistDrawer(${a.id})">View details</button>
+        ${hasVal(a.phone)?`<a href="tel:${esc(a.phone)}" title="Call" class="btn-icon" style="border:1px solid var(--green-200);background:var(--green-50);color:var(--green-700);flex:none" onclick="event.stopPropagation()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:''}
+      </div>
+    </div>`).join('')}</div>`;
+  // pagination
+  const pg = $('artist-pagination');
+  if (pg && meta.totalPages > 1) {
+    pg.style.display = 'flex';
+    pg.innerHTML = `
+      <span class="text-sm text-muted">${meta.total} artists · Page ${meta.page} of ${meta.totalPages}</span>
+      <div class="flex gap-2">
+        <button class="btn btn-ghost btn-sm" onclick="artistPage(${meta.page-1})" ${meta.page<=1?'disabled':''}>← Prev</button>
+        <button class="btn btn-ghost btn-sm" onclick="artistPage(${meta.page+1})" ${meta.page>=meta.totalPages?'disabled':''}>Next →</button>
+      </div>`;
+  } else if (pg) pg.style.display = 'none';
+}
+
+function artistPage(p) { S.artistPage = p; loadArtists(); }
+
+async function openArtistDrawer(id) {
+  const dc = $('drawer-container');
+  dc.innerHTML = `<div class="drawer-overlay" onclick="closeDrawer()"></div><div class="drawer" style="padding:28px"><div class="spinner" style="margin:40px auto;display:block"></div></div>`;
+  try {
+    const a = await api('/api/artists/'+id);
+
+    const stats = [
+      hasVal(a.budget) ? ['Budget', esc(a.budget), 'var(--gold-600)'] : null,
+      hasVal(a.budgetNote) ? ['Additional Rate', esc(a.budgetNote), 'var(--text)'] : null,
+      hasVal(a.peopleTraveling) ? ['Traveling Party', esc(a.peopleTraveling), 'var(--green-700)'] : null,
+    ].filter(Boolean).map(([label,val,accent])=>
+      `<div style="background:#fff;border:1px solid rgba(35,41,31,.05);border-radius:14px;box-shadow:var(--soft);padding:14px 16px">
+        <div class="stat-label">${label}</div>
+        <div style="font-family:Fraunces,serif;font-size:20px;font-weight:600;margin-top:4px;color:${accent}">${val}</div>
+      </div>`
+    ).join('');
+
+    const contactLines = [
+      hasVal(a.phone) ? `<div class="text-sm mb-1">${ICO_PHONE} ${esc(a.phone)}</div>` : '',
+      hasVal(a.gender) ? `<div class="text-sm mb-1">${esc(a.gender)}</div>` : '',
+    ].join('');
+
+    const agencyLines = [
+      hasVal(a.agencyName) ? `<div class="text-sm mb-1">${esc(a.agencyName)}</div>` : '',
+      hasVal(a.agencyPhone) ? `<div class="text-sm mb-1">${ICO_PHONE} ${esc(a.agencyPhone)}</div>` : '',
+    ].join('');
+
+    // Insta/Drive links and, on ~60% of rows, Tech Rider/Additional Info too
+    // (the sheet reuses those two free-text columns for a Drive link
+    // whenever there's no proper spec sheet) — render whichever of the four
+    // hold a URL as a link chip, and whichever hold prose as a readable
+    // text block, instead of assuming Tech Rider/Additional Info are always text.
+    const isUrlLike = (v) => hasVal(v) && /^https?:\/\//i.test(v.trim());
+    const chipLabelFor = (url, fallback) => {
+      try {
+        const host = new URL(url).hostname.replace(/^www\./, '');
+        if (host.includes('drive.google')) return 'Drive Folder';
+        if (host.includes('instagram')) return 'Instagram';
+        if (host.includes('youtu')) return 'YouTube';
+        if (host.includes('tr.ee') || host.includes('linktr.ee')) return 'Linktree';
+        return fallback;
+      } catch (_) { return fallback; }
+    };
+    const ICO_LINK = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><path d="M15 3h6v6"/><path d="M10 14 21 3"/></svg>';
+    const linkChip = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()" style="display:inline-flex;align-items:center;gap:6px;background:var(--green-50);border:1px solid var(--green-200);color:var(--green-700);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;text-decoration:none">${ICO_LINK}${esc(label)}</a>`;
+    const textBlock = (label, value) => `<div class="mb-5"><div class="label mb-2">${label}</div><div style="background:var(--cream-2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;font-size:13px;line-height:1.65;color:var(--text-2);white-space:pre-wrap">${esc(value)}</div></div>`;
+
+    const linkChips = [
+      hasVal(a.instagramLink) ? linkChip(a.instagramLink, 'Instagram') : '',
+      hasVal(a.driveLink) ? linkChip(a.driveLink, chipLabelFor(a.driveLink, 'Drive Folder')) : '',
+      isUrlLike(a.techRider) ? linkChip(a.techRider, chipLabelFor(a.techRider, 'Tech Rider')) : '',
+      isUrlLike(a.additionalInfo) ? linkChip(a.additionalInfo, chipLabelFor(a.additionalInfo, 'More Info')) : '',
+    ].filter(Boolean).join('');
+
+    dc.querySelector('.drawer').innerHTML = `
+      <div class="flex items-center justify-between mb-5">
+        <div>
+          <div style="font-family:Fraunces,serif;font-size:22px;font-weight:600">${esc(a.name)}</div>
+          <div class="text-muted text-sm">${esc([a.category, a.place].filter(Boolean).join(' · '))}</div>
+        </div>
+        <button class="btn btn-ghost btn-icon" onclick="closeDrawer()">${ICO_CLOSE}</button>
+      </div>
+      ${stats ? `<div class="grid grid-2 gap-3 mb-5">${stats}</div>` : ''}
+      ${contactLines ? `<div class="mb-5"><div class="label mb-2">Artist Contact</div>${contactLines}</div>` : ''}
+      ${agencyLines ? `<div class="mb-5"><div class="label mb-2">Manager / Agency</div>${agencyLines}</div>` : ''}
+      ${hasVal(a.techRider) && !isUrlLike(a.techRider) ? textBlock('Tech Rider', a.techRider) : ''}
+      ${hasVal(a.additionalInfo) && !isUrlLike(a.additionalInfo) ? textBlock('Additional Info', a.additionalInfo) : ''}
+      ${linkChips ? `<div class="mb-1"><div class="label mb-2">Links</div><div class="flex gap-2" style="flex-wrap:wrap">${linkChips}</div></div>` : ''}
+    `;
+  } catch(e) {
+    dc.querySelector('.drawer').innerHTML = `<div class="empty"><p>Failed to load artist: ${esc(e.message)}</p></div>`;
+  }
 }
 
 // ============================================================

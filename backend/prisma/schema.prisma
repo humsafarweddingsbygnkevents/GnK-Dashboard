@@ -55,6 +55,69 @@ model Hotel {
   @@index([area])
 }
 
+// Modeled on the performer roster the team maintains in "Artist Data.xlsx" —
+// one sheet per artist type (Bollywood & Punjabi Singer, Male DJ, Female
+// Anchor, Make up Artist, …). `category` holds that sheet name and is the
+// "artist type" checkbox filter; `place` is free text (performers are based
+// out of cities across India, not just Jim Corbett) and is the city filter.
+// Like Hotel, this is read-only to the app — source of truth is the sheet,
+// reloaded via prisma/seedArtists.js.
+model Artist {
+  id                Int      @id @default(autoincrement())
+  category          String
+  name              String
+  phone             String?
+  gender            String?
+  place             String?
+  agencyName        String?
+  agencyPhone       String?
+  // Primary asking price ("Budget" / "Wedding Budget" / "Per Event Budget"
+  // depending on the sheet).
+  budget            String?
+  // Secondary rate some sheets quote alongside the primary one ("Club Shows
+  // Budget", "2 days 4 show budget") — free text, shown in the detail view
+  // only, not on the card.
+  budgetNote        String?
+  peopleTraveling   String?
+  instagramLink     String?
+  driveLink         String?
+  techRider         String?
+  additionalInfo    String?
+  source            String   @default("artist-sheet")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([category])
+  @@index([place])
+}
+
+// Modeled on the wedding-vendor contact sheet the team maintains in "Merged
+// vendor list.xlsx" — one row per company, one column per service category
+// (Wedding Planner, Décor, Caterer, DJ/Dhol, Photographer). A vendor can
+// offer more than one service (e.g. décor + catering), so `categories` is a
+// canonical (column-header) tag list rather than a single value, and the raw
+// cell text some columns carry beyond the header (e.g. "DJ on wheels,
+// Vintage cars,sfx") is kept as `serviceDetail`. Like Hotel/Artist, this is
+// read-only to the app — source of truth is the sheet, reloaded via
+// prisma/seedVendors.js.
+model Vendor {
+  id                  Int      @id @default(autoincrement())
+  categories          String[]
+  serviceDetail       String?
+  company             String
+  personContactedName String?
+  primaryPhone        String?
+  secondaryPhone      String?
+  address             String?
+  city                String?
+  remark              String?
+  source              String   @default("vendor-sheet")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([city])
+}
+
 model GoogleAccount {
   id           Int       @id @default(autoincrement())
   email        String    @unique

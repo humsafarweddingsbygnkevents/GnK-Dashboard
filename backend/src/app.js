@@ -21,6 +21,8 @@ if (fs.existsSync(envPath)) {
 const express = require('express');
 const cookieParser = require('cookie-parser');
 const hotelsRouter = require('./routes/hotels');
+const artistsRouter = require('./routes/artists');
+const vendorsRouter = require('./routes/vendors');
 const citiesRouter = require('./routes/cities');
 const clientsRouter = require('./routes/clients');
 const authRouter = require('./routes/auth');
@@ -120,6 +122,8 @@ app.use('/api/feedback', feedbackRouter);
 app.use('/api/employees', requireAdmin, employeesRouter);
 app.use('/api/clients', clientsRouter);
 app.use('/api/hotels', hotelsRouter);
+app.use('/api/artists', artistsRouter);
+app.use('/api/vendors', vendorsRouter);
 app.use('/api/cities', citiesRouter);
 app.use('/api/gmail', gmailRouter);
 app.use('/api/mail', mailRouter);
