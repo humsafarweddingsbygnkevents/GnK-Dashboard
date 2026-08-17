@@ -19,9 +19,9 @@ const STATUSES = ['in_progress', 'completed', 'blocked', 'on_leave'];
 // Self-service days-off cap — must match ATT_OFF_MAX in dashboard/index.html.
 const ATT_OFF_MAX = 5;
 
-// Accounts on a Mon–Fri week instead of the company default Mon–Sat —
-// Saturday counts as a day off for them (never "absent"). Add employee ids
-// here as needed.
+// Accounts on a Mon–Fri week instead of the default every-day week — both
+// Saturday and Sunday count as a day off for them (never "absent"). Add
+// employee ids here as needed.
 const MON_FRI_EMPLOYEE_IDS = new Set([]);
 const MON_FRI_WEEKDAYS = new Set([1, 2, 3, 4, 5]);
 

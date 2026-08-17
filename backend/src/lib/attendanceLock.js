@@ -4,9 +4,11 @@
 //
 // Each day's attendance locks at 20:00 IST. After that, an employee can no
 // longer add/edit/delete entries for that day unless an admin has "reopened"
-// it (an AttendanceUnlock row). A working day (Mon–Sat) that passed its
-// deadline with no entry logged is counted "Absent"; Sundays are off and are
-// never absent. India observes no DST, so IST is a fixed UTC+5:30 all year.
+// it (an AttendanceUnlock row). There is no company-set weekly off — every
+// day (Sunday included) is a working day that passed its deadline with no
+// entry logged is counted "Absent"; an employee instead self-selects up to
+// ATT_OFF_MAX days off a month (see `offDates`, routes/attendance.js). India
+// observes no DST, so IST is a fixed UTC+5:30 all year.
 //
 // A reopening is only good for UNLOCK_WINDOW_MIN (60 minutes) from the moment
 // the admin opens it — past that it expires on its own and the day locks
@@ -34,13 +36,16 @@ function todayIST(now = new Date()) {
   return istNow(now).date;
 }
 
-// Mon–Sat count by default; Sunday (getUTCDay() === 0) is always off. Some
-// accounts work a Mon–Fri week instead — pass their `workWeekdays` (a Set of
-// getUTCDay() values, e.g. {1,2,3,4,5}) to exclude Saturday too. Parsed as
-// UTC midnight so the weekday doesn't drift with the server's timezone.
+// Every day counts as a working day by default, Sunday included — there is
+// no company-set weekly off; employees self-select their own days off
+// instead (see `offDates` in computeDayStatuses). Some accounts work a
+// narrower week instead — pass their `workWeekdays` (a Set of getUTCDay()
+// values, e.g. {1,2,3,4,5} for Mon–Fri) to exclude the rest. Parsed as UTC
+// midnight so the weekday doesn't drift with the server's timezone.
 function isWorkingDay(dateStr, workWeekdays) {
+  if (!workWeekdays) return true;
   const wd = new Date(`${dateStr}T00:00:00Z`).getUTCDay();
-  return workWeekdays ? workWeekdays.has(wd) : wd !== 0;
+  return workWeekdays.has(wd);
 }
 
 // Has this date's 20:00 IST deadline passed? Past dates: always. Today: only
@@ -89,7 +94,7 @@ function weekdayLabel(dateStr) {
 // Per-day status for the attendance sheet. `entriesByDate` maps date -> count,
 // `unlockedDates` is a Set of reopened dates, `joinDate` is the employee's
 // first expected day (their account creation date, IST). `workWeekdays`
-// overrides the default Mon–Sat week for accounts on a Mon–Fri schedule (see
+// narrows the default every-day week for accounts on a Mon–Fri schedule (see
 // MON_FRI_EMPLOYEE_IDS in routes/attendance.js). Days before `joinDate` are
 // dropped from the result entirely, for every employee alike — there is
 // nothing to say about a day before their account existed, not even "off"
@@ -106,8 +111,9 @@ function weekdayLabel(dateStr) {
 //   pending  — working day, deadline not yet passed, nothing logged
 //   unlocked — deadline passed but an admin reopened it; awaiting a fresh entry
 //   absent   — working day, deadline passed, nothing logged, not reopened
-//   off      — non-working day (e.g. a Sunday), or a working day the employee
-//              chose as a day off (see `offDates`), on or after they joined
+//   off      — a working day the employee chose as a day off (see
+//              `offDates`), on or after they joined — or, for accounts on a
+//              narrower `workWeekdays`, a day outside that week
 //
 // `reopenedAt` (date -> when the unlock was created) drives two things: it is
 // how a day's `unlocked` flag itself is derived — a raw AttendanceUnlock row
