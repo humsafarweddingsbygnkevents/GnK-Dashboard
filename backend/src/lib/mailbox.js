@@ -2,7 +2,9 @@
 
 const { ImapFlow } = require('imapflow');
 const nodemailer = require('nodemailer');
+const MailComposer = require('nodemailer/lib/mail-composer');
 const { simpleParser } = require('mailparser');
+const { randomUUID } = require('crypto');
 
 // Known providers → default IMAP/SMTP hosts so the user only needs to type
 // their email + password. 'custom' lets them enter hosts manually.
@@ -365,11 +367,34 @@ async function moveToTrash({ imapHost, imapPort, email, password }, uid, view = 
   }
 }
 
+// Builds the MIME message just handed to sendMail and appends a copy into the
+// account's Sent folder (whatever it's actually named — see findFolder).
+// Unlike Gmail's API, which files a SENT copy server-side automatically,
+// plain SMTP submission never does this — it's normally the *client's* job
+// (Outlook/Apple Mail/webmail all append to Sent themselves after a
+// successful send), and until now nothing here did it either. Best-effort:
+// the message has already gone out over SMTP by the time this runs, so a
+// failure here must not surface as a failed send — see the caller.
+async function appendToSent({ imapHost, imapPort, email, password }, mailOptions) {
+  const raw = await new Promise((resolve, reject) => {
+    new MailComposer(mailOptions).compile().build((err, msg) => (err ? reject(err) : resolve(msg)));
+  });
+  const client = makeImapClient({ imapHost, imapPort, email, password });
+  await client.connect();
+  try {
+    const path = await findFolder(client, 'sent');
+    if (!path) return; // account exposes no Sent-like folder — nothing to append to
+    await client.append(path, raw, ['\\Seen']);
+  } finally {
+    try { await client.logout(); } catch (_) {}
+  }
+}
+
 // Send a message over SMTP for a non-Gmail (IMAP) account. `attachments` are
 // already nodemailer-shaped ({ filename, content: Buffer, contentType, cid,
 // contentDisposition }) — see normalizeAttachments in lib/forward.js — so an
 // inline cid: image forwarded from an original still resolves in the HTML.
-async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, cc, subject, body, html, attachments, inReplyTo, references }) {
+async function sendSmtp({ imapHost, imapPort, smtpHost, smtpPort, email, password }, { to, cc, subject, body, html, attachments, inReplyTo, references }) {
   const port = Number(smtpPort) || 465;
   const transporter = nodemailer.createTransport({
     host: smtpHost,
@@ -383,7 +408,7 @@ async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, cc, subje
     greetingTimeout: 15000,
     socketTimeout: 120000,
   });
-  const info = await transporter.sendMail({
+  const mailOptions = {
     from: email,
     to,
     ...(cc ? { cc } : {}),
@@ -394,7 +419,18 @@ async function sendSmtp({ smtpHost, smtpPort, email, password }, { to, cc, subje
     ...(inReplyTo ? { inReplyTo } : {}),
     ...(references ? { references } : {}),
     attachments: Array.isArray(attachments) ? attachments : [],
-  });
+    // Generated up front (rather than left to nodemailer) so the Sent-folder
+    // copy below carries the identical Message-Id as what actually went out.
+    messageId: `<${randomUUID()}@${email.split('@')[1] || 'localhost'}>`,
+  };
+  const info = await transporter.sendMail(mailOptions);
+
+  try {
+    await appendToSent({ imapHost, imapPort, email, password }, mailOptions);
+  } catch (err) {
+    console.error(`[mail] Could not save sent copy to Sent folder for ${email}:`, err.message);
+  }
+
   return info.messageId;
 }
 

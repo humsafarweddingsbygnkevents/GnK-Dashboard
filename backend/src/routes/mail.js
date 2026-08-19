@@ -341,7 +341,11 @@ router.post('/send', async (req, res) => {
       }
       const password = unlock(acct);
       const messageId = await mailbox.sendSmtp(
-        { smtpHost: acct.smtpHost, smtpPort: acct.smtpPort, email: acct.email, password },
+        {
+          imapHost: acct.imapHost, imapPort: acct.imapPort,
+          smtpHost: acct.smtpHost, smtpPort: acct.smtpPort,
+          email: acct.email, password,
+        },
         { to, cc, subject, body: text, html, attachments: parts, ...threading },
       );
       return res.json({ message: 'Email sent', messageId, from: acct.email });
