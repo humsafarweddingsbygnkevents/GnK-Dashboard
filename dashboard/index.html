@@ -3701,24 +3701,30 @@ function renderArtistResults(data) {
     el.innerHTML = `<div class="empty"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><circle cx="8" cy="15" r="5"/><circle cx="16" cy="15" r="5"/><path d="M9.5 11 12 5l2.5 6"/></svg><p>No artists found</p></div>`;
     return;
   }
-  // Card shows Name, Agency, Budget and the artist's own phone (when
-  // available) — every other field (category, place, gender, links, tech
-  // rider…) lives in the drawer only, since which fields exist at all
-  // varies by sheet/category.
-  el.innerHTML = `<div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start">${artists.map(a=>`
+  // Card shows Name, Agency, Budget and a phone to call — every other field
+  // (category, place, gender, links, tech rider…) lives in the drawer only,
+  // since which fields exist at all varies by sheet/category.
+  el.innerHTML = `<div class="grid gap-4" style="grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start">${artists.map(a=>{
+    // Card shows one call number: the artist's own phone when present,
+    // falling back to the agency's phone when it isn't — so the call icon
+    // still appears (and dials someone reachable) even for artists booked
+    // only through an agency with no direct number on file.
+    const callPhone = hasVal(a.phone) ? a.phone : a.agencyPhone;
+    return `
     <div class="hotel-card" onclick="openArtistDrawer(${a.id})">
       <div class="hotel-name">${esc(a.name)}</div>
       ${line('Agency', a.agencyName)}
-      ${line('Contact', a.phone)}
+      ${line('Contact', callPhone)}
       <div class="flex gap-2" style="flex-wrap:wrap">
         ${hasVal(a.budget)?`<span class="hotel-pill"><span class="pill-accent">₹</span>${esc(a.budget)}</span>`:''}
       </div>
       <div class="hotel-divider"></div>
       <div class="flex items-center gap-2">
         <button class="btn btn-detail" style="flex:1;justify-content:center;padding:9px;font-size:12.5px" onclick="event.stopPropagation();openArtistDrawer(${a.id})">View details</button>
-        ${hasVal(a.phone)?`<a href="tel:${esc(a.phone)}" title="Call" class="btn-icon" style="border:1px solid var(--green-200);background:var(--green-50);color:var(--green-700);flex:none" onclick="event.stopPropagation()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:''}
+        ${hasVal(callPhone)?`<a href="tel:${esc(callPhone)}" title="Call" class="btn-icon" style="border:1px solid var(--green-200);background:var(--green-50);color:var(--green-700);flex:none" onclick="event.stopPropagation()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg></a>`:''}
       </div>
-    </div>`).join('')}</div>`;
+    </div>`;
+  }).join('')}</div>`;
   // pagination
   const pg = $('artist-pagination');
   if (pg && meta.totalPages > 1) {
