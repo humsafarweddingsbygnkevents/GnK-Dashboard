@@ -7955,7 +7955,33 @@ function paintTeam(employees, att, status, absences, absMonth) {
       </div>
     </div>
 
+    ${absencesCard}
+
+    ${selectedEmp ? teamAttSheetHTML(selectedEmp, status) : ''}
+
     <div class="dash-panel" style="margin-bottom:24px">
+      <div class="dash-panel-head" style="flex-wrap:wrap;gap:10px">
+        <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance log</span>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-left:auto">
+          <select class="input" style="width:auto;min-width:160px" id="team-emp-filter" onchange="teamApplyFilters()">
+            <option value="">All employees</option>
+            ${attendanceEmployees.map(e => `<option value="${e.id}" ${String(S.teamEmpFilter) === String(e.id) ? 'selected' : ''}>${esc(e.name || e.email)}</option>`).join('')}
+          </select>
+          <input class="input" style="width:auto" type="date" id="team-from" value="${S.teamFrom || ''}" onchange="teamApplyFilters()" title="From">
+          <input class="input" style="width:auto" type="date" id="team-to" value="${S.teamTo || ''}" onchange="teamApplyFilters()" title="To">
+          <button class="btn btn-ghost btn-sm" onclick="S.teamEmpFilter='';S.teamFrom='';S.teamTo='';renderTeam()">Clear</button>
+          <button class="btn btn-primary btn-sm" onclick="attOpenEntryModal()" ${attendanceEmployees.some(e => e.active) ? '' : 'disabled'}>+ Add entry</button>
+        </div>
+      </div>
+      <div style="overflow:auto">
+        <table class="tbl">
+          <thead><tr><th>Employee</th><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th></th></tr></thead>
+          <tbody>${attRowsHTML(att, { showEmployee: true })}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="dash-panel">
       <div class="dash-panel-head">
         <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h4M15 12h4M5.5 16.5c.6-1.5 1.9-2.5 3.5-2.5s2.9 1 3.5 2.5"/></svg></span>Team accounts</span>
       </div>
@@ -7977,32 +8003,6 @@ function paintTeam(employees, att, status, absences, absMonth) {
               </td>
             </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;padding:36px;color:var(--text-3)">No accounts yet — add the first one to hand out a login code.</td></tr>'}
           </tbody>
-        </table>
-      </div>
-    </div>
-
-    ${absencesCard}
-
-    ${selectedEmp ? teamAttSheetHTML(selectedEmp, status) : ''}
-
-    <div class="dash-panel">
-      <div class="dash-panel-head" style="flex-wrap:wrap;gap:10px">
-        <span class="dash-panel-title"><span class="ph-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg></span>Attendance log</span>
-        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-left:auto">
-          <select class="input" style="width:auto;min-width:160px" id="team-emp-filter" onchange="teamApplyFilters()">
-            <option value="">All employees</option>
-            ${attendanceEmployees.map(e => `<option value="${e.id}" ${String(S.teamEmpFilter) === String(e.id) ? 'selected' : ''}>${esc(e.name || e.email)}</option>`).join('')}
-          </select>
-          <input class="input" style="width:auto" type="date" id="team-from" value="${S.teamFrom || ''}" onchange="teamApplyFilters()" title="From">
-          <input class="input" style="width:auto" type="date" id="team-to" value="${S.teamTo || ''}" onchange="teamApplyFilters()" title="To">
-          <button class="btn btn-ghost btn-sm" onclick="S.teamEmpFilter='';S.teamFrom='';S.teamTo='';renderTeam()">Clear</button>
-          <button class="btn btn-primary btn-sm" onclick="attOpenEntryModal()" ${attendanceEmployees.some(e => e.active) ? '' : 'disabled'}>+ Add entry</button>
-        </div>
-      </div>
-      <div style="overflow:auto">
-        <table class="tbl">
-          <thead><tr><th>Employee</th><th>Date</th><th>Task description</th><th>Time spent</th><th>Status</th><th></th></tr></thead>
-          <tbody>${attRowsHTML(att, { showEmployee: true })}</tbody>
         </table>
       </div>
     </div>`);
