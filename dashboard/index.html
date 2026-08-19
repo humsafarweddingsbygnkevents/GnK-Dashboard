@@ -2834,7 +2834,7 @@ function paintDashClients(clientsRes) {
         if (stay) pills.push(`<span class="cl-pill">${calSvg}${esc(stay)}</span>`);
         if (c.relationshipManager) pills.push(`<span class="cl-pill">${rmSvg}${esc(c.relationshipManager)}</span>`);
         return `
-        <div class="cl-card" style="--accent:${accent}" onclick="navigate('clients')">
+        <div class="cl-card" style="--accent:${accent}" onclick="navigate('clients');openClientDrawer(${c.id})">
           <div class="cl-avatar-ring">
             <div class="cl-avatar"><img src="/icons/businessman.png" alt=""></div>
             <span class="cl-dot" style="background:${sm.c}"></span>
@@ -3710,11 +3710,12 @@ function renderArtistResults(data) {
     // still appears (and dials someone reachable) even for artists booked
     // only through an agency with no direct number on file.
     const callPhone = hasVal(a.phone) ? a.phone : a.agencyPhone;
+    const callPhoneLabel = hasVal(a.phone) ? 'Artist Contact' : 'Agency Contact';
     return `
     <div class="hotel-card" onclick="openArtistDrawer(${a.id})">
       <div class="hotel-name">${esc(a.name)}</div>
       ${line('Agency', a.agencyName)}
-      ${line('Contact', callPhone)}
+      ${line(callPhoneLabel, callPhone)}
       <div class="flex gap-2" style="flex-wrap:wrap">
         ${hasVal(a.budget)?`<span class="hotel-pill"><span class="pill-accent">₹</span>${esc(a.budget)}</span>`:''}
       </div>
