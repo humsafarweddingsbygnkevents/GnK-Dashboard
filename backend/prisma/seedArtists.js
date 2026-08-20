@@ -24,12 +24,16 @@ const SHEET_COLUMNS = {
   'Unplugged Singer ': { name: 0, phone: 1, place: 2, agencyName: 3, agencyPhone: 4, budget: 5, peopleTraveling: 6, instagramLink: 7, driveLink: 8, techRider: 9 },
   'Male DJ': { name: 0, phone: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, budgetNote: 7, instagramLink: 8, driveLink: 9, additionalInfo: 10 },
   'Female DJ': { name: 0, phone: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, budgetNote: 7, instagramLink: 8, driveLink: 9, additionalInfo: 10 },
-  'Male Anchor ': { name: 0, phone: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, budgetNote: 7, instagramLink: 8, driveLink: 9, additionalInfo: 10 },
-  'Female Anchor': { name: 0, phone: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, budgetNote: 7, instagramLink: 8, driveLink: 9, additionalInfo: 10 },
+  // Male Anchor / Female Anchor / DJ based Band no longer carry a separate
+  // secondary-budget column — the sheet now folds all price tiers into one
+  // free-text "budget" cell, which shifts Insta/Drive/Additional Info left
+  // by one column versus the two-budget-column sheets above.
+  'Male Anchor ': { name: 0, phone: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, instagramLink: 7, driveLink: 8, additionalInfo: 9 },
+  'Female Anchor': { name: 0, phone: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, instagramLink: 7, driveLink: 8, additionalInfo: 9 },
   // Column B on this sheet is headed "Artist Number" but actually holds the
   // band's headcount (e.g. "12", "10", "8"), not a phone number — there's no
   // individual artist phone for a band, only the manager/agency number.
-  'DJ based Band': { name: 0, peopleTraveling: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, budgetNote: 7, instagramLink: 8, driveLink: 9, additionalInfo: 10 },
+  'DJ based Band': { name: 0, peopleTraveling: 1, gender: 2, place: 3, agencyName: 4, agencyPhone: 5, budget: 6, instagramLink: 7, driveLink: 8, additionalInfo: 9 },
   'Mayra Singer': { name: 0, phone: 1, place: 2, agencyName: 3, agencyPhone: 4, budget: 5, peopleTraveling: 6, instagramLink: 7, driveLink: 8, techRider: 9 },
   'Make up Artist': { name: 0, phone: 1, place: 2, budget: 3, peopleTraveling: 4, instagramLink: 5, driveLink: 6 },
 };
